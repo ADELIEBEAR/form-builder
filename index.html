@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>폼 빌더 — 스모어 스타일</title>
 <link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@300;400;500&family=Gowun+Dodum&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ════════ 리셋 & 변수 ════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -305,6 +306,11 @@ textarea.inp{resize:none;line-height:1.55}
     <div class="tb-logo" onclick="goLanding()"><div class="tb-m">✦</div><span class="tb-t">폼 빌더</span></div>
     <input class="tb-title" id="formTitle" value="이벤트 참가 신청서" placeholder="폼 제목">
     <div class="tb-right">
+      <button class="btn btn-ghost btn-sm" onclick="downloadJSON()" title="프로젝트를 파일로 백업합니다">📥 백업</button>
+      <label class="btn btn-ghost btn-sm" title="백업한 프로젝트 파일을 불러옵니다" style="cursor:pointer">
+        📤 불러오기
+        <input type="file" accept=".json" onchange="uploadJSON(event)" style="display:none">
+      </label>
       <button class="btn btn-ghost btn-sm" onclick="goLanding()">← 홈</button>
       <button class="btn btn-ghost btn-sm" onclick="pvOpen()">미리보기</button>
       <button class="btn btn-ghost btn-sm" onclick="showExport()">HTML 받기</button>
@@ -428,16 +434,17 @@ textarea.inp{resize:none;line-height:1.55}
           <div class="lsec">데이터 저장 연동</div>
           <div class="set-row">
             <span class="set-label">제출된 응답을 어디로 받을까요?</span>
-            <button class="btn-google" id="btnGoogle" onclick="mockGoogleLogin()">
+            <button class="btn-google" id="btnGoogle" onclick="realGoogleLogin()">
               <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               구글 로그인하여 시트 연동
             </button>
             <div id="googleStatus" style="font-size:12px; color:var(--grn); background:rgba(74,222,128,.1); border:1px solid rgba(74,222,128,.2); padding:10px; border-radius:8px; margin-top:8px; display:none; line-height:1.5;">
-              ✅ <b>연동 완료</b><br>응답이 생성된 시트로 자동 전송됩니다.
+              ✅ <b>연동 완료</b><br><span id="googleUserEmail" style="color:var(--tx)"></span> 계정으로 인증되었습니다.
             </div>
-            <button class="btn btn-ghost btn-sm" id="btnDisconnect" style="display:none; margin-top:6px; width:100%; justify-content:center;" onclick="mockGoogleLogout()">연동 해제</button>
+            <button class="btn btn-ghost btn-sm" id="btnDisconnect" style="display:none; margin-top:6px; width:100%; justify-content:center;" onclick="realGoogleLogout()">연동 해제</button>
           </div>
-          </div>
+
+        </div>
 
       </div>
     </div>
@@ -504,7 +511,7 @@ textarea.inp{resize:none;line-height:1.55}
 <div class="mbg" id="exportModal">
   <div class="modal">
     <h3>🎉 HTML 내보내기</h3>
-    <p>코드를 복사하거나 파일로 다운로드하세요.<br>이 HTML 파일은 응답을 회원님의 API(Supabase)를 거쳐 구글 시트로 안전하게 전송합니다.</p>
+    <p>이 HTML 파일은 응답을 회원님의 API(Supabase)를 거쳐 구글 시트로 안전하게 전송합니다.</p>
     <div class="codebox" id="codeBox"></div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal()">닫기</button>
@@ -517,15 +524,79 @@ textarea.inp{resize:none;line-height:1.55}
 
 <script>
 /* ══════════════════════════════════════
-   상태
+   ⭐️ 실제 Supabase 초기화 및 구글 로그인 처리
+══════════════════════════════════════ */
+// 주의: 아래 URL과 KEY를 넷리파이 환경변수에 세팅했던 본인의 정보로 변경해주세요!
+const SUPABASE_URL = 'VITE_SUPABASE_URL_여기에_입력'; 
+const SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY_여기에_입력';
+
+let supabase = null;
+if(SUPABASE_URL.startsWith('http')) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+let isGoogleConnected = false;
+let connectedFormId = 'form_' + Math.random().toString(36).substr(2, 9); // 임시 폼 식별자
+
+// 로그인 버튼 클릭 시 실행
+async function realGoogleLogin() {
+  if(!supabase) {
+    showToast('❌ 소스코드 하단의 SUPABASE_URL을 먼저 입력해주세요!', 'fail');
+    return;
+  }
+  
+  const btn = document.getElementById('btnGoogle');
+  btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></span> 연동 창 띄우는 중...`;
+
+  // 구글 OAuth 로그인 호출 (스프레드시트 쓰기 권한 요청)
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      scopes: 'https://www.googleapis.com/auth/spreadsheets',
+      redirectTo: window.location.origin
+    }
+  });
+
+  if (error) {
+    showToast('구글 로그인 호출 실패: ' + error.message, 'fail');
+    btn.innerHTML = '구글 로그인하여 시트 연동';
+  }
+}
+
+// 로그아웃 (연동 해제)
+async function realGoogleLogout() {
+  if(supabase) await supabase.auth.signOut();
+  isGoogleConnected = false;
+  document.getElementById('btnGoogle').style.display = 'flex';
+  document.getElementById('btnGoogle').innerHTML = `<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> 구글 로그인하여 시트 연동`;
+  document.getElementById('googleStatus').style.display = 'none';
+  document.getElementById('btnDisconnect').style.display = 'none';
+  showToast('구글 연동이 해제되었습니다.', 'info');
+  debPv();
+}
+
+// 페이지 로드 시 로그인 세션 체크
+if(supabase) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session && session.provider_token) {
+      isGoogleConnected = true;
+      document.getElementById('btnGoogle').style.display = 'none';
+      document.getElementById('googleStatus').style.display = 'block';
+      document.getElementById('googleUserEmail').textContent = session.user.email;
+      document.getElementById('btnDisconnect').style.display = 'flex';
+      debPv(); // 미리보기 갱신 (제출 주소 변경)
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   기본 UI 상태 및 로직
 ══════════════════════════════════════ */
 let qs = [], uid = 0, dragSrc = null;
 let theme = { c1:'#7c6cfc', c2:'#c084fc' };
 let animType = 0;
 let coverImgData = null;
 let qImgData = {};
-let isGoogleConnected = false; // 구글 연동 상태 변수
-let connectedFormId = 'form_' + Math.random().toString(36).substr(2, 9); // 임시 폼 ID
 
 const CFG = { start:true, loading:true, back:true, auto:false, confetti:true, kb:true };
 const TL = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' };
@@ -555,42 +626,6 @@ const TEMPLATES = {
   ]},
 };
 
-/* ══ 구글 로그인 더미 연동 함수 ══ */
-/* 실제 구현 시 이 부분에 Supabase Auth 로직이 들어갑니다.
-  ex) const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { scopes: 'https://www.googleapis.com/auth/spreadsheets' }
-      });
-*/
-function mockGoogleLogin() {
-  // 연동 팝업창 효과 시뮬레이션
-  const btn = document.getElementById('btnGoogle');
-  btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></span> 연동 중...`;
-  
-  setTimeout(() => {
-    isGoogleConnected = true;
-    btn.style.display = 'none';
-    document.getElementById('googleStatus').style.display = 'block';
-    document.getElementById('btnDisconnect').style.display = 'flex';
-    showToast('✅ 구글 시트와 성공적으로 연동되었습니다!', 'ok');
-    saveLocal(); // 연동 상태 저장
-    debPv(); // 미리보기 업데이트 (제출 URL 변경됨)
-  }, 1200);
-}
-
-function mockGoogleLogout() {
-  isGoogleConnected = false;
-  document.getElementById('btnGoogle').style.display = 'flex';
-  document.getElementById('btnGoogle').innerHTML = `<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> 구글 로그인하여 시트 연동`;
-  document.getElementById('googleStatus').style.display = 'none';
-  document.getElementById('btnDisconnect').style.display = 'none';
-  showToast('구글 연동이 해제되었습니다.', 'info');
-  saveLocal();
-  debPv();
-}
-
-
-/* ══ 페이지 전환 ══ */
 function goBuilder(tpl) {
   document.getElementById('pgLand').classList.remove('on');
   document.getElementById('pgBuilder').classList.add('on');
@@ -603,8 +638,6 @@ function goLanding() {
   document.getElementById('pgLand').classList.add('on');
   document.body.style.overflow = '';
 }
-
-/* ══ 탬플릿 ══ */
 function loadTpl(tpl) {
   const t = TEMPLATES[tpl]; if (!t) return;
   document.getElementById('formTitle').value = t.title;
@@ -613,16 +646,12 @@ function loadTpl(tpl) {
   t.qs.forEach(q => qs.push({...q, id:++uid, options:[...(q.options||[])], legalText: q.legalText || (q.type==='legal'?'[개인정보 수집 및 이용 안내]\n\n수집 항목: 성명, 연락처\n수집 목적: 서비스 안내\n보유 기간: 30일':'') }));
   renderEditor();
 }
-
-/* ══ 왼쪽 탭 ══ */
 function switchLTab(i, el) {
   document.querySelectorAll('.l-tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.l-tab-panel').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('lt'+i).classList.add('on');
 }
-
-/* ══ 설정 토글 ══ */
 function toggleSetting(key, btn) {
   CFG[key] = !CFG[key];
   btn.classList.toggle('on', CFG[key]);
@@ -632,22 +661,16 @@ function toggleSetting(key, btn) {
   }
   debPv();
 }
-
-/* ══ 테마 ══ */
 function setTheme(c1,c2,el) {
   theme={c1,c2};
   document.querySelectorAll('.tdot').forEach(d=>d.classList.remove('on'));
   el.classList.add('on'); debPv();
 }
-
-/* ══ 애니메이션 타입 ══ */
 function setAnim(n, el) {
   animType = n;
   document.querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('on'));
   el.classList.add('on'); debPv();
 }
-
-/* ══ 커버 이미지 ══ */
 function onCoverImg(e) {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
@@ -660,8 +683,6 @@ function onCoverImg(e) {
   };
   r.readAsDataURL(f);
 }
-
-/* ══ 시작화면 에디터 동기화 ══ */
 function syncStart() {
   document.getElementById('preStartTag').textContent = document.getElementById('startTag').value || '✦ Form';
   document.getElementById('preStartDesc').textContent = document.getElementById('startDesc').value;
@@ -673,7 +694,6 @@ document.getElementById('formTitle').addEventListener('input', e => {
   debPv();
 });
 
-/* ══ 질문 CRUD ══ */
 function addQ(type) {
   const q = {
     id:++uid, type, label:'', hint:'', required:true, other:false,
@@ -712,7 +732,6 @@ function delQImg(id) {
   document.getElementById('qimgel-'+id).src=''; debPv();
 }
 
-/* ══ 에디터 렌더 ══ */
 function renderEditor() {
   const ed=document.getElementById('editor');
   const em=document.getElementById('emptyState');
@@ -785,36 +804,26 @@ function renderPv(q) {
   return '';
 }
 
-/* ══ 미리보기 ══ */
 let pvTimer=null;
 function debPv(){clearTimeout(pvTimer);pvTimer=setTimeout(updatePreview,300)}
-
 function updatePreview() {
   const iframe=document.getElementById('pvIframe');
   if(!iframe)return;
   iframe.srcdoc=genHTML();
 }
-
-function setPvTab(mode,el) {
-  document.querySelectorAll('.rptab').forEach(t=>t.classList.remove('on')); el.classList.add('on');
-  document.getElementById('pvIframe').className = mode==='d'?'desktop':'';
-}
-
 function pvOpen() {
   const w=window.open('','_blank'); w.document.write(genHTML()); w.document.close();
 }
 
-/* ══ 로컬 저장 ══ */
 function saveLocal() {
   const data = { title:document.getElementById('formTitle').value, qs, theme, animType, CFG, coverImgData,
     startTag:document.getElementById('startTag').value, startBtn:document.getElementById('startBtn').value,
     startDesc:document.getElementById('startDesc').value, doneTitle:document.getElementById('doneTitle').value,
     doneDesc:document.getElementById('doneDesc').value, doneCta:document.getElementById('doneCta').value,
-    doneUrl:document.getElementById('doneUrl').value, 
-    isGoogleConnected, connectedFormId, // 연동 데이터 추가 저장
+    doneUrl:document.getElementById('doneUrl').value,
     loadingText:document.getElementById('loadingText').value, loadingDelay:document.getElementById('loadingDelay').value,
     fontSel:document.getElementById('fontSel').value };
-  try { localStorage.setItem('fb_save', JSON.stringify(data)); showToast('💾 저장되었습니다!','ok'); } catch(e) { showToast('저장 실패 (데이터가 너무 큽니다)','fail'); }
+  try { localStorage.setItem('fb_save', JSON.stringify(data)); showToast('💾 브라우저에 임시 저장되었습니다!','ok'); } catch(e) { showToast('저장 실패 (데이터가 너무 큽니다)','fail'); }
 }
 
 function loadLocal() {
@@ -826,15 +835,6 @@ function loadLocal() {
     qs=d.qs||[]; theme=d.theme||theme; animType=d.animType||0;
     if(d.CFG)Object.assign(CFG,d.CFG);
     if(d.coverImgData){coverImgData=d.coverImgData;const p=document.getElementById('startCoverPreview');p.src=coverImgData;p.classList.add('show');document.getElementById('startCoverArea').style.display='none';}
-    
-    // 복원 시 상태값 적용
-    isGoogleConnected = d.isGoogleConnected || false;
-    connectedFormId = d.connectedFormId || connectedFormId;
-    if(isGoogleConnected) {
-       document.getElementById('btnGoogle').style.display = 'none';
-       document.getElementById('googleStatus').style.display = 'block';
-       document.getElementById('btnDisconnect').style.display = 'flex';
-    }
 
     ['startTag','startBtn','startDesc','doneTitle','doneDesc','doneCta','doneUrl','loadingText','fontSel'].forEach(id=>{if(d[id]!==undefined)document.getElementById(id).value=d[id];});
     document.getElementById('loadingDelay').value=d.loadingDelay||'1800';
@@ -843,7 +843,7 @@ function loadLocal() {
 }
 
 /* ══════════════════════════════════════
-   HTML 생성 (완전판)
+   HTML 생성 (Supabase Edge Function으로 제출 연결)
 ══════════════════════════════════════ */
 function genHTML() {
   const title = document.getElementById('formTitle').value || '폼';
@@ -859,11 +859,10 @@ function genHTML() {
   const fontFamily = document.getElementById('fontSel').value;
   const TOTAL = qs.length;
 
-  // ⭐️ 핵심 변경점: 제출 URL을 Apps Script가 아닌, 본인의 Supabase Edge Function URL로 향하게 합니다.
-  // 폼 식별자(formId)를 파라미터로 넘겨, 서버단에서 어떤 시트에 저장해야 할지 알 수 있도록 합니다.
-  const scriptUrl = isGoogleConnected 
-      ? `https://본인_SUPABASE_주소.supabase.co/functions/v1/submit-form?formId=${connectedFormId}` 
-      : 'https://echo-api.vercel.app/api'; // 테스트용 에코 API
+  // ⭐️ 핵심: 구글 로그인이 되었다면, 제출 URL을 본인의 Supabase Edge Function URL로 향하게 합니다.
+  const scriptUrl = isGoogleConnected && SUPABASE_URL.startsWith('http')
+      ? `${SUPABASE_URL}/functions/v1/submit-form?formId=${connectedFormId}` 
+      : 'https://echo-api.vercel.app/api'; // 미연동 시 테스트용 API
 
   if(!TOTAL) return `<html><body style="background:#0e0e14;color:#7a788f;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;text-align:center">질문을 추가해주세요.</body></html>`;
 
@@ -1117,19 +1116,40 @@ function vld(s){
   }
   return true;
 }
+
+// ⭐️ 데이터 전송 로직 (Supabase API로 안전하게 전송)
 async function sub(){
   if(anim)return;if(!vld(${TOTAL-1}))return;
   const btn=document.getElementById('sb');btn.classList.add('ld2');btn.disabled=true;
   ans._ts=new Date().toLocaleString('ko-KR');
-  try{
-    await fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});
+  
+  try {
+    const formData = new FormData();
+    for (let k in ans) formData.append(k, ans[k]);
+    
+    // Supabase 연결 안 됐을 때를 위한 처리
+    if(SU.includes('echo-api')) {
+      await fetch(SU, { method: 'POST', mode: 'no-cors', body: formData });
+    } else {
+      // Supabase Edge Function으로 POST 전송
+      await fetch(SU, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ans) 
+      });
+    }
+    
     const dn=document.getElementById('dn');if(dn&&ans['${esc2(qs.find(q=>q.type==='short')?.label||'')}'])dn.textContent=ans['${esc2(qs.find(q=>q.type==='short')?.label||'')}']+', ';
     document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';document.getElementById('kh').style.opacity='0';
     go(${TOTAL-1},TOTAL,'n');document.getElementById('pf').style.width='100%';cur=TOTAL;
     ${CFG.confetti?'setTimeout(cf,420);':''}
     tst('✅ 신청이 완료되었습니다!','ok');
-  }catch(e){btn.classList.remove('ld2');btn.disabled=false;tst('❌ 오류가 발생했습니다.','fail');}
+  } catch(e) {
+    btn.classList.remove('ld2');btn.disabled=false;
+    tst('❌ 전송 오류. 연결 상태를 확인해주세요.','fail');
+  }
 }
+
 function rst(){
   document.querySelectorAll('input').forEach(el=>el.value='');
   document.querySelectorAll('textarea').forEach(el=>el.value='');
@@ -1148,23 +1168,68 @@ setTimeout(()=>document.getElementById('kh').style.opacity='0',5000);
 <\/script></body></html>`;
 }
 
-/* ══ 유틸 ══ */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function esc2(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 
-/* ══ 내보내기 ══ */
 function showExport(){document.getElementById('codeBox').textContent=genHTML();document.getElementById('exportModal').classList.add('on')}
 function closeModal(){document.getElementById('exportModal').classList.remove('on')}
 function copyCode(){navigator.clipboard.writeText(document.getElementById('codeBox').textContent).then(()=>showToast('✅ 복사 완료!','ok'))}
 function dlHTML(){const t=document.getElementById('formTitle').value||'폼';const a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(genHTML());a.download=t.replace(/\s+/g,'-')+'.html';a.click();showToast('✅ 다운로드 완료!','ok')}
 document.getElementById('exportModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
-
 function showToast(m,t){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000)}
-
-/* ══ 미리보기 탭 ══ */
 function setPvTab(mode,el){document.querySelectorAll('.rptab').forEach(t=>t.classList.remove('on'));el.classList.add('on');document.getElementById('pvIframe').className=mode==='d'?'desktop':''}
 
-/* ══ 초기화 ══ */
+/* ══ 폼 데이터 파일(JSON) 백업 & 불러오기 기능 ══ */
+function downloadJSON() {
+  const data = { title:document.getElementById('formTitle').value, qs, theme, animType, CFG, coverImgData,
+    startTag:document.getElementById('startTag').value, startBtn:document.getElementById('startBtn').value,
+    startDesc:document.getElementById('startDesc').value, doneTitle:document.getElementById('doneTitle').value,
+    doneDesc:document.getElementById('doneDesc').value, doneCta:document.getElementById('doneCta').value,
+    doneUrl:document.getElementById('doneUrl').value,
+    loadingText:document.getElementById('loadingText').value, loadingDelay:document.getElementById('loadingDelay').value,
+    fontSel:document.getElementById('fontSel').value };
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+  a.download = (data.title || 'form_backup') + '.json';
+  a.click();
+  showToast('✅ 프로젝트 파일이 다운로드 되었습니다!', 'ok');
+}
+
+function uploadJSON(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      localStorage.setItem('fb_save', JSON.stringify(d));
+      loadLocal();
+      showToast('✅ 프로젝트를 성공적으로 불러왔습니다!', 'ok');
+    } catch(err) {
+      showToast('❌ 잘못된 백업 파일입니다.', 'fail');
+    }
+    e.target.value = '';
+  };
+  r.readAsText(f);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tbRight = document.querySelector('.tb-right');
+  const btnWrap = document.createElement('div');
+  btnWrap.style.display = 'flex';
+  btnWrap.style.gap = '4px';
+  btnWrap.style.marginRight = '6px';
+  btnWrap.style.borderRight = '1px solid var(--b1)';
+  btnWrap.style.paddingRight = '10px';
+  btnWrap.innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="downloadJSON()" title="프로젝트를 파일로 백업합니다">📥 백업</button>
+    <label class="btn btn-ghost btn-sm" title="백업한 프로젝트 파일을 불러옵니다" style="cursor:pointer">
+      📤 불러오기
+      <input type="file" accept=".json" onchange="uploadJSON(event)" style="display:none">
+    </label>
+  `;
+  tbRight.insertBefore(btnWrap, tbRight.firstChild);
+});
+
 renderEditor();
 loadLocal();
 updatePreview();
