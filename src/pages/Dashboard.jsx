@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, signOut } from '../lib/supabase'
+import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../lib/supabase'
 import styles from './Dashboard.module.css'
 
 export default function Dashboard() {
@@ -10,20 +10,16 @@ export default function Dashboard() {
   const [forms, setForms] = useState([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState(null)
+  const [publishing, setPublishing] = useState({})
 
-  useEffect(() => {
-    loadForms()
-  }, [user])
+  useEffect(() => { loadForms() }, [user])
 
   async function loadForms() {
     try {
       const data = await getForms(user.id)
       setForms(data || [])
-    } catch (e) {
-      showToast('폼을 불러오는 데 실패했습니다.', 'fail')
-    } finally {
-      setLoading(false)
-    }
+    } catch { showToast('폼을 불러오는 데 실패했습니다.', 'fail') }
+    finally { setLoading(false) }
   }
 
   async function handleDelete(formId, e) {
@@ -33,14 +29,31 @@ export default function Dashboard() {
       await deleteForm(formId)
       setForms(prev => prev.filter(f => f.id !== formId))
       showToast('폼이 삭제되었습니다.', 'ok')
-    } catch {
-      showToast('삭제 중 오류가 발생했습니다.', 'fail')
-    }
+    } catch { showToast('삭제 중 오류가 발생했습니다.', 'fail') }
   }
 
-  async function handleLogout() {
-    await signOut()
-    navigate('/')
+  async function handlePublish(form, e) {
+    e.stopPropagation()
+    setPublishing(prev => ({ ...prev, [form.id]: true }))
+    try {
+      if (form.is_published) {
+        await unpublishForm(form.id)
+        setForms(prev => prev.map(f => f.id === form.id ? { ...f, is_published: false } : f))
+        showToast('폼이 비공개로 변경되었습니다.', 'ok')
+      } else {
+        const updated = await publishForm(form.id, form.title)
+        setForms(prev => prev.map(f => f.id === form.id ? { ...f, ...updated } : f))
+        showToast('🎉 폼이 공개되었습니다!', 'ok')
+      }
+    } catch { showToast('오류가 발생했습니다.', 'fail') }
+    finally { setPublishing(prev => ({ ...prev, [form.id]: false })) }
+  }
+
+  function copyShareLink(form, e) {
+    e.stopPropagation()
+    const url = `${window.location.origin}/f/${form.slug}`
+    navigator.clipboard.writeText(url)
+    showToast('✅ 링크 복사 완료!', 'ok')
   }
 
   function showToast(msg, type) {
@@ -48,13 +61,12 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  function formatDate(d) {
+    return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
   return (
     <div className={styles.wrap}>
-      {/* 상단바 */}
       <header className={styles.header}>
         <div className={styles.headerLeft} onClick={() => navigate('/')} style={{ cursor:'pointer' }}>
           <div className={styles.mark}>✦</div>
@@ -62,82 +74,73 @@ export default function Dashboard() {
         </div>
         <div className={styles.headerRight}>
           <div className={styles.userInfo}>
-            {user?.user_metadata?.avatar_url && (
-              <img src={user.user_metadata.avatar_url} alt="" className={styles.avatar} />
-            )}
+            {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="" className={styles.avatar} />}
             <span className={styles.userName}>{user?.user_metadata?.full_name || user?.email}</span>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={handleLogout}>로그아웃</button>
+          <button className="btn btn-ghost btn-sm" onClick={async () => { await signOut(); navigate('/') }}>로그아웃</button>
         </div>
       </header>
 
       <main className={styles.main}>
-        {/* 타이틀 + 새 폼 버튼 */}
         <div className={styles.topRow}>
           <div>
             <h1 className={styles.pageTitle}>내 폼</h1>
             <p className={styles.pageSub}>총 {forms.length}개의 폼</p>
           </div>
           <button className="btn btn-primary" onClick={() => navigate('/builder')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
             새 폼 만들기
           </button>
         </div>
 
-        {/* 폼 목록 */}
         {loading ? (
-          <div className={styles.loadingWrap}>
-            <div className={styles.spinner}></div>
-            <span>불러오는 중...</span>
-          </div>
+          <div className={styles.loadingWrap}><div className={styles.spinner}></div><span>불러오는 중...</span></div>
         ) : forms.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIco}>✦</div>
             <h2>아직 만든 폼이 없어요</h2>
-            <p>새 폼을 만들어 참가신청을 시작해보세요!</p>
-            <button className="btn btn-primary" style={{ marginTop:'16px' }} onClick={() => navigate('/builder')}>
-              첫 번째 폼 만들기
-            </button>
+            <p>새 폼을 만들어보세요!</p>
+            <button className="btn btn-primary" style={{ marginTop:16 }} onClick={() => navigate('/builder')}>첫 번째 폼 만들기</button>
           </div>
         ) : (
           <div className={styles.grid}>
-            {/* 새 폼 카드 */}
             <div className={styles.newCard} onClick={() => navigate('/builder')}>
               <div className={styles.newCardIco}>+</div>
               <span>새 폼 만들기</span>
             </div>
-
-            {/* 기존 폼들 */}
             {forms.map(form => (
-              <div
-                key={form.id}
-                className={styles.formCard}
-                onClick={() => navigate(`/builder/${form.id}`)}
-              >
-                {/* 색상 프리뷰 */}
-                <div
-                  className={styles.formCardTop}
-                  style={{ background: `linear-gradient(135deg, ${form.theme_c1}, ${form.theme_c2})` }}
-                >
+              <div key={form.id} className={styles.formCard} onClick={() => navigate(`/builder/${form.id}`)}>
+                <div className={styles.formCardTop} style={{ background:`linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
                   <div className={styles.formCardTopOverlay}>
                     <span className={styles.qCount}>{form.questions?.length || 0}개 질문</span>
+                    {form.is_published && <span className={styles.pubBadge}>● 공개중</span>}
                   </div>
                 </div>
-
                 <div className={styles.formCardBody}>
                   <h3 className={styles.formTitle}>{form.title || '제목 없음'}</h3>
                   <span className={styles.formDate}>{formatDate(form.updated_at)}</span>
                 </div>
-
                 <div className={styles.formCardActions}>
+                  {/* 응답 보기 */}
+                  <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); navigate(`/responses/${form.id}`) }}>
+                    📊 응답
+                  </button>
+                  {/* 공유 링크 복사 */}
+                  {form.is_published && (
+                    <button className="btn btn-ghost btn-sm" onClick={e => copyShareLink(form, e)}>
+                      🔗 링크
+                    </button>
+                  )}
+                  {/* 발행 / 비공개 */}
                   <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={(e) => { e.stopPropagation(); navigate(`/builder/${form.id}`) }}
-                  >편집</button>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={(e) => handleDelete(form.id, e)}
-                  >삭제</button>
+                    className={`btn btn-sm ${form.is_published ? 'btn-ghost' : 'btn-primary'}`}
+                    onClick={e => handlePublish(form, e)}
+                    disabled={publishing[form.id]}
+                  >
+                    {publishing[form.id] ? '...' : form.is_published ? '비공개' : '🚀 발행'}
+                  </button>
+                  {/* 삭제 */}
+                  <button className="btn btn-sm" style={{ background:'rgba(248,113,113,.1)', color:'#f87171', border:'1px solid rgba(248,113,113,.2)' }} onClick={e => handleDelete(form.id, e)}>삭제</button>
                 </div>
               </div>
             ))}
@@ -145,10 +148,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* 토스트 */}
-      {toast && (
-        <div className={`toast-wrap show ${toast.type}`}>{toast.msg}</div>
-      )}
+      {toast && <div className={`toast-wrap show ${toast.type}`}>{toast.msg}</div>}
     </div>
   )
 }

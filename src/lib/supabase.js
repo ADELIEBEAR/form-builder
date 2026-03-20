@@ -90,3 +90,61 @@ export async function deleteForm(formId) {
     .eq('id', formId)
   if (error) throw error
 }
+
+// 폼 발행 (slug 생성 + is_published = true)
+export async function publishForm(formId, title) {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 40) + '-' + Math.random().toString(36).slice(2, 7)
+
+  const { data, error } = await supabase
+    .from('forms')
+    .update({ is_published: true, slug, updated_at: new Date().toISOString() })
+    .eq('id', formId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// 폼 비공개
+export async function unpublishForm(formId) {
+  const { error } = await supabase
+    .from('forms')
+    .update({ is_published: false, updated_at: new Date().toISOString() })
+    .eq('id', formId)
+  if (error) throw error
+}
+
+// slug로 공개 폼 가져오기 (로그인 없이)
+export async function getFormBySlug(slug) {
+  const { data, error } = await supabase
+    .from('forms')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_published', true)
+    .single()
+  if (error) throw error
+  return data
+}
+
+// 응답 제출 (로그인 없이)
+export async function submitResponse(formId, answers) {
+  const { error } = await supabase
+    .from('responses')
+    .insert({ form_id: formId, answers })
+  if (error) throw error
+}
+
+// 응답 목록 가져오기 (폼 주인만)
+export async function getResponses(formId) {
+  const { data, error } = await supabase
+    .from('responses')
+    .select('*')
+    .eq('form_id', formId)
+    .order('submitted_at', { ascending: false })
+  if (error) throw error
+  return data
+}
