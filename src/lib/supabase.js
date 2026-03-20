@@ -11,6 +11,8 @@ export async function signInWithGoogle() {
     provider: 'google',
     options: {
       redirectTo: window.location.origin + '/dashboard',
+      scopes: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+      queryParams: { access_type: 'offline', prompt: 'consent' },
     },
   })
   if (error) throw error
@@ -147,4 +149,46 @@ export async function getResponses(formId) {
     .order('submitted_at', { ascending: false })
   if (error) throw error
   return data
+}
+
+// 구글 토큰 저장
+export async function saveGoogleToken(userId, accessToken, refreshToken) {
+  const { error } = await supabase
+    .from('google_tokens')
+    .upsert({ user_id: userId, access_token: accessToken, refresh_token: refreshToken, updated_at: new Date().toISOString() })
+  if (error) throw error
+}
+
+// 구글 시트 생성 + 폼에 연결
+export async function connectGoogleSheet(formId, title, accessToken) {
+  // 1. 새 시트 생성
+  const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ properties: { title: `${title} - 응답` } })
+  })
+  if (!createRes.ok) throw new Error('시트 생성 실패')
+  const sheet = await createRes.json()
+  const sheetId = sheet.spreadsheetId
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`
+
+  // 2. 헤더 행 추가는 첫 응답 때 자동으로 처리
+
+  // 3. 폼에 sheet_id 저장
+  const { error } = await supabase
+    .from('forms')
+    .update({ sheet_id: sheetId, sheet_url: sheetUrl, updated_at: new Date().toISOString() })
+    .eq('id', formId)
+  if (error) throw error
+
+  return { sheetId, sheetUrl }
+}
+
+// 시트 연결 해제
+export async function disconnectSheet(formId) {
+  const { error } = await supabase
+    .from('forms')
+    .update({ sheet_id: null, sheet_url: null })
+    .eq('id', formId)
+  if (error) throw error
 }

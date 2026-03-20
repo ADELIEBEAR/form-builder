@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../lib/supabase'
+import { getForms, deleteForm, publishForm, unpublishForm, signOut, connectGoogleSheet, disconnectSheet } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
+import { createAndConnectSheet } from '../lib/googleSheets'
 import styles from './Dashboard.module.css'
 
 export default function Dashboard() {
@@ -12,7 +14,26 @@ export default function Dashboard() {
   const [toast, setToast] = useState(null)
   const [publishing, setPublishing] = useState({})
 
-  useEffect(() => { loadForms() }, [user])
+  useEffect(() => {
+    loadForms()
+    // 구글 토큰 저장 (시트 연동용)
+    saveGoogleToken()
+  }, [user])
+
+  async function saveGoogleToken() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.provider_token || !user) return
+      await supabase.from('google_tokens').upsert({
+        user_id: user.id,
+        access_token: session.provider_token,
+        refresh_token: session.provider_refresh_token || '',
+        updated_at: new Date().toISOString()
+      })
+    } catch (e) {
+      console.log('토큰 저장 실패:', e)
+    }
+  }
 
   async function loadForms() {
     try {
@@ -54,6 +75,33 @@ export default function Dashboard() {
     const url = `${window.location.origin}/f/${form.slug}`
     navigator.clipboard.writeText(url)
     showToast('✅ 링크 복사 완료!', 'ok')
+  }
+
+  
+  async function handleSheetConnect(form, e) {
+    e.stopPropagation()
+    try {
+      showToast('⏳ 구글 계정 선택 중...', 'info')
+      const { sheetId, sheetUrl } = await createAndConnectSheet(form.id, form.title)
+      // Supabase에 sheet_id, sheet_url 저장
+      const { supabase: sb } = await import('../lib/supabase')
+      await supabase.from('forms').update({ sheet_id: sheetId, sheet_url: sheetUrl }).eq('id', form.id)
+      setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_id: sheetId, sheet_url: sheetUrl } : f))
+      showToast('✅ 구글 시트 연결 완료!', 'ok')
+      window.open(sheetUrl, '_blank')
+    } catch (err) {
+      if (err.message !== 'popup_closed_by_user') {
+        showToast('시트 연결 실패: ' + err.message, 'fail')
+      }
+    }
+  }
+
+  async function handleSheetDisconnect(form, e) {
+    e.stopPropagation()
+    if (!confirm('시트 연결을 해제할까요?')) return
+    await disconnectSheet(form.id)
+    setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_url: null, sheet_id: null } : f))
+    showToast('시트 연결이 해제되었습니다.', 'ok')
   }
 
   function showToast(msg, type) {
@@ -139,6 +187,11 @@ export default function Dashboard() {
                   >
                     {publishing[form.id] ? '...' : form.is_published ? '비공개' : '🚀 발행'}
                   </button>
+                  {/* 구글 시트 연결 */}
+                  {form.sheet_url
+                    ? <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>📊 시트</button>
+                    : <button className="btn btn-ghost btn-sm" onClick={e => handleSheetConnect(form, e)}>🔗 시트 연결</button>
+                  }
                   {/* 삭제 */}
                   <button className="btn btn-sm" style={{ background:'rgba(248,113,113,.1)', color:'#f87171', border:'1px solid rgba(248,113,113,.2)' }} onClick={e => handleDelete(form.id, e)}>삭제</button>
                 </div>
