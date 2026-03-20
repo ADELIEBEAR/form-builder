@@ -527,8 +527,9 @@ textarea.inp{resize:none;line-height:1.55}
    ⭐️ 실제 Supabase 초기화 및 구글 로그인 처리
 ══════════════════════════════════════ */
 // 주의: 아래 URL과 KEY를 넷리파이 환경변수에 세팅했던 본인의 정보로 변경해주세요!
-const SUPABASE_URL = 'VITE_SUPABASE_URL_여기에_입력'; 
-const SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY_여기에_입력';
+const SUPABASE_URL = https://ncvjuwkfjcqktcwyphew.supabase.co'; 
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdmp1d2tmamNxa3Rjd3lwaGV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5OTY2NjAsImV4cCI6MjA4OTU3MjY2MH0.o38rmc86osbdQtC3KLosbkNwZDjHKswyHlqfsWtNZFM
+';
 
 let supabase = null;
 if(SUPABASE_URL.startsWith('http')) {
