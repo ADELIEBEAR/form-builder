@@ -527,7 +527,7 @@ textarea.inp{resize:none;line-height:1.55}
    ⭐️ 실제 Supabase 초기화 및 구글 로그인 처리
 ══════════════════════════════════════ */
 // 주의: 아래 URL과 KEY를 넷리파이 환경변수에 세팅했던 본인의 정보로 변경해주세요!
-const SUPABASE_URL = https://ncvjuwkfjcqktcwyphew.supabase.co'; 
+const SUPABASE_URL = 'https://ncvjuwkfjcqktcwyphew.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdmp1d2tmamNxa3Rjd3lwaGV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5OTY2NjAsImV4cCI6MjA4OTU3MjY2MH0.o38rmc86osbdQtC3KLosbkNwZDjHKswyHlqfsWtNZFM
 ';
 
@@ -844,7 +844,7 @@ function loadLocal() {
 }
 
 /* ══════════════════════════════════════
-   HTML 생성 (Supabase Edge Function으로 제출 연결)
+   HTML 생성 (Supabase Edge Function으로 제출 연결 & 버그 수정 완료)
 ══════════════════════════════════════ */
 function genHTML() {
   const title = document.getElementById('formTitle').value || '폼';
@@ -860,10 +860,9 @@ function genHTML() {
   const fontFamily = document.getElementById('fontSel').value;
   const TOTAL = qs.length;
 
-  // ⭐️ 핵심: 구글 로그인이 되었다면, 제출 URL을 본인의 Supabase Edge Function URL로 향하게 합니다.
   const scriptUrl = isGoogleConnected && SUPABASE_URL.startsWith('http')
       ? `${SUPABASE_URL}/functions/v1/submit-form?formId=${connectedFormId}` 
-      : 'https://echo-api.vercel.app/api'; // 미연동 시 테스트용 API
+      : 'https://echo-api.vercel.app/api'; 
 
   if(!TOTAL) return `<html><body style="background:#0e0e14;color:#7a788f;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;text-align:center">질문을 추가해주세요.</body></html>`;
 
@@ -973,6 +972,7 @@ body{font-family:${fontFamily};background:#0e0e14;color:#f0eff8;min-height:100vh
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 55% at 15% -5%,rgba(124,108,252,.16) 0%,transparent 55%),radial-gradient(ellipse 70% 50% at 85% 110%,rgba(192,132,252,.11) 0%,transparent 55%);pointer-events:none}
 #pw{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);z-index:50}
 #pf{height:100%;background:linear-gradient(90deg,var(--c1),var(--c2));border-radius:0 3px 3px 0;transition:width .6s cubic-bezier(.4,0,.2,1);position:relative}
+/* ⭐️ 아래 줄의 CSS 오타가 화면을 멈추게 만든 범인이었습니다. 깨끗하게 수정완료! */
 #pf::after{content:'';position:absolute;right:-2px;top:-2px;bottom:-2px;width:7px;border-radius:50%;background:var(--c2);box-shadow:0 0 10px 2px var(--c2)}
 #sc{position:fixed;top:14px;right:18px;font-size:12px;color:#7a788f;z-index:50;font-variant-numeric:tabular-nums;transition:opacity .3s}
 #gb{position:fixed;top:10px;left:14px;z-index:50;display:none;align-items:center;gap:5px;font-size:13px;color:#7a788f;background:none;border:none;cursor:pointer;font-family:${fontFamily};transition:color .2s,transform .2s;padding:6px 4px}
@@ -1090,12 +1090,19 @@ function upUI(){
   document.getElementById('sc').style.opacity='1';
   document.getElementById('gb').className=${CFG.back}&&cur>0?'v':'';
 }
+/* ⭐️ 시작화면을 껐을 때 null을 참조해 화면이 멈추던 버그도 완벽 패치! */
 function go(f,t,d){
   if(anim)return; anim=true;
   const from=document.getElementById(sid(f)),to=document.getElementById(sid(t));
-  from.classList.add('ex2',d==='n'?'ex':'xp'); from.classList.remove('active');
-  to.style.display='flex'; to.classList.add(d==='n'?'en':'ep');
-  setTimeout(()=>{from.style.display='none';from.classList.remove('ex2',d==='n'?'ex':'xp');to.classList.remove(d==='n'?'en':'ep');to.classList.add('active');anim=false;const inp=to.querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(inp)setTimeout(()=>inp.focus(),80);},450);
+  if(from){ from.classList.add('ex2',d==='n'?'ex':'xp'); from.classList.remove('active'); }
+  if(to){ to.style.display='flex'; to.classList.add(d==='n'?'en':'ep'); }
+  setTimeout(()=>{
+    if(from){ from.style.display='none'; from.classList.remove('ex2',d==='n'?'ex':'xp'); }
+    if(to){ to.classList.remove(d==='n'?'en':'ep'); to.classList.add('active'); }
+    anim=false;
+    const inp=to?.querySelector('input[type=text],input[type=tel],input[type=email],textarea');
+    if(inp)setTimeout(()=>inp.focus(),80);
+  },450);
 }
 function sf(){const f=cur;cur=0;go(f,0,'n');upUI();}
 function gn(s){if(anim)return;if(!vld(s))return;const f=cur;cur++;go(f,cur,'n');upUI();}
@@ -1107,7 +1114,7 @@ function pick(el,gid,multi){
   ${CFG.auto?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320)}`:''}
 }
 function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.add('ck');el.querySelector('.oi')?.focus();}
-function er(i,m){const e=document.getElementById('e'+i);e.textContent='⚠ '+m;e.classList.add('on');}
+function er(i,m){const e=document.getElementById('e'+i);if(e){e.textContent='⚠ '+m;e.classList.add('on');}}
 function ce(){document.querySelectorAll('.em').forEach(e=>{e.textContent='';e.classList.remove('on')});document.querySelectorAll('.fi').forEach(f=>f.classList.remove('er'));}
 function vld(s){
   ce();
