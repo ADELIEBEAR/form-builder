@@ -526,39 +526,43 @@ textarea.inp{resize:none;line-height:1.55}
 /* ══════════════════════════════════════
    ⭐️ 실제 Supabase 초기화 및 구글 로그인 처리
 ══════════════════════════════════════ */
-// 🚨 에러 방지 처리 완료! 이제 회원님이 코드를 망가뜨릴 걱정이 없습니다.
-// 회원님이 이전에 알려주신 주소를 제가 미리 입력해두었습니다.
+// 🚨 에러 방지 처리 완료! 코드가 중간에 뻗지 않도록 안전장치를 걸어두었습니다.
 const SUPABASE_URL = 'https://ncvjuwkfjcqktcwyphew.supabase.co'; 
 
-// 👇 이곳 홑따옴표(' ') 사이에만 본인의 ANON KEY를 살짝 붙여넣으세요! (따옴표 지워지면 안 됩니다!)
+// 👇 아래 홑따옴표(' ') 사이에 회원님의 SUPABASE_ANON_KEY를 넣어주세요. (비워둬도 오류는 안 납니다)
 const SUPABASE_ANON_KEY = '';
 
 let supabaseClient = null;
 let isGoogleConnected = false;
 let connectedFormId = 'form_' + Math.random().toString(36).substr(2, 9); 
 
-// 초기화 에러 방지용 try-catch
+// 초기화 에러 방지용 안전 블록
 try {
-  if(window.supabase && SUPABASE_ANON_KEY.trim() !== '') {
+  if(window.supabase && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.length > 10) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 } catch(err) {
-  console.error('Supabase 초기화 실패:', err);
+  console.warn('Supabase 초기화 대기 중...');
 }
 
 // 로그인 버튼 클릭 시 실행
 async function realGoogleLogin() {
   if(!window.supabase) {
-    showToast('라이브러리 로딩 중입니다. 새로고침 후 다시 시도해주세요.', 'fail');
+    showToast('라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.', 'fail');
     return;
   }
-  if(SUPABASE_ANON_KEY.trim() === '') {
+  if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.trim() === '') {
     showToast('❌ 소스코드 하단에 SUPABASE_ANON_KEY를 입력하셔야 합니다!', 'fail');
     return;
   }
   
   if(!supabaseClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) {
+      showToast('키 설정이 올바르지 않습니다.', 'fail');
+      return;
+    }
   }
 
   const btn = document.getElementById('btnGoogle');
@@ -572,7 +576,6 @@ async function realGoogleLogin() {
         redirectTo: window.location.origin
       }
     });
-
     if (error) throw error;
   } catch(err) {
     showToast('구글 로그인 창 띄우기 실패: ' + err.message, 'fail');
@@ -1132,4 +1135,130 @@ function pick(el,gid,multi){
   el.style.transform='scale(0.96)';setTimeout(()=>el.style.transform='',100);
   ${CFG.auto?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320)}`:''}
 }
-function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));
+function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.add('ck');el.querySelector('.oi')?.focus();}
+function er(i,m){const e=document.getElementById('e'+i);if(e){e.textContent='⚠ '+m;e.classList.add('on');}}
+function ce(){document.querySelectorAll('.em').forEach(e=>{e.textContent='';e.classList.remove('on')});document.querySelectorAll('.fi').forEach(f=>f.classList.remove('er'));}
+function vld(s){
+  ce();
+  switch(s){
+    ${vld}
+    default:break;
+  }
+  return true;
+}
+
+async function sub(){
+  if(anim)return;if(!vld(${TOTAL-1}))return;
+  const btn=document.getElementById('sb');btn.classList.add('ld2');btn.disabled=true;
+  ans._ts=new Date().toLocaleString('ko-KR');
+  
+  try {
+    const formData = new FormData();
+    for (let k in ans) formData.append(k, ans[k]);
+    
+    if(SU.includes('echo-api')) {
+      await fetch(SU, { method: 'POST', mode: 'no-cors', body: formData });
+    } else {
+      await fetch(SU, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ans) 
+      });
+    }
+    
+    const dn=document.getElementById('dn');if(dn&&ans['${esc2(qs.find(q=>q.type==='short')?.label||'')}'])dn.textContent=ans['${esc2(qs.find(q=>q.type==='short')?.label||'')}']+', ';
+    document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';document.getElementById('kh').style.opacity='0';
+    go(${TOTAL-1},TOTAL,'n');document.getElementById('pf').style.width='100%';cur=TOTAL;
+    ${CFG.confetti?'setTimeout(cf,420);':''}
+    tst('✅ 신청이 완료되었습니다!','ok');
+  } catch(e) {
+    btn.classList.remove('ld2');btn.disabled=false;
+    tst('❌ 전송 오류. 연결 상태를 확인해주세요.','fail');
+  }
+}
+
+function rst(){
+  document.querySelectorAll('input').forEach(el=>el.value='');
+  document.querySelectorAll('textarea').forEach(el=>el.value='');
+  document.querySelectorAll('.ci,.la').forEach(el=>el.classList.remove('ck'));
+  const sb=document.getElementById('sb');if(sb){sb.classList.remove('ld2');sb.disabled=false;}
+  Object.keys(ans).forEach(k=>delete ans[k]);
+  document.getElementById('pf').style.width='0%';document.getElementById('sc').style.opacity='0';document.getElementById('kh').style.opacity='1';
+  const f=cur;cur=-1;go(f,-1,'p');upUI();
+  ${!CFG.start?`setTimeout(sf,460)`:''}
+}
+${confettiJS}
+function rp(e,btn){const r=btn.getBoundingClientRect(),sz=Math.max(r.width,r.height)*2,el=document.createElement('span');el.className='rp';el.style.cssText=\`width:\${sz}px;height:\${sz}px;left:\${e.clientX-r.left-sz/2}px;top:\${e.clientY-r.top-sz/2}px\`;btn.appendChild(el);setTimeout(()=>el.remove(),560);}
+function tst(m,t){const el=document.getElementById('tst');el.textContent=m;el.className=t+' on';setTimeout(()=>el.className='',3200);}
+${kbJS}
+setTimeout(()=>document.getElementById('kh').style.opacity='0',5000);
+<\/script></body></html>`;
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function esc2(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+
+function showExport(){document.getElementById('codeBox').textContent=genHTML();document.getElementById('exportModal').classList.add('on')}
+function closeModal(){document.getElementById('exportModal').classList.remove('on')}
+function copyCode(){navigator.clipboard.writeText(document.getElementById('codeBox').textContent).then(()=>showToast('✅ 복사 완료!','ok'))}
+function dlHTML(){const t=document.getElementById('formTitle').value||'폼';const a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(genHTML());a.download=t.replace(/\s+/g,'-')+'.html';a.click();showToast('✅ 다운로드 완료!','ok')}
+document.getElementById('exportModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+function showToast(m,t){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000)}
+function setPvTab(mode,el){document.querySelectorAll('.rptab').forEach(t=>t.classList.remove('on'));el.classList.add('on');document.getElementById('pvIframe').className=mode==='d'?'desktop':''}
+
+function downloadJSON() {
+  const data = { title:document.getElementById('formTitle').value, qs, theme, animType, CFG, coverImgData,
+    startTag:document.getElementById('startTag').value, startBtn:document.getElementById('startBtn').value,
+    startDesc:document.getElementById('startDesc').value, doneTitle:document.getElementById('doneTitle').value,
+    doneDesc:document.getElementById('doneDesc').value, doneCta:document.getElementById('doneCta').value,
+    doneUrl:document.getElementById('doneUrl').value,
+    loadingText:document.getElementById('loadingText').value, loadingDelay:document.getElementById('loadingDelay').value,
+    fontSel:document.getElementById('fontSel').value };
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+  a.download = (data.title || 'form_backup') + '.json';
+  a.click();
+  showToast('✅ 프로젝트 파일이 다운로드 되었습니다!', 'ok');
+}
+
+function uploadJSON(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      localStorage.setItem('fb_save', JSON.stringify(d));
+      loadLocal();
+      showToast('✅ 프로젝트를 성공적으로 불러왔습니다!', 'ok');
+    } catch(err) {
+      showToast('❌ 잘못된 백업 파일입니다.', 'fail');
+    }
+    e.target.value = '';
+  };
+  r.readAsText(f);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tbRight = document.querySelector('.tb-right');
+  const btnWrap = document.createElement('div');
+  btnWrap.style.display = 'flex';
+  btnWrap.style.gap = '4px';
+  btnWrap.style.marginRight = '6px';
+  btnWrap.style.borderRight = '1px solid var(--b1)';
+  btnWrap.style.paddingRight = '10px';
+  btnWrap.innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="downloadJSON()" title="프로젝트를 파일로 백업합니다">📥 백업</button>
+    <label class="btn btn-ghost btn-sm" title="백업한 프로젝트 파일을 불러옵니다" style="cursor:pointer">
+      📤 불러오기
+      <input type="file" accept=".json" onchange="uploadJSON(event)" style="display:none">
+    </label>
+  `;
+  tbRight.insertBefore(btnWrap, tbRight.firstChild);
+});
+
+renderEditor();
+loadLocal();
+updatePreview();
+</script>
+</body>
+</html>
