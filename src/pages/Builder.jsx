@@ -41,7 +41,7 @@ export default function Builder() {
 
   const [title, setTitle] = useState('이벤트 참가 신청서')
   const [questions, setQuestions] = useState([])
-  const [theme, setTheme] = useState(THEMES[0])
+  const [theme, setTheme] = useState(COLOR_THEMES[0])
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [coverImgData, setCoverImgData] = useState(null)
   const [qImgData, setQImgData] = useState({})
@@ -246,7 +246,7 @@ export default function Builder() {
               <>
                 <div className={s.lsec}>테마 색상</div>
                 <div className={s.themeGrid}>
-                  {THEMES.map((t, i) => (
+                  {COLOR_THEMES.map((t, i) => (
                     <div
                       key={i}
                       className={`${s.tdot} ${theme.c1 === t.c1 ? s.tdotOn : ''}`}
