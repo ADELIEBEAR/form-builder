@@ -26,44 +26,111 @@ export const CONCEPT_THEMES = [
   { id:'sunset',    name:'선셋',      emoji:'🌅', desc:'그라디언트 노을' },
   { id:'chalk',     name:'칠판',      emoji:'🖍', desc:'칠판 & 분필' },
   { id:'ocean',     name:'오션',      emoji:'🌊', desc:'깊은 바다' },
+  // 금융/투자
+  { id:'crypto',    name:'크립토',    emoji:'₿',  desc:'암호화폐 다크' },
+  { id:'trading',   name:'트레이딩',  emoji:'📈', desc:'주식 터미널' },
+  { id:'defi',      name:'디파이',    emoji:'🔷', desc:'DeFi 블루' },
+  { id:'bullrun',   name:'불런',      emoji:'🚀', desc:'상승장 그린' },
+  { id:'bearish',   name:'베어리시',  emoji:'🐻', desc:'하락장 레드' },
+  { id:'bloomberg', name:'블룸버그',  emoji:'📊', desc:'금융 터미널' },
+  { id:'gold',      name:'골드마켓',  emoji:'🥇', desc:'금 & 프리미엄' },
+  { id:'matrix',    name:'매트릭스',  emoji:'🟩', desc:'코드 & 데이터' },
 ]
 
 export const COLOR_THEMES = [
+  // 퍼플/바이올렛
   { c1:'#7c6cfc', c2:'#c084fc', name:'퍼플' },
   { c1:'#6366f1', c2:'#a78bfa', name:'인디고' },
   { c1:'#8b5cf6', c2:'#d946ef', name:'바이올렛' },
+  { c1:'#a855f7', c2:'#c084fc', name:'라벤더' },
+  { c1:'#7e22ce', c2:'#9333ea', name:'딥퍼플' },
+  // 핑크/레드
   { c1:'#ec4899', c2:'#f472b6', name:'핑크' },
-  { c1:'#EE4037', c2:'#ff7043', name:'레드' },
   { c1:'#f43f5e', c2:'#fb7185', name:'로즈' },
-  { c1:'#0ea5e9', c2:'#38bdf8', name:'스카이' },
-  { c1:'#3b82f6', c2:'#60a5fa', name:'블루' },
-  { c1:'#06b6d4', c2:'#22d3ee', name:'시안' },
+  { c1:'#EE4037', c2:'#ff7043', name:'레드' },
+  { c1:'#e11d48', c2:'#f43f5e', name:'크림슨' },
+  { c1:'#ff0080', c2:'#ff4da6', name:'핫핑크' },
+  // 오렌지/옐로우
+  { c1:'#f97316', c2:'#fb923c', name:'오렌지' },
+  { c1:'#f59e0b', c2:'#fbbf24', name:'앰버' },
+  { c1:'#eab308', c2:'#facc15', name:'옐로우' },
+  { c1:'#d97706', c2:'#f59e0b', name:'골드' },
+  { c1:'#ea580c', c2:'#fb923c', name:'번트' },
+  // 그린/에메랄드
   { c1:'#10b981', c2:'#34d399', name:'에메랄드' },
   { c1:'#22c55e', c2:'#4ade80', name:'그린' },
   { c1:'#84cc16', c2:'#a3e635', name:'라임' },
-  { c1:'#f59e0b', c2:'#fbbf24', name:'앰버' },
-  { c1:'#f97316', c2:'#fb923c', name:'오렌지' },
-  { c1:'#eab308', c2:'#facc15', name:'옐로우' },
-  { c1:'#64748b', c2:'#94a3b8', name:'슬레이트' },
+  { c1:'#16a34a', c2:'#22c55e', name:'포레스트' },
+  { c1:'#059669', c2:'#10b981', name:'민트' },
+  // 블루/시안
+  { c1:'#3b82f6', c2:'#60a5fa', name:'블루' },
+  { c1:'#0ea5e9', c2:'#38bdf8', name:'스카이' },
+  { c1:'#06b6d4', c2:'#22d3ee', name:'시안' },
+  { c1:'#1d4ed8', c2:'#3b82f6', name:'딥블루' },
+  { c1:'#0369a1', c2:'#0ea5e9', name:'오션블루' },
+  // 그라디언트/혼합
   { c1:'#8b5cf6', c2:'#06b6d4', name:'오로라' },
   { c1:'#f43f5e', c2:'#f97316', name:'선셋' },
   { c1:'#0ea5e9', c2:'#10b981', name:'오션' },
   { c1:'#d946ef', c2:'#f43f5e', name:'베리' },
+  { c1:'#7c6cfc', c2:'#f472b6', name:'코랄퍼플' },
+  { c1:'#06b6d4', c2:'#a855f7', name:'갤럭시' },
+  { c1:'#f59e0b', c2:'#ef4444', name:'파이어' },
+  { c1:'#10b981', c2:'#3b82f6', name:'시포레스트' },
+  { c1:'#ec4899', c2:'#8b5cf6', name:'매직' },
+  { c1:'#f97316', c2:'#eab308', name:'선샤인' },
+  // 뉴트럴/모노
+  { c1:'#64748b', c2:'#94a3b8', name:'슬레이트' },
+  { c1:'#6b7280', c2:'#9ca3af', name:'그레이' },
+  { c1:'#78716c', c2:'#a8a29e', name:'스톤' },
+  { c1:'#292524', c2:'#44403c', name:'다크브라운' },
+  { c1:'#1e293b', c2:'#334155', name:'미드나잇' },
+  // 특별색
+  { c1:'#d4af37', c2:'#f5d060', name:'골드럭셔리' },
+  { c1:'#c0392b', c2:'#e74c3c', name:'루비' },
+  { c1:'#1abc9c', c2:'#2ecc71', name:'터키즈' },
+  { c1:'#9b59b6', c2:'#8e44ad', name:'포도' },
+  { c1:'#2980b9', c2:'#3498db', name:'코발트' },
+  { c1:'#e67e22', c2:'#f39c12', name:'캐러멜' },
+  { c1:'#27ae60', c2:'#2ecc71', name:'네이처' },
+  { c1:'#ff6b6b', c2:'#feca57', name:'코럴선셋' },
+  { c1:'#48dbfb', c2:'#ff9ff3', name:'파스텔드림' },
+  { c1:'#00d2d3', c2:'#54a0ff', name:'아쿠아' },
 ]
 
 export const FONTS = [
-  { label:'Noto Sans KR', value:"'Noto Sans KR',sans-serif" },
-  { label:'Gmarket Sans', value:"'Gmarket Sans',sans-serif" },
-  { label:'Gowun Dodum', value:"'Gowun Dodum',sans-serif" },
-  { label:'Nanum Gothic', value:"'Nanum Gothic',sans-serif" },
-  { label:'Nanum Myeongjo', value:"'Nanum Myeongjo',serif" },
-  { label:'IBM Plex Sans KR', value:"'IBM Plex Sans KR',sans-serif" },
-  { label:'Black Han Sans', value:"'Black Han Sans',sans-serif" },
-  { label:'Do Hyeon', value:"'Do Hyeon',sans-serif" },
-  { label:'Jua', value:"'Jua',sans-serif" },
-  { label:'Gaegu', value:"'Gaegu',sans-serif" },
-  { label:'Hi Melody', value:"'Hi Melody',sans-serif" },
-  { label:'Cute Font', value:"'Cute Font',sans-serif" },
+  // 고딕/산세리프
+  { label:'Noto Sans KR', value:"'Noto Sans KR',sans-serif", preview:'가나다' },
+  { label:'Gmarket Sans', value:"'Gmarket Sans',sans-serif", preview:'가나다' },
+  { label:'IBM Plex Sans KR', value:"'IBM Plex Sans KR',sans-serif", preview:'가나다' },
+  { label:'Nanum Gothic', value:"'Nanum Gothic',sans-serif", preview:'가나다' },
+  { label:'Nanum Barun Gothic', value:"'Nanum Barun Gothic',sans-serif", preview:'가나다' },
+  { label:'KoPub Batang', value:"'KoPub Batang',serif", preview:'가나다' },
+  // 명조/세리프
+  { label:'Nanum Myeongjo', value:"'Nanum Myeongjo',serif", preview:'가나다' },
+  { label:'Noto Serif KR', value:"'Noto Serif KR',serif", preview:'가나다' },
+  { label:'Gowun Batang', value:"'Gowun Batang',serif", preview:'가나다' },
+  // 디스플레이/타이틀
+  { label:'Black Han Sans', value:"'Black Han Sans',sans-serif", preview:'가나다' },
+  { label:'Gowun Dodum', value:"'Gowun Dodum',sans-serif", preview:'가나다' },
+  { label:'Do Hyeon', value:"'Do Hyeon',sans-serif", preview:'가나다' },
+  { label:'Jua', value:"'Jua',sans-serif", preview:'가나다' },
+  { label:'Sunflower', value:"'Sunflower',sans-serif", preview:'가나다' },
+  { label:'Dokdo', value:"'Dokdo',cursive", preview:'가나다' },
+  { label:'Single Day', value:"'Single Day',cursive", preview:'가나다' },
+  // 손글씨/캐릭터
+  { label:'Gaegu', value:"'Gaegu',cursive", preview:'가나다' },
+  { label:'Hi Melody', value:"'Hi Melody',cursive", preview:'가나다' },
+  { label:'Cute Font', value:"'Cute Font',cursive", preview:'가나다' },
+  { label:'Stylish', value:"'Stylish',sans-serif", preview:'가나다' },
+  { label:'East Sea Dokdo', value:"'East Sea Dokdo',cursive", preview:'가나다' },
+  { label:'Nanum Pen Script', value:"'Nanum Pen Script',cursive", preview:'가나다' },
+  { label:'Nanum Brush Script', value:"'Nanum Brush Script',cursive", preview:'가나다' },
+  // 영문 혼용
+  { label:'Montserrat', value:"'Montserrat',sans-serif", preview:'Aa가나' },
+  { label:'Playfair Display', value:"'Playfair Display',serif", preview:'Aa가나' },
+  { label:'Space Grotesk', value:"'Space Grotesk',sans-serif", preview:'Aa가나' },
+  { label:'DM Sans', value:"'DM Sans',sans-serif", preview:'Aa가나' },
 ]
 
 // ══════════════════════════════════════
@@ -560,6 +627,191 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .stit{background:linear-gradient(135deg,#b8e4ff,${c1},${c2});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .stag{color:${c1};background:rgba(0,150,220,.1);border-color:rgba(0,150,220,.25);border-radius:99px}
 .sbt{background:linear-gradient(135deg,${c1},${c2});border-radius:14px}
+`,
+
+    // ── 크립토 (암호화폐 다크) ────────────
+    crypto: `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+body{background:#0d0d0d;color:#f0f0f0;font-family:'Space Grotesk',sans-serif}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(247,147,26,.06) 0%,transparent 55%),radial-gradient(ellipse 50% 40% at 80% 80%,rgba(98,126,234,.08) 0%,transparent 55%);pointer-events:none}
+.card{background:#1a1a1a;border:1px solid rgba(247,147,26,.2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f7931a,#ffd700,transparent 80%)}
+.fi{background:#111;border:1px solid rgba(247,147,26,.18);border-radius:8px;color:#f0f0f0;font-family:'Space Grotesk',sans-serif}
+.fi:focus{border-color:#f7931a;box-shadow:0 0 0 2px rgba(247,147,26,.15)}
+.ct{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-.02em}.cn{color:#f7931a;font-family:'Space Grotesk',monospace;letter-spacing:.1em;font-size:10px}
+.nb{background:linear-gradient(135deg,#f7931a,#ffd700);border-radius:8px;color:#0d0d0d;font-family:'Space Grotesk',sans-serif;font-weight:700}
+.nb:hover{box-shadow:0 8px 24px rgba(247,147,26,.4);transform:translateY(-1px)}
+.ci{background:#111;border:1px solid rgba(247,147,26,.15);border-radius:8px}
+.ci:hover{border-color:#f7931a;background:rgba(247,147,26,.06)}
+.ci.ck{border-color:#f7931a;background:rgba(247,147,26,.1)}
+.cb{border-radius:4px;border:1.5px solid rgba(247,147,26,.3)}.ci.ck .cb{background:#f7931a;border-color:#f7931a}
+.stit{background:linear-gradient(135deg,#f7931a,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Space Grotesk',sans-serif;font-weight:700}
+.stag{color:#f7931a;background:rgba(247,147,26,.1);border-color:rgba(247,147,26,.25);border-radius:6px;font-family:'Space Grotesk',sans-serif}
+.sbt{background:linear-gradient(135deg,#f7931a,#ffd700);border-radius:8px;color:#0d0d0d;font-weight:700}
+#pf{background:linear-gradient(90deg,#f7931a,#ffd700)}#pf::after{background:#ffd700;box-shadow:0 0 10px #ffd700}
+`,
+
+    // ── 트레이딩 (주식 터미널) ─────────────
+    trading: `
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+body{background:#0a0e0a;color:#00ff41;font-family:'IBM Plex Mono',monospace}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,65,.012) 3px,rgba(0,255,65,.012) 4px);pointer-events:none}
+body::after{content:'BID 42,150 ▲ +1.24%   ASK 42,180   VOL 2.4B   OPEN 41,800';position:fixed;top:0;left:0;right:0;padding:4px 16px;font-size:10px;color:rgba(0,255,65,.5);background:rgba(0,0,0,.8);letter-spacing:.06em;pointer-events:none;border-bottom:1px solid rgba(0,255,65,.1)}
+.card{background:#0d150d;border:1px solid rgba(0,255,65,.2);border-radius:4px;box-shadow:0 0 24px rgba(0,255,65,.05)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00ff41,transparent)}
+.fi{background:rgba(0,0,0,.6);border:1px solid rgba(0,255,65,.2);border-radius:2px;color:#00ff41;font-family:'IBM Plex Mono',monospace}
+.fi::placeholder{color:rgba(0,255,65,.35)}
+.fi:focus{border-color:#00ff41;box-shadow:0 0 0 2px rgba(0,255,65,.12)}
+.ct{font-family:'IBM Plex Mono',monospace;color:#00ff41;font-weight:500}.cn{color:rgba(0,255,65,.6);font-family:'IBM Plex Mono',monospace;letter-spacing:.15em;font-size:10px}
+.nb{background:transparent;border:1px solid #00ff41;border-radius:2px;color:#00ff41;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+.nb:hover{background:rgba(0,255,65,.1);box-shadow:0 0 20px rgba(0,255,65,.3);text-shadow:0 0 8px #00ff41}
+.ci{background:rgba(0,0,0,.4);border:1px solid rgba(0,255,65,.15);border-radius:2px;color:#00ff41}
+.ci:hover{border-color:#00ff41;background:rgba(0,255,65,.06)}
+.ci.ck{border-color:#00ff41;background:rgba(0,255,65,.1);box-shadow:0 0 12px rgba(0,255,65,.15)}
+.ci span{color:#00ff41}.cb{border-radius:1px;border:1px solid rgba(0,255,65,.35)}.ci.ck .cb{background:#00ff41;border-color:#00ff41;border-radius:1px}
+.stit{color:#00ff41;-webkit-text-fill-color:#00ff41;font-family:'IBM Plex Mono',monospace;font-weight:500;text-shadow:0 0 20px rgba(0,255,65,.6)}
+.stag{color:#00ff41;background:rgba(0,255,65,.08);border-color:rgba(0,255,65,.25);border-radius:2px}
+.sbt{background:transparent;border:1px solid #00ff41;border-radius:2px;color:#00ff41;font-family:'IBM Plex Mono',monospace;text-transform:uppercase}
+.sbt:hover{background:rgba(0,255,65,.1);box-shadow:0 0 20px rgba(0,255,65,.3)}
+#pf{background:#00ff41;box-shadow:0 0 8px #00ff41}#pf::after{display:none}#pw{background:rgba(0,255,65,.08);border-radius:0}
+`,
+
+    // ── 디파이 (DeFi 블루) ────────────────
+    defi: `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+body{background:#060b18;color:#e8f4fd;font-family:'Space Grotesk',sans-serif}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 30% 20%,rgba(98,126,234,.15) 0%,transparent 55%),radial-gradient(ellipse 50% 40% at 70% 80%,rgba(86,204,242,.1) 0%,transparent 55%);pointer-events:none}
+.card{background:rgba(15,25,50,.9);border:1px solid rgba(98,126,234,.25);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(98,126,234,.1);backdrop-filter:blur(12px)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#627eea,#56ccf2,transparent 80%)}
+.fi{background:rgba(0,0,0,.5);border:1px solid rgba(98,126,234,.22);border-radius:10px;color:#e8f4fd;font-family:'Space Grotesk',sans-serif}
+.fi:focus{border-color:#627eea;box-shadow:0 0 0 3px rgba(98,126,234,.15)}
+.ct{font-family:'Space Grotesk',sans-serif;font-weight:700;color:#e8f4fd}.cn{color:#627eea;font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.nb{background:linear-gradient(135deg,#627eea,#56ccf2);border-radius:10px;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:600}
+.nb:hover{box-shadow:0 8px 24px rgba(98,126,234,.4);transform:translateY(-1px)}
+.ci{background:rgba(0,0,0,.4);border:1px solid rgba(98,126,234,.18);border-radius:10px;color:#e8f4fd}
+.ci:hover{border-color:#627eea;background:rgba(98,126,234,.08)}
+.ci.ck{border-color:#627eea;background:rgba(98,126,234,.14)}
+.cb{border-radius:5px;border:1.5px solid rgba(98,126,234,.3)}.ci.ck .cb{background:#627eea;border-color:#627eea;border-radius:5px}
+.stit{background:linear-gradient(135deg,#e8f4fd,#627eea,#56ccf2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Space Grotesk',sans-serif;font-weight:700}
+.stag{color:#627eea;background:rgba(98,126,234,.1);border-color:rgba(98,126,234,.25);border-radius:8px}
+.sbt{background:linear-gradient(135deg,#627eea,#56ccf2);border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:600}
+#pf{background:linear-gradient(90deg,#627eea,#56ccf2)}#pf::after{background:#56ccf2;box-shadow:0 0 10px #56ccf2}
+`,
+
+    // ── 불런 (상승장) ─────────────────────
+    bullrun: `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+body{background:#020f06;color:#e8fef0;font-family:'Space Grotesk',sans-serif}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(0,200,80,.12) 0%,transparent 55%);pointer-events:none}
+body::after{content:'▲ BTC +8.42%   ▲ ETH +12.1%   ▲ SOL +15.3%   🚀 BULL MARKET';position:fixed;bottom:0;left:0;right:0;padding:5px 16px;font-size:10px;color:rgba(0,255,100,.7);background:rgba(0,0,0,.8);letter-spacing:.06em;pointer-events:none;border-top:1px solid rgba(0,200,80,.15);white-space:nowrap;overflow:hidden}
+.card{background:#081a0e;border:1px solid rgba(0,200,80,.22);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#00c850,#00ff80,transparent 80%)}
+.fi{background:rgba(0,0,0,.5);border:1px solid rgba(0,200,80,.2);border-radius:8px;color:#e8fef0;font-family:'Space Grotesk',sans-serif}
+.fi:focus{border-color:#00c850;box-shadow:0 0 0 2px rgba(0,200,80,.15)}
+.ct{font-weight:700;color:#e8fef0}.cn{color:#00c850;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-family:'Space Grotesk',sans-serif}
+.nb{background:linear-gradient(135deg,#00c850,#00ff80);border-radius:8px;color:#020f06;font-weight:700}
+.nb:hover{box-shadow:0 8px 24px rgba(0,200,80,.4);transform:translateY(-2px)}
+.ci{background:rgba(0,0,0,.4);border:1px solid rgba(0,200,80,.15);border-radius:8px}
+.ci:hover{border-color:#00c850;background:rgba(0,200,80,.07)}
+.ci.ck{border-color:#00c850;background:rgba(0,200,80,.12)}
+.ci span{color:#e8fef0}.cb{border-radius:4px;border:1.5px solid rgba(0,200,80,.3)}.ci.ck .cb{background:#00c850;border-color:#00c850;border-radius:4px}
+.stit{background:linear-gradient(135deg,#e8fef0,#00c850,#00ff80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700}
+.stag{color:#00c850;background:rgba(0,200,80,.1);border-color:rgba(0,200,80,.25);border-radius:6px}
+.sbt{background:linear-gradient(135deg,#00c850,#00ff80);border-radius:8px;color:#020f06;font-weight:700}
+#pf{background:linear-gradient(90deg,#00c850,#00ff80)}#pf::after{background:#00ff80;box-shadow:0 0 10px #00ff80}
+`,
+
+    // ── 베어리시 (하락장) ─────────────────
+    bearish: `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+body{background:#0f0505;color:#ffe8e8;font-family:'Space Grotesk',sans-serif}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(200,30,30,.1) 0%,transparent 55%);pointer-events:none}
+body::after{content:'▼ BTC -6.2%   ▼ ETH -8.4%   ▼ SOL -11.2%   🐻 BEAR MARKET';position:fixed;bottom:0;left:0;right:0;padding:5px 16px;font-size:10px;color:rgba(255,80,80,.7);background:rgba(0,0,0,.8);letter-spacing:.06em;pointer-events:none;border-top:1px solid rgba(200,30,30,.15)}
+.card{background:#1a0808;border:1px solid rgba(220,50,50,.2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.7)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#dc3232,#ff6464,transparent 80%)}
+.fi{background:rgba(0,0,0,.5);border:1px solid rgba(220,50,50,.18);border-radius:8px;color:#ffe8e8;font-family:'Space Grotesk',sans-serif}
+.fi:focus{border-color:#dc3232;box-shadow:0 0 0 2px rgba(220,50,50,.15)}
+.ct{font-weight:700;color:#ffe8e8}.cn{color:#dc3232;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.nb{background:linear-gradient(135deg,#dc3232,#ff6464);border-radius:8px;color:#fff;font-weight:700}
+.nb:hover{box-shadow:0 8px 24px rgba(220,50,50,.4);transform:translateY(-2px)}
+.ci{background:rgba(0,0,0,.4);border:1px solid rgba(220,50,50,.15);border-radius:8px;color:#ffe8e8}
+.ci:hover{border-color:#dc3232;background:rgba(220,50,50,.07)}
+.ci.ck{border-color:#dc3232;background:rgba(220,50,50,.12)}
+.cb{border-radius:4px;border:1.5px solid rgba(220,50,50,.3)}.ci.ck .cb{background:#dc3232;border-color:#dc3232;border-radius:4px}
+.stit{background:linear-gradient(135deg,#ffe8e8,#dc3232,#ff6464);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700}
+.stag{color:#dc3232;background:rgba(220,50,50,.1);border-color:rgba(220,50,50,.25);border-radius:6px}
+.sbt{background:linear-gradient(135deg,#dc3232,#ff6464);border-radius:8px;font-weight:700}
+#pf{background:linear-gradient(90deg,#dc3232,#ff6464)}#pf::after{background:#ff6464;box-shadow:0 0 10px #ff6464}
+`,
+
+    // ── 블룸버그 (금융 터미널) ────────────
+    bloomberg: `
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+body{background:#0a0600;color:#ff8c00;font-family:'IBM Plex Mono',monospace}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(255,140,0,.025) 18px,rgba(255,140,0,.025) 19px);pointer-events:none}
+body::after{content:'BLOOMBERG TERMINAL  |  REAL-TIME DATA  |  KRW/USD 1,324.50';position:fixed;top:0;left:0;right:0;padding:3px 12px;font-size:9px;color:rgba(255,140,0,.7);background:#000;letter-spacing:.08em;pointer-events:none;border-bottom:1px solid rgba(255,140,0,.2)}
+.card{background:#0d0900;border:1px solid rgba(255,140,0,.25);border-radius:0;box-shadow:none}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,140,0,.5)}
+.fi{background:#000;border:1px solid rgba(255,140,0,.3);border-radius:0;color:#ff8c00;font-family:'IBM Plex Mono',monospace}
+.fi::placeholder{color:rgba(255,140,0,.3)}
+.fi:focus{border-color:#ff8c00;box-shadow:none;outline:none}
+.ct{font-family:'IBM Plex Mono',monospace;color:#ff8c00;font-weight:500;letter-spacing:.02em}.cn{color:rgba(255,140,0,.6);letter-spacing:.15em;font-size:10px}
+.nb{background:#ff8c00;border-radius:0;color:#000;font-family:'IBM Plex Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.1em}
+.nb:hover{background:#ffaa33;transform:none;box-shadow:none}
+.ci{background:#000;border:1px solid rgba(255,140,0,.2);border-radius:0;color:#ff8c00}
+.ci:hover{border-color:#ff8c00;background:rgba(255,140,0,.06)}
+.ci.ck{border-color:#ff8c00;background:rgba(255,140,0,.1)}
+.ci span{color:#ff8c00}.cb{border-radius:0;border:1px solid rgba(255,140,0,.4)}.ci.ck .cb{background:#ff8c00;border-color:#ff8c00;border-radius:0}
+.stit{color:#ff8c00;-webkit-text-fill-color:#ff8c00;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.stag{color:#ff8c00;background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.3);border-radius:0}
+.sbt{background:#ff8c00;border-radius:0;color:#000;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+#pf{background:#ff8c00;border-radius:0}#pf::after{display:none}#pw{background:rgba(255,140,0,.1);border-radius:0}
+`,
+
+    // ── 골드마켓 ──────────────────────────
+    gold: `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+body{background:#0c0900;color:#f5e6c8;font-family:'Playfair Display',serif}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(212,175,55,.1) 0%,transparent 55%),radial-gradient(ellipse 40% 30% at 50% 100%,rgba(180,140,30,.06) 0%,transparent 55%);pointer-events:none}
+.card{background:#110d00;border:1px solid rgba(212,175,55,.25);border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.7),inset 0 1px 0 rgba(212,175,55,.12)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#d4af37,#f5d060,#d4af37,transparent)}
+.fi{background:rgba(212,175,55,.04);border:1px solid rgba(212,175,55,.2);border-radius:4px;color:#f5e6c8;font-family:'Playfair Display',serif}
+.fi:focus{border-color:#d4af37;box-shadow:0 0 0 2px rgba(212,175,55,.12)}
+.ct{font-family:'Playfair Display',serif;font-weight:700;color:#f5e6c8}.cn{color:#d4af37;font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+.nb{background:linear-gradient(135deg,#b8860b,#d4af37,#f5d060);border-radius:4px;color:#0c0900;font-family:'Playfair Display',serif;font-weight:700}
+.nb:hover{box-shadow:0 8px 24px rgba(212,175,55,.4);transform:translateY(-1px)}
+.ci{background:rgba(212,175,55,.03);border:1px solid rgba(212,175,55,.15);border-radius:4px;color:#f5e6c8}
+.ci:hover{border-color:rgba(212,175,55,.45)}.ci.ck{border-color:#d4af37;background:rgba(212,175,55,.08)}
+.cb{border-radius:2px;border:1px solid rgba(212,175,55,.3)}.ci.ck .cb{background:#d4af37;border-color:#d4af37;border-radius:2px}
+.stit{background:linear-gradient(135deg,#f5e6c8,#d4af37,#f5d060);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Playfair Display',serif;font-weight:700}
+.stag{color:#d4af37;background:rgba(212,175,55,.08);border-color:rgba(212,175,55,.22);border-radius:4px}
+.sbt{background:linear-gradient(135deg,#b8860b,#d4af37,#f5d060);border-radius:4px;color:#0c0900;font-family:'Playfair Display',serif;font-weight:700}
+#pf::after{background:#f5d060;box-shadow:0 0 10px #d4af37}
+`,
+
+    // ── 매트릭스 ──────────────────────────
+    matrix: `
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+body{background:#000;color:#00ff41;font-family:'IBM Plex Mono',monospace}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(0,255,65,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,65,.03) 1px,transparent 1px);background-size:20px 20px}
+.card{background:rgba(0,20,0,.9);border:1px solid rgba(0,255,65,.25);border-radius:2px;box-shadow:0 0 30px rgba(0,255,65,.08),inset 0 0 30px rgba(0,0,0,.5)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00ff41,transparent);animation:matLine 3s linear infinite}
+@keyframes matLine{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.fi{background:rgba(0,255,65,.03);border:1px solid rgba(0,255,65,.2);border-radius:1px;color:#00ff41;font-family:'IBM Plex Mono',monospace}
+.fi::placeholder{color:rgba(0,255,65,.3)}
+.fi:focus{border-color:#00ff41;box-shadow:0 0 8px rgba(0,255,65,.2)}
+.ct{font-family:'IBM Plex Mono',monospace;color:#00ff41;text-shadow:0 0 8px rgba(0,255,65,.6)}.cn{color:rgba(0,255,65,.6);letter-spacing:.2em;font-size:10px}
+.nb{background:transparent;border:1px solid #00ff41;border-radius:1px;color:#00ff41;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.12em;text-shadow:0 0 8px rgba(0,255,65,.6)}
+.nb:hover{background:rgba(0,255,65,.08);box-shadow:0 0 24px rgba(0,255,65,.4)}
+.ci{background:rgba(0,255,65,.02);border:1px solid rgba(0,255,65,.15);border-radius:1px;color:#00ff41}
+.ci:hover{border-color:#00ff41;box-shadow:0 0 10px rgba(0,255,65,.1)}
+.ci.ck{border-color:#00ff41;background:rgba(0,255,65,.08)}
+.ci span{color:#00ff41}.cb{border-radius:1px;border:1px solid rgba(0,255,65,.35)}.ci.ck .cb{background:#00ff41;border-color:#00ff41}
+.stit{color:#00ff41;-webkit-text-fill-color:#00ff41;font-family:'IBM Plex Mono',monospace;text-shadow:0 0 20px rgba(0,255,65,.8),0 0 40px rgba(0,255,65,.4)}
+.stag{color:#00ff41;background:rgba(0,255,65,.06);border-color:rgba(0,255,65,.25);border-radius:1px}
+.sbt{background:transparent;border:1px solid #00ff41;border-radius:1px;color:#00ff41;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,65,.6)}
+.sbt:hover{background:rgba(0,255,65,.08);box-shadow:0 0 24px rgba(0,255,65,.4)}
+#pf{background:#00ff41;box-shadow:0 0 8px #00ff41}#pf::after{display:none}#pw{background:rgba(0,255,65,.08);border-radius:0}
 `,
   }
   return T[id] || T.default
