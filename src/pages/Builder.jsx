@@ -8,16 +8,42 @@ import s from './Builder.module.css'
 // ── 상수 ──
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' }
 const THEMES = [
-  { c1:'#7c6cfc', c2:'#c084fc' }, { c1:'#EE4037', c2:'#ff7043' },
-  { c1:'#0ea5e9', c2:'#38bdf8' }, { c1:'#10b981', c2:'#34d399' },
-  { c1:'#f59e0b', c2:'#fbbf24' }, { c1:'#ec4899', c2:'#f472b6' },
-  { c1:'#8b5cf6', c2:'#06b6d4' }, { c1:'#64748b', c2:'#94a3b8' },
-  { c1:'#f97316', c2:'#fb923c' }, { c1:'#6366f1', c2:'#a78bfa' },
+  // 퍼플
+  { c1:'#7c6cfc', c2:'#c084fc', name:'퍼플' },
+  { c1:'#6366f1', c2:'#a78bfa', name:'인디고' },
+  { c1:'#8b5cf6', c2:'#d946ef', name:'바이올렛' },
+  // 핑크/레드
+  { c1:'#ec4899', c2:'#f472b6', name:'핑크' },
+  { c1:'#EE4037', c2:'#ff7043', name:'레드' },
+  { c1:'#f43f5e', c2:'#fb7185', name:'로즈' },
+  // 블루
+  { c1:'#0ea5e9', c2:'#38bdf8', name:'스카이' },
+  { c1:'#3b82f6', c2:'#60a5fa', name:'블루' },
+  { c1:'#06b6d4', c2:'#22d3ee', name:'시안' },
+  // 그린
+  { c1:'#10b981', c2:'#34d399', name:'에메랄드' },
+  { c1:'#22c55e', c2:'#4ade80', name:'그린' },
+  { c1:'#84cc16', c2:'#a3e635', name:'라임' },
+  // 옐로우/오렌지
+  { c1:'#f59e0b', c2:'#fbbf24', name:'앰버' },
+  { c1:'#f97316', c2:'#fb923c', name:'오렌지' },
+  { c1:'#eab308', c2:'#facc15', name:'옐로우' },
+  // 기타
+  { c1:'#64748b', c2:'#94a3b8', name:'슬레이트' },
+  { c1:'#78716c', c2:'#a8a29e', name:'스톤' },
+  { c1:'#8b5cf6', c2:'#06b6d4', name:'오로라' },
+  { c1:'#f43f5e', c2:'#f97316', name:'선셋' },
+  { c1:'#0ea5e9', c2:'#10b981', name:'오션' },
 ]
 const FONTS = [
-  { label:'Noto Sans KR (기본)', value:"'Noto Sans KR',sans-serif" },
+  { label:'Noto Sans KR', value:"'Noto Sans KR',sans-serif" },
   { label:'Gmarket Sans', value:"'Gmarket Sans',sans-serif" },
   { label:'Gowun Dodum', value:"'Gowun Dodum',sans-serif" },
+  { label:'Nanum Gothic', value:"'Nanum Gothic',sans-serif" },
+  { label:'Nanum Myeongjo', value:"'Nanum Myeongjo',serif" },
+  { label:'Spoqa Han Sans', value:"'Spoqa Han Sans Neo',sans-serif" },
+  { label:'IBM Plex Sans KR', value:"'IBM Plex Sans KR',sans-serif" },
+  { label:'Black Han Sans', value:"'Black Han Sans',sans-serif" },
 ]
 let UID = 0
 const nid = () => ++UID

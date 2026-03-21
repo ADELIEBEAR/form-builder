@@ -29,8 +29,8 @@
 .typeRow span { font-size: 10px; color: var(--muted); font-weight: 300; }
 .lsep { height: 1px; background: var(--border); margin: 6px 0; }
 /* 테마 */
-.themeGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 2px 4px; }
-.tdot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
+.themeGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 2px 4px; max-height: 140px; overflow-y: auto; }
+.tdot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
 .tdot:hover { transform: scale(1.15); }
 .tdotOn { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
 /* 애니 */

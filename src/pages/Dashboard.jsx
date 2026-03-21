@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, publishForm, unpublishForm, signOut, connectGoogleSheet, disconnectSheet } from '../lib/supabase'
+import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
-import styles from './Dashboard.module.css'
+import s from './Dashboard.module.css'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -13,10 +13,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState(null)
   const [publishing, setPublishing] = useState({})
+  const [editingMemo, setEditingMemo] = useState(null) // formId
+  const [memoVal, setMemoVal] = useState('')
+  const [editingTitle, setEditingTitle] = useState(null)
+  const [titleVal, setTitleVal] = useState('')
+  const [search, setSearch] = useState('')
+  const memoRef = useRef(null)
+  const titleRef = useRef(null)
 
   useEffect(() => {
     loadForms()
-    // 구글 토큰 저장 (시트 연동용)
     saveGoogleToken()
   }, [user])
 
@@ -30,9 +36,7 @@ export default function Dashboard() {
         refresh_token: session.provider_refresh_token || '',
         updated_at: new Date().toISOString()
       })
-    } catch (e) {
-      console.log('토큰 저장 실패:', e)
-    }
+    } catch (e) { console.log('토큰 저장 실패:', e) }
   }
 
   async function loadForms() {
@@ -60,7 +64,7 @@ export default function Dashboard() {
       if (form.is_published) {
         await unpublishForm(form.id)
         setForms(prev => prev.map(f => f.id === form.id ? { ...f, is_published: false } : f))
-        showToast('폼이 비공개로 변경되었습니다.', 'ok')
+        showToast('비공개로 변경되었습니다.', 'ok')
       } else {
         const updated = await publishForm(form.id, form.title)
         setForms(prev => prev.map(f => f.id === form.id ? { ...f, ...updated } : f))
@@ -77,31 +81,60 @@ export default function Dashboard() {
     showToast('✅ 링크 복사 완료!', 'ok')
   }
 
-  
   async function handleSheetConnect(form, e) {
     e.stopPropagation()
     try {
       showToast('⏳ 구글 계정 선택 중...', 'info')
       const { sheetId, sheetUrl } = await createAndConnectSheet(form.id, form.title)
-      // Supabase에 sheet_id, sheet_url 저장
-      const { supabase: sb } = await import('../lib/supabase')
       await supabase.from('forms').update({ sheet_id: sheetId, sheet_url: sheetUrl }).eq('id', form.id)
       setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_id: sheetId, sheet_url: sheetUrl } : f))
       showToast('✅ 구글 시트 연결 완료!', 'ok')
       window.open(sheetUrl, '_blank')
     } catch (err) {
-      if (err.message !== 'popup_closed_by_user') {
-        showToast('시트 연결 실패: ' + err.message, 'fail')
-      }
+      if (err.message !== 'popup_closed_by_user') showToast('시트 연결 실패: ' + err.message, 'fail')
     }
   }
 
-  async function handleSheetDisconnect(form, e) {
+  async function handleSheetDisconnect(formId, e) {
     e.stopPropagation()
     if (!confirm('시트 연결을 해제할까요?')) return
-    await disconnectSheet(form.id)
-    setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_url: null, sheet_id: null } : f))
+    await supabase.from('forms').update({ sheet_id: null, sheet_url: null }).eq('id', formId)
+    setForms(prev => prev.map(f => f.id === formId ? { ...f, sheet_id: null, sheet_url: null } : f))
     showToast('시트 연결이 해제되었습니다.', 'ok')
+  }
+
+  // 메모 편집
+  function startMemo(form, e) {
+    e.stopPropagation()
+    setEditingMemo(form.id)
+    setMemoVal(form.memo || '')
+    setTimeout(() => memoRef.current?.focus(), 50)
+  }
+
+  async function saveMemo(formId) {
+    try {
+      await supabase.from('forms').update({ memo: memoVal }).eq('id', formId)
+      setForms(prev => prev.map(f => f.id === formId ? { ...f, memo: memoVal } : f))
+    } catch { showToast('저장 실패', 'fail') }
+    setEditingMemo(null)
+  }
+
+  // 제목 편집
+  function startTitle(form, e) {
+    e.stopPropagation()
+    setEditingTitle(form.id)
+    setTitleVal(form.title)
+    setTimeout(() => titleRef.current?.focus(), 50)
+  }
+
+  async function saveTitle(formId) {
+    if (!titleVal.trim()) return setEditingTitle(null)
+    try {
+      await supabase.from('forms').update({ title: titleVal, updated_at: new Date().toISOString() }).eq('id', formId)
+      setForms(prev => prev.map(f => f.id === formId ? { ...f, title: titleVal } : f))
+      showToast('제목이 변경되었습니다.', 'ok')
+    } catch { showToast('저장 실패', 'fail') }
+    setEditingTitle(null)
   }
 
   function showToast(msg, type) {
@@ -113,87 +146,169 @@ export default function Dashboard() {
     return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
+  const filtered = forms.filter(f =>
+    f.title?.toLowerCase().includes(search.toLowerCase()) ||
+    f.memo?.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
-    <div className={styles.wrap}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft} onClick={() => navigate('/')} style={{ cursor:'pointer' }}>
-          <div className={styles.mark}>✦</div>
-          <span className={styles.logoText}>폼 빌더</span>
+    <div className={s.wrap}>
+      {/* 헤더 */}
+      <header className={s.header}>
+        <div className={s.headerLeft} onClick={() => navigate('/')}>
+          <div className={s.logoMark}>✦</div>
+          <span className={s.logoText}>폼 빌더</span>
         </div>
-        <div className={styles.headerRight}>
-          <div className={styles.userInfo}>
-            {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="" className={styles.avatar} />}
-            <span className={styles.userName}>{user?.user_metadata?.full_name || user?.email}</span>
+        <div className={s.headerRight}>
+          <div className={s.userChip}>
+            {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
+            <span>{user?.user_metadata?.full_name || user?.email}</span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={async () => { await signOut(); navigate('/') }}>로그아웃</button>
         </div>
       </header>
 
-      <main className={styles.main}>
-        <div className={styles.topRow}>
-          <div>
-            <h1 className={styles.pageTitle}>내 폼</h1>
-            <p className={styles.pageSub}>총 {forms.length}개의 폼</p>
+      <main className={s.main}>
+        {/* 타이틀 + 검색 + 새 폼 */}
+        <div className={s.topRow}>
+          <div className={s.topLeft}>
+            <h1 className={s.pageTitle}>내 폼</h1>
+            <span className={s.formCount}>{forms.length}개</span>
           </div>
-          <button className="btn btn-primary" onClick={() => navigate('/builder')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-            새 폼 만들기
-          </button>
+          <div className={s.topRight}>
+            <div className={s.searchWrap}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input className={s.searchInp} value={search} onChange={e => setSearch(e.target.value)} placeholder="폼 검색..." />
+            </div>
+            <button className="btn btn-primary" onClick={() => navigate('/builder')}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              새 폼 만들기
+            </button>
+          </div>
         </div>
 
         {loading ? (
-          <div className={styles.loadingWrap}><div className={styles.spinner}></div><span>불러오는 중...</span></div>
+          <div className={s.loadWrap}><div className={s.spinner}></div></div>
         ) : forms.length === 0 ? (
-          <div className={styles.emptyState}>
-            <div className={styles.emptyIco}>✦</div>
+          <div className={s.emptyWrap}>
+            <div className={s.emptyIco}>✦</div>
             <h2>아직 만든 폼이 없어요</h2>
-            <p>새 폼을 만들어보세요!</p>
-            <button className="btn btn-primary" style={{ marginTop:16 }} onClick={() => navigate('/builder')}>첫 번째 폼 만들기</button>
+            <p>새 폼을 만들어 응답을 받아보세요!</p>
+            <button className="btn btn-primary btn-lg" style={{ marginTop: 20 }} onClick={() => navigate('/builder')}>첫 번째 폼 만들기</button>
           </div>
         ) : (
-          <div className={styles.grid}>
-            <div className={styles.newCard} onClick={() => navigate('/builder')}>
-              <div className={styles.newCardIco}>+</div>
+          <div className={s.grid}>
+            {/* 새 폼 카드 */}
+            <div className={s.newCard} onClick={() => navigate('/builder')}>
+              <div className={s.newIco}>+</div>
               <span>새 폼 만들기</span>
             </div>
-            {forms.map(form => (
-              <div key={form.id} className={styles.formCard} onClick={() => navigate(`/builder/${form.id}`)}>
-                <div className={styles.formCardTop} style={{ background:`linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
-                  <div className={styles.formCardTopOverlay}>
-                    <span className={styles.qCount}>{form.questions?.length || 0}개 질문</span>
-                    {form.is_published && <span className={styles.pubBadge}>● 공개중</span>}
+
+            {filtered.map(form => (
+              <div key={form.id} className={s.formCard}>
+                {/* 색상 헤더 */}
+                <div className={s.cardTop} style={{ background: `linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
+                  <div className={s.cardTopRow}>
+                    <span className={s.qBadge}>{form.questions?.length || 0}문항</span>
+                    {form.is_published
+                      ? <span className={s.pubBadge}>● 공개중</span>
+                      : <span className={s.draftBadge}>초안</span>
+                    }
                   </div>
                 </div>
-                <div className={styles.formCardBody}>
-                  <h3 className={styles.formTitle}>{form.title || '제목 없음'}</h3>
-                  <span className={styles.formDate}>{formatDate(form.updated_at)}</span>
-                </div>
-                <div className={styles.formCardActions}>
-                  {/* 응답 보기 */}
-                  <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); navigate(`/responses/${form.id}`) }}>
-                    📊 응답
-                  </button>
-                  {/* 공유 링크 복사 */}
-                  {form.is_published && (
-                    <button className="btn btn-ghost btn-sm" onClick={e => copyShareLink(form, e)}>
-                      🔗 링크
-                    </button>
+
+                {/* 본문 */}
+                <div className={s.cardBody}>
+                  {/* 제목 (클릭하면 편집) */}
+                  {editingTitle === form.id ? (
+                    <input
+                      ref={titleRef}
+                      className={`${s.titleEdit} inp`}
+                      value={titleVal}
+                      onChange={e => setTitleVal(e.target.value)}
+                      onBlur={() => saveTitle(form.id)}
+                      onKeyDown={e => e.key === 'Enter' && saveTitle(form.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div className={s.cardTitle} onClick={e => startTitle(form, e)} title="클릭해서 제목 수정">
+                      {form.title || '제목 없음'}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.editIco}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </div>
                   )}
-                  {/* 발행 / 비공개 */}
-                  <button
-                    className={`btn btn-sm ${form.is_published ? 'btn-ghost' : 'btn-primary'}`}
-                    onClick={e => handlePublish(form, e)}
-                    disabled={publishing[form.id]}
-                  >
-                    {publishing[form.id] ? '...' : form.is_published ? '비공개' : '🚀 발행'}
-                  </button>
-                  {/* 구글 시트 연결 */}
-                  {form.sheet_url
-                    ? <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>📊 시트</button>
-                    : <button className="btn btn-ghost btn-sm" onClick={e => handleSheetConnect(form, e)}>🔗 시트 연결</button>
-                  }
-                  {/* 삭제 */}
-                  <button className="btn btn-sm" style={{ background:'rgba(248,113,113,.1)', color:'#f87171', border:'1px solid rgba(248,113,113,.2)' }} onClick={e => handleDelete(form.id, e)}>삭제</button>
+
+                  {/* 내부 메모 (나만 보는 메모) */}
+                  {editingMemo === form.id ? (
+                    <input
+                      ref={memoRef}
+                      className={`${s.memoEdit} inp`}
+                      value={memoVal}
+                      onChange={e => setMemoVal(e.target.value)}
+                      placeholder="내부 메모 (나만 보여요)..."
+                      onBlur={() => saveMemo(form.id)}
+                      onKeyDown={e => e.key === 'Enter' && saveMemo(form.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div className={s.memo} onClick={e => startMemo(form, e)}>
+                      {form.memo
+                        ? <span className={s.memoText}>📝 {form.memo}</span>
+                        : <span className={s.memoEmpty}>+ 내부 메모 추가</span>
+                      }
+                    </div>
+                  )}
+
+                  <div className={s.cardDate}>{formatDate(form.updated_at)}</div>
+                </div>
+
+                {/* 액션 버튼들 */}
+                <div className={s.cardActions}>
+                  {/* 1행: 편집, 응답 */}
+                  <div className={s.actionRow}>
+                    <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>
+                      ✏️ 편집
+                    </button>
+                    <button className={`${s.actionBtn}`} onClick={e => { e.stopPropagation(); navigate(`/responses/${form.id}`) }}>
+                      📊 응답
+                    </button>
+                  </div>
+
+                  {/* 2행: 발행, 링크/시트 */}
+                  <div className={s.actionRow}>
+                    <button
+                      className={`${s.actionBtn} ${form.is_published ? s.actionBtnWarning : s.actionBtnSuccess}`}
+                      onClick={e => handlePublish(form, e)}
+                      disabled={publishing[form.id]}
+                    >
+                      {publishing[form.id] ? '...' : form.is_published ? '🔒 비공개' : '🚀 발행'}
+                    </button>
+                    {form.is_published && (
+                      <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>
+                        🔗 링크 복사
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 3행: 시트 연결, 삭제 */}
+                  <div className={s.actionRow}>
+                    {form.sheet_url ? (
+                      <>
+                        <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>
+                          📗 시트 열기
+                        </button>
+                        <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={e => handleSheetDisconnect(form.id, e)}>
+                          연결 해제
+                        </button>
+                      </>
+                    ) : (
+                      <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => handleSheetConnect(form, e)} style={{ flex: 1 }}>
+                        📗 구글 시트 연결
+                      </button>
+                    )}
+                    <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
