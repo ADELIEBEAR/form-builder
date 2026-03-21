@@ -127,3 +127,74 @@
 .modal p { font-size: 13px; color: var(--muted); margin-bottom: 16px; font-weight: 300; line-height: 1.6; }
 .codeBox { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 13px; font-size: 11px; color: var(--muted2); font-family: monospace; line-height: 1.5; overflow: auto; max-height: 240px; white-space: pre-wrap; word-break: break-all; }
 .mFoot { display: flex; gap: 7px; margin-top: 14px; justify-content: flex-end; }
+
+/* ── 폰트 카드 그리드 ── */
+.fontGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.fontCard {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: rgba(255,255,255,.03);
+  transition: all .15s; text-align: center;
+}
+.fontCard:hover { border-color: rgba(124,108,252,.3); background: rgba(124,108,252,.06); }
+.fontCardOn { border-color: var(--a1); background: rgba(124,108,252,.12); }
+.fontCard span:first-child { font-size: 18px; line-height: 1.2; color: var(--text); }
+.fontCard span:last-child { font-size: 9px; color: var(--muted); font-weight: 300; }
+
+/* ── 시작화면 인라인 편집 ── */
+.startCoverWrap { position: relative; }
+.startCoverDel {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,.6); border: none; color: #fff;
+  font-size: 11px; border-radius: 6px; padding: 4px 9px; cursor: pointer;
+  transition: background .15s;
+}
+.startCoverDel:hover { background: rgba(248,113,113,.7); }
+.startTagEdit {
+  background: transparent; border: none; outline: none;
+  font-size: 10px; font-weight: 700; color: var(--a1);
+  letter-spacing: .1em; margin-bottom: 4px; width: 100%;
+  border-bottom: 1px dashed rgba(124,108,252,.25);
+  padding: 2px 0; transition: border-color .2s;
+}
+.startTagEdit:focus { border-bottom-color: var(--a1); }
+.startTitlePreview {
+  font-family: 'Gmarket Sans', sans-serif; font-size: 17px; font-weight: 700;
+  margin-bottom: 6px; background: linear-gradient(135deg, var(--text) 30%, var(--a2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  pointer-events: none;
+}
+.startDescEdit {
+  background: transparent; border: none; outline: none;
+  font-size: 12px; color: var(--muted2); width: 100%;
+  border-bottom: 1px dashed rgba(255,255,255,.1);
+  padding: 2px 0; margin-bottom: 10px; transition: border-color .2s;
+  font-family: 'Noto Sans KR', sans-serif; font-weight: 300;
+}
+.startDescEdit:focus { border-bottom-color: rgba(124,108,252,.4); }
+.startDescEdit::placeholder { color: rgba(153,151,171,.4); }
+.startBtnWrap {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, var(--a1), var(--a2));
+  border-radius: 10px; padding: 8px 16px;
+}
+.startBtnEdit {
+  background: transparent; border: none; outline: none;
+  font-size: 12px; font-weight: 500; color: #fff;
+  font-family: 'Noto Sans KR', sans-serif; min-width: 60px;
+}
+.startBtnEdit::placeholder { color: rgba(255,255,255,.6); }
+
+/* ── 컨셉 테마 그리드 ── */
+.conceptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.conceptCard {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 5px; border-radius: 9px; cursor: pointer;
+  border: 1.5px solid var(--border); background: rgba(255,255,255,.03);
+  transition: all .15s; text-align: center;
+}
+.conceptCard:hover { border-color: var(--border2); background: rgba(255,255,255,.06); transform: translateY(-1px); }
+.conceptCardOn { border-color: var(--a1); background: rgba(124,108,252,.1); box-shadow: 0 0 0 1px var(--a1); }
+.conceptEmoji { font-size: 18px; line-height: 1.2; }
+.conceptName { font-size: 10px; font-weight: 500; color: var(--text); }
+.conceptDesc { font-size: 9px; color: var(--muted); font-weight: 300; }

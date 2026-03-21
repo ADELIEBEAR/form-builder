@@ -4,53 +4,17 @@ import { useAuth } from '../hooks/useAuth'
 import { getForm, saveForm } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import s from './Builder.module.css'
+import { CONCEPT_THEMES, COLOR_THEMES, FONTS } from '../lib/themes'
 
 // ── 상수 ──
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' }
-const THEMES = [
-  // 퍼플
-  { c1:'#7c6cfc', c2:'#c084fc', name:'퍼플' },
-  { c1:'#6366f1', c2:'#a78bfa', name:'인디고' },
-  { c1:'#8b5cf6', c2:'#d946ef', name:'바이올렛' },
-  // 핑크/레드
-  { c1:'#ec4899', c2:'#f472b6', name:'핑크' },
-  { c1:'#EE4037', c2:'#ff7043', name:'레드' },
-  { c1:'#f43f5e', c2:'#fb7185', name:'로즈' },
-  // 블루
-  { c1:'#0ea5e9', c2:'#38bdf8', name:'스카이' },
-  { c1:'#3b82f6', c2:'#60a5fa', name:'블루' },
-  { c1:'#06b6d4', c2:'#22d3ee', name:'시안' },
-  // 그린
-  { c1:'#10b981', c2:'#34d399', name:'에메랄드' },
-  { c1:'#22c55e', c2:'#4ade80', name:'그린' },
-  { c1:'#84cc16', c2:'#a3e635', name:'라임' },
-  // 옐로우/오렌지
-  { c1:'#f59e0b', c2:'#fbbf24', name:'앰버' },
-  { c1:'#f97316', c2:'#fb923c', name:'오렌지' },
-  { c1:'#eab308', c2:'#facc15', name:'옐로우' },
-  // 기타
-  { c1:'#64748b', c2:'#94a3b8', name:'슬레이트' },
-  { c1:'#78716c', c2:'#a8a29e', name:'스톤' },
-  { c1:'#8b5cf6', c2:'#06b6d4', name:'오로라' },
-  { c1:'#f43f5e', c2:'#f97316', name:'선셋' },
-  { c1:'#0ea5e9', c2:'#10b981', name:'오션' },
-]
-const FONTS = [
-  { label:'Noto Sans KR', value:"'Noto Sans KR',sans-serif" },
-  { label:'Gmarket Sans', value:"'Gmarket Sans',sans-serif" },
-  { label:'Gowun Dodum', value:"'Gowun Dodum',sans-serif" },
-  { label:'Nanum Gothic', value:"'Nanum Gothic',sans-serif" },
-  { label:'Nanum Myeongjo', value:"'Nanum Myeongjo',serif" },
-  { label:'Spoqa Han Sans', value:"'Spoqa Han Sans Neo',sans-serif" },
-  { label:'IBM Plex Sans KR', value:"'IBM Plex Sans KR',sans-serif" },
-  { label:'Black Han Sans', value:"'Black Han Sans',sans-serif" },
-]
 let UID = 0
 const nid = () => ++UID
 
 // ── 기본 설정 ──
 const DEFAULT_SETTINGS = {
   animType: 0,
+  conceptTheme: 'default',
   fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
   useLoading: true,
@@ -306,9 +270,18 @@ export default function Builder() {
 
                 <div className={s.lsep} />
                 <div className={s.lsec}>폰트</div>
-                <select className={s.sel} value={settings.fontFamily} onChange={e => setSetting('fontFamily', e.target.value)}>
-                  {FONTS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                </select>
+                <div className={s.fontGrid}>
+                  {FONTS.map(f => (
+                    <div
+                      key={f.value}
+                      className={`${s.fontCard} ${settings.fontFamily === f.value ? s.fontCardOn : ''}`}
+                      onClick={() => setSetting('fontFamily', f.value)}
+                    >
+                      <span style={{ fontFamily: f.value, fontSize: 15 }}>{f.preview}</span>
+                      <span>{f.label}</span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 
@@ -396,21 +369,42 @@ export default function Builder() {
           {/* 시작화면 카드 */}
           {settings.useStart && (
             <div className={s.startCard}>
-              {coverImgData && (
-                <img src={coverImgData} className={s.startCoverImg} alt="" />
-              )}
-              {!coverImgData && (
-                <label className={s.startCoverPlaceholder}>
-                  🖼️ 커버 이미지 업로드 (선택)
-                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={onCoverImg} />
-                </label>
-              )}
+              {/* 커버 이미지 */}
+              {coverImgData
+                ? <div className={s.startCoverWrap}>
+                    <img src={coverImgData} className={s.startCoverImg} alt="" />
+                    <button className={s.startCoverDel} onClick={() => setCoverImgData(null)}>✕ 제거</button>
+                  </div>
+                : <label className={s.startCoverPlaceholder}>
+                    🖼️ 커버 이미지 업로드 (선택)
+                    <input type="file" accept="image/*" style={{ display:'none' }} onChange={onCoverImg} />
+                  </label>
+              }
               <div className={s.startBody}>
-                <div className={s.startTag}>{settings.startTag || '✦ Form'}</div>
-                <div className={s.startTitle}>{title || '폼 제목'}</div>
-                {settings.startDesc && <div className={s.startDesc}>{settings.startDesc}</div>}
-                <div className={s.startBtn}>
-                  {settings.startBtnText || '시작하기'}
+                {/* 태그 인라인 편집 */}
+                <input
+                  className={s.startTagEdit}
+                  value={settings.startTag}
+                  onChange={e => setSetting('startTag', e.target.value)}
+                  placeholder="✦ Form"
+                />
+                {/* 제목 (폼 타이틀과 연동) */}
+                <div className={s.startTitlePreview}>{title || '폼 제목'}</div>
+                {/* 설명 인라인 편집 */}
+                <input
+                  className={s.startDescEdit}
+                  value={settings.startDesc}
+                  onChange={e => setSetting('startDesc', e.target.value)}
+                  placeholder="소개 문구 입력 (선택)..."
+                />
+                {/* 버튼 텍스트 인라인 편집 */}
+                <div className={s.startBtnWrap}>
+                  <input
+                    className={s.startBtnEdit}
+                    value={settings.startBtnText}
+                    onChange={e => setSetting('startBtnText', e.target.value)}
+                    placeholder="시작하기"
+                  />
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </div>
               </div>

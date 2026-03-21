@@ -18,18 +18,35 @@ export default function PublicForm() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // iframe에서 postMessage 수신 → Supabase 저장
+  // iframe → postMessage → Supabase 저장 + 시트 싱크
   useEffect(() => {
     if (!form) return
     const handler = async (event) => {
-      if (event.data?.type === 'FORM_SUBMIT') {
-        try {
-          await submitResponse(form.id, event.data.answers)
-        } catch (err) {
-          console.error('응답 저장 실패:', err)
-          // 실패 알림을 iframe에 전달
-          iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR' }, '*')
+      if (event.data?.type !== 'FORM_SUBMIT') return
+      try {
+        // 1. Supabase responses 테이블에 저장
+        await submitResponse(form.id, event.data.answers)
+
+        // 2. 구글 시트 싱크 (sheet_id 있을 때만)
+        if (form.sheet_id) {
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sheet-sync`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                form_id: form.id,
+                answers: event.data.answers,
+              }),
+            }
+          ).catch(e => console.error('시트 싱크 실패:', e))
         }
+      } catch (err) {
+        console.error('응답 저장 실패:', err)
       }
     }
     window.addEventListener('message', handler)
@@ -60,6 +77,8 @@ export default function PublicForm() {
     form.settings || {},
     {}
   )
+
+  // 제출 방식을 postMessage로 교체
   html = html.replace(
     `await fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});`,
     `window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');`
