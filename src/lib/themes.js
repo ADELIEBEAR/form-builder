@@ -474,7 +474,7 @@ body::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     // ── 16. 종이 (SVG 노이즈 텍스처 사용) ──────
     paper: `
 @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
-body{background:#f4ede0;color:#3d2b1a;font-family:'Gaegu',cursive}
+body{background:#f4ede0;color:#3d2b1a;font-family:'Gaegu',cursive}:root{--tx:#3d2b1a;--tx2:#7a5840;--tx3:#a07860;--bg2:#fff8ef;--bd:rgba(139,90,43,.22);--bd2:rgba(139,90,43,.35);--ls-bg:rgba(139,90,43,.04)}
 body::before{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.05'/%3E%3C/svg%3E");pointer-events:none;z-index:-1}
 .card{background:#fdf7ee;border:1px solid rgba(139,90,43,.25);border-radius:6px;box-shadow:3px 4px 12px rgba(100,60,20,.15),0 1px 0 rgba(255,255,255,.9) inset;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${c1},${c2});opacity:.8}
