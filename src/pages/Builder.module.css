@@ -229,3 +229,15 @@
 .shareInp { flex: 1; background: var(--b-inp); border: 1px solid var(--b-border); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--b-text); outline: none; font-family: 'Noto Sans KR', sans-serif; }
 .codeBox { background: var(--b-bg); border: 1px solid var(--b-border); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--b-muted2); overflow-x: auto; max-height: 140px; margin-bottom: 16px; white-space: pre-wrap; word-break: break-all; font-family: 'IBM Plex Mono', monospace; line-height: 1.5; }
 .mFoot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* 시트 연동 모달 */
+.sheetModalBenefits { display: flex; flex-direction: column; gap: 8px; background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.2); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; }
+.sheetBenefit { font-size: 13px; color: #22c55e; font-weight: 500; }
+
+/* ── 애니메이션 그리드 ── */
+.animGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.animCard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 5px; background: var(--b-inp); border: 1px solid var(--b-border); border-radius: 9px; cursor: pointer; transition: all .15s; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
+.animCard:hover { border-color: rgba(124,108,252,.3); background: rgba(124,108,252,.06); }
+.animCardOn { border-color: var(--a1); background: rgba(124,108,252,.12); }
+.animEmoji { font-size: 18px; line-height: 1.2; }
+.animLabel { font-size: 9px; color: var(--b-muted2); font-weight: 500; }

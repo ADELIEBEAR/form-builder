@@ -5,9 +5,11 @@ import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../li
 import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
+import { useTheme } from '../lib/themeContext'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const [forms, setForms] = useState([])
   const [loading, setLoading] = useState(true)
@@ -164,6 +166,7 @@ export default function Dashboard() {
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
             <span>{user?.user_metadata?.full_name || user?.email}</span>
           </div>
+          <button className={s.themeToggle} onClick={toggle} title="테마 전환">{theme === 'dark' ? '☀️' : '🌙'}</button>
           <button className="btn btn-ghost btn-sm" onClick={async () => { await signOut(); navigate('/') }}>로그아웃</button>
         </div>
       </header>

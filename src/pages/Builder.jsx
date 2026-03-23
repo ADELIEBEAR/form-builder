@@ -5,6 +5,9 @@ import { getForm, saveForm, publishForm } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import s from './Builder.module.css'
 import { CONCEPT_THEMES, COLOR_THEMES, FONTS } from '../lib/themes'
+import { useTheme } from '../lib/themeContext'
+import { supabase as sb } from '../lib/supabase'
+import { createAndConnectSheet } from '../lib/googleSheets'
 
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' }
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', phone:'📱', email:'📧', legal:'📋' }
@@ -42,20 +45,13 @@ export default function Builder() {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [activeTab, setActiveTab] = useState(0)
   const [designTab, setDesignTab] = useState(0)
-  const [pvMode, setPvMode] = useState('mobile') // mobile | desktop
-  const [builderTheme, setBuilderTheme] = useState('dark') // dark | light
+  const [pvMode, setPvMode] = useState('mobile')
+  const [showSheetModal, setShowSheetModal] = useState(false)
+  const [sheetConnecting, setSheetConnecting] = useState(false)
+  const { theme: appTheme, toggle: toggleAppTheme } = useTheme()
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
   const autoSaveTimer = useRef(null)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('builderTheme')
-    if (saved) setBuilderTheme(saved)
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('builderTheme', builderTheme)
-  }, [builderTheme])
 
   useEffect(() => {
     if (!formId) return
@@ -96,11 +92,37 @@ export default function Builder() {
       const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings })
       setCurrentFormId(saved.id)
       if (!silent) showToast('✅ 저장되었습니다!', 'ok')
-      if (!formId) navigate(`/builder/${saved.id}`, { replace: true })
+      if (!formId) {
+        navigate(`/builder/${saved.id}`, { replace: true })
+        // 새 폼이면 시트 연동 모달 표시
+        if (!silent) setTimeout(() => setShowSheetModal(true), 500)
+      }
     } catch {
       if (!silent) showToast('저장 중 오류가 발생했습니다.', 'fail')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSheetConnect() {
+    setSheetConnecting(true)
+    try {
+      const { data: { session } } = await sb.auth.getSession()
+      const accessToken = session?.provider_token
+      if (!accessToken) {
+        showToast('구글 시트 권한이 필요해요. 로그아웃 후 다시 로그인해주세요.', 'fail')
+        setShowSheetModal(false)
+        return
+      }
+      const { sheetUrl, sheetId } = await createAndConnectSheet(currentFormId, title)
+      await sb.from('forms').update({ sheet_id: sheetId, sheet_url: sheetUrl }).eq('id', currentFormId)
+      showToast('✅ 구글 시트 연결 완료!', 'ok')
+      window.open(sheetUrl, '_blank')
+    } catch (err) {
+      if (err.message !== 'popup_closed_by_user') showToast('시트 연결 실패: ' + err.message, 'fail')
+    } finally {
+      setSheetConnecting(false)
+      setShowSheetModal(false)
     }
   }
 
@@ -162,7 +184,7 @@ export default function Builder() {
   const genHTML = () => generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData })
   const shareUrl = currentSlug ? `${window.location.origin}/f/${currentSlug}` : ''
 
-  const isLight = builderTheme === 'light'
+  const isLight = appTheme === 'light'
 
   return (
     <div className={`${s.wrap} ${isLight ? s.wrapLight : ''}`}>
@@ -181,7 +203,7 @@ export default function Builder() {
         </div>
         <div className={s.tbRight}>
           {/* 다크/라이트 토글 */}
-          <button className={s.themeToggle} onClick={() => setBuilderTheme(t => t === 'dark' ? 'light' : 'dark')} title="빌더 테마 전환">
+          <button className={s.themeToggle} onClick={toggleAppTheme} title="테마 전환">
             {isLight ? '🌙' : '☀️'}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>← 나가기</button>
@@ -264,9 +286,23 @@ export default function Builder() {
                   </div>
                   <div className={s.lsep}/>
                   <div className={s.lsec}>애니메이션</div>
-                  <div className={s.animBtns}>
-                    {['슬라이드','페이드','플립'].map((label,i)=>(
-                      <button key={i} className={`${s.animBtn} ${settings.animType===i?s.animBtnOn:''}`} onClick={()=>setSetting('animType',i)}>{label}</button>
+                  <div className={s.animGrid}>
+                    {[
+                      {i:0, label:'↑ 슬라이드', emoji:'⬆️'},
+                      {i:1, label:'◎ 블러페이드', emoji:'🌫️'},
+                      {i:2, label:'⟲ 플립X', emoji:'🔄'},
+                      {i:3, label:'↔ 플립Y', emoji:'🃏'},
+                      {i:4, label:'⊕ 줌인', emoji:'🔍'},
+                      {i:5, label:'→ 슬라이드LR', emoji:'➡️'},
+                      {i:6, label:'↗ 바운스', emoji:'🏀'},
+                      {i:7, label:'↺ 회전줌', emoji:'🌀'},
+                      {i:8, label:'⚡ 글리치', emoji:'⚡'},
+                      {i:9, label:'▽ 언폴드', emoji:'📂'},
+                    ].map(({i, label, emoji})=>(
+                      <button key={i} className={`${s.animCard} ${settings.animType===i?s.animCardOn:''}`} onClick={()=>setSetting('animType',i)}>
+                        <span className={s.animEmoji}>{emoji}</span>
+                        <span className={s.animLabel}>{label}</span>
+                      </button>
                     ))}
                   </div>
                 </>}
@@ -506,7 +542,29 @@ export default function Builder() {
         </div>
       )}
 
-      {/* ── HTML 내보내기 모달 ── */}
+      {/* ── 구글 시트 연동 모달 ── */}
+      {showSheetModal && (
+        <div className={s.modalBg} onClick={() => setShowSheetModal(false)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()}>
+            <div className={s.modalIco}>📗</div>
+            <h3>구글 시트 연동하시겠어요?</h3>
+            <p>지금 연결하면 응답이 제출될 때마다<br/>구글 시트에 자동으로 저장돼요!</p>
+            <div className={s.sheetModalBenefits}>
+              <div className={s.sheetBenefit}>✅ 응답 자동 저장</div>
+              <div className={s.sheetBenefit}>✅ 실시간 데이터 확인</div>
+              <div className={s.sheetBenefit}>✅ 시트 공유 가능</div>
+            </div>
+            <div className={s.mFoot}>
+              <button className="btn btn-ghost" onClick={() => setShowSheetModal(false)}>나중에</button>
+              <button className="btn btn-primary" onClick={handleSheetConnect} disabled={sheetConnecting}>
+                {sheetConnecting ? '⏳ 연결 중...' : '📗 구글 시트 연결하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HTML 내보내기 모달 ── */}}
       {showExport && (
         <div className={s.modalBg} onClick={() => setShowExport(false)}>
           <div className={s.modal} onClick={e => e.stopPropagation()}>

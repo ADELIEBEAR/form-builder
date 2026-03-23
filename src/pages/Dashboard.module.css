@@ -111,3 +111,6 @@
 /* ── 로딩 ── */
 .loadWrap { display: flex; align-items: center; justify-content: center; padding: 80px; }
 .spinner { width: 28px; height: 28px; border: 2px solid rgba(124,108,252,.2); border-top-color: var(--a1); border-radius: 50%; animation: spin .7s linear infinite; }
+
+.themeToggle { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all .15s; }
+.themeToggle:hover { background: rgba(255,255,255,.1); }

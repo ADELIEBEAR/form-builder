@@ -25,26 +25,72 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const conceptCSS = getConceptCSS(conceptTheme, theme.c1, theme.c2, fontFamily)
 const animCSS = [
-    // 0: 슬라이드
+    // 0: 슬라이드 업
     `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
-@keyframes soU{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-40px)}}
+@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-40px)}}
 @keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}
-@keyframes soD{from{opacity:1;transform:none}to{opacity:0;transform:translateY(40px)}}
-.en{animation:siU .38s ease both}
-.ex{animation:soU .28s ease both}
-.ep{animation:siD .38s ease both}
-.xp{animation:soD .28s ease both}`,
-    // 1: 페이드
-    `@keyframes fdi{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-@keyframes fdo{from{opacity:1;transform:none}to{opacity:0;transform:scale(1.04)}}
-.en,.ep{animation:fdi .35s ease both}
-.ex,.xp{animation:fdo .25s ease both}`,
-    // 2: 플립
-    `@keyframes flipIn{from{opacity:0;transform:perspective(700px) rotateX(12deg) scale(.97)}to{opacity:1;transform:none}}
-@keyframes flipOut{from{opacity:1;transform:none}to{opacity:0;transform:perspective(700px) rotateX(-12deg) scale(.97)}}
-.en,.ep{animation:flipIn .38s ease both}
-.ex,.xp{animation:flipOut .28s ease both}`,
-  ][animType]||''
+@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(40px)}}
+.en{animation:siU .38s ease both}.ex{animation:soU .28s ease both}
+.ep{animation:siD .38s ease both}.xp{animation:soD .28s ease both}`,
+
+    // 1: 페이드 + 블러
+    `@keyframes fdi{from{opacity:0;transform:scale(.94);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes fdo{from{opacity:1;filter:blur(0)}to{opacity:0;transform:scale(1.05);filter:blur(6px)}}
+.en,.ep{animation:fdi .4s cubic-bezier(.22,1,.36,1) both}
+.ex,.xp{animation:fdo .28s ease both}`,
+
+    // 2: 플립 X
+    `@keyframes fxIn{from{opacity:0;transform:perspective(700px) rotateX(14deg) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fxOut{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateX(-14deg) scale(.97)}}
+.en,.ep{animation:fxIn .4s cubic-bezier(.22,1,.36,1) both}
+.ex,.xp{animation:fxOut .28s ease both}`,
+
+    // 3: 플립 Y (카드 뒤집기)
+    `@keyframes fyIn{from{opacity:0;transform:perspective(700px) rotateY(-16deg) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fyInR{from{opacity:0;transform:perspective(700px) rotateY(16deg) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fyOut{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateY(16deg) scale(.97)}}
+@keyframes fyOutR{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateY(-16deg) scale(.97)}}
+.en{animation:fyIn .42s cubic-bezier(.22,1,.36,1) both}.ex{animation:fyOut .28s ease both}
+.ep{animation:fyInR .42s cubic-bezier(.22,1,.36,1) both}.xp{animation:fyOutR .28s ease both}`,
+
+    // 4: 줌 인
+    `@keyframes ziIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes ziOut{from{opacity:1;transform:none}to{opacity:0;transform:scale(1.2)}}
+.en,.ep{animation:ziIn .4s cubic-bezier(.34,1.4,.64,1) both}
+.ex,.xp{animation:ziOut .28s ease both}`,
+
+    // 5: 슬라이드 좌우
+    `@keyframes slIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
+@keyframes slOut{from{opacity:1}to{opacity:0;transform:translateX(-60px)}}
+@keyframes slInR{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+@keyframes slOutR{from{opacity:1}to{opacity:0;transform:translateX(60px)}}
+.en{animation:slIn .38s cubic-bezier(.22,1,.36,1) both}.ex{animation:slOut .28s ease both}
+.ep{animation:slInR .38s cubic-bezier(.22,1,.36,1) both}.xp{animation:slOutR .28s ease both}`,
+
+    // 6: 바운스
+    `@keyframes bnIn{0%{opacity:0;transform:translateY(60px) scale(.9)}60%{transform:translateY(-8px) scale(1.02)}80%{transform:translateY(4px)}100%{opacity:1;transform:none}}
+@keyframes bnOut{0%{opacity:1}100%{opacity:0;transform:translateY(-30px) scale(.95)}}
+.en,.ep{animation:bnIn .55s cubic-bezier(.22,1,.36,1) both}
+.ex,.xp{animation:bnOut .28s ease both}`,
+
+    // 7: 회전 + 줌
+    `@keyframes rzIn{from{opacity:0;transform:rotate(-8deg) scale(.85)}to{opacity:1;transform:none}}
+@keyframes rzOut{from{opacity:1}to{opacity:0;transform:rotate(8deg) scale(.85)}}
+.en,.ep{animation:rzIn .45s cubic-bezier(.22,1,.36,1) both}
+.ex,.xp{animation:rzOut .28s ease both}`,
+
+    // 8: 글리치
+    `@keyframes glIn{0%{opacity:0;transform:translateX(-4px) skewX(3deg)}20%{transform:translateX(3px) skewX(-2deg)}40%{transform:translateX(-2px) skewX(1deg)}100%{opacity:1;transform:none}}
+@keyframes glOut{0%{opacity:1}50%{transform:translateX(4px) skewX(-3deg)}100%{opacity:0;transform:translateX(-4px)}}
+.en,.ep{animation:glIn .45s ease both}
+.ex,.xp{animation:glOut .28s ease both}`,
+
+    // 9: 언폴드 (위에서 펼쳐짐)
+    `@keyframes ufIn{from{opacity:0;transform:translateY(-30px) scaleY(.6);transform-origin:top}to{opacity:1;transform:none}}
+@keyframes ufOut{from{opacity:1}to{opacity:0;transform:translateY(30px) scaleY(.6);transform-origin:bottom}}
+.en,.ep{animation:ufIn .42s cubic-bezier(.22,1,.36,1) both}
+.ex,.xp{animation:ufOut .28s ease both}`,
+  ][animType] || ''
 
   const slides = questions.map((q,i) => {
     const imgH = qImgData[q.id]
