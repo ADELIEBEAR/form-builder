@@ -25,28 +25,25 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const conceptCSS = getConceptCSS(conceptTheme, theme.c1, theme.c2, fontFamily)
 const animCSS = [
-    // 0: 슬라이드 — 스프링감 있는 자연스러운 슬라이드
-    `@keyframes siU{0%{opacity:0;transform:translateY(52px) scale(.96)}60%{opacity:1;transform:translateY(-4px) scale(1.005)}80%{transform:translateY(2px) scale(.999)}100%{opacity:1;transform:none}}
-@keyframes soU{0%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-36px) scale(.95)}}
-@keyframes siD{0%{opacity:0;transform:translateY(-52px) scale(.96)}60%{opacity:1;transform:translateY(4px) scale(1.005)}80%{transform:translateY(-2px)}100%{opacity:1;transform:none}}
-@keyframes soD{0%{opacity:1;transform:none}100%{opacity:0;transform:translateY(36px) scale(.95)}}
-.en{animation:siU .55s cubic-bezier(.22,1,.36,1) both}
-.ex{animation:soU .35s cubic-bezier(.55,0,1,.45) both}
-.ep{animation:siD .55s cubic-bezier(.22,1,.36,1) both}
-.xp{animation:soD .35s cubic-bezier(.55,0,1,.45) both}`,
-    // 1: 페이드 — 블러와 함께 부드럽게
-    `@keyframes fdi{0%{opacity:0;transform:scale(.92);filter:blur(8px)}60%{opacity:1;filter:blur(0)}100%{opacity:1;transform:none;filter:blur(0)}}
-@keyframes fdo{0%{opacity:1;transform:none;filter:blur(0)}100%{opacity:0;transform:scale(1.06);filter:blur(6px)}}
-.en,.ep{animation:fdi .5s cubic-bezier(.22,1,.36,1) both}
-.ex,.xp{animation:fdo .32s cubic-bezier(.55,0,1,.45) both}`,
-    // 2: 플립 — 카드 뒤집기
-    `@keyframes flipIn{0%{opacity:0;transform:perspective(800px) rotateY(-18deg) scale(.95)}60%{transform:perspective(800px) rotateY(2deg) scale(1.01)}100%{opacity:1;transform:none}}
-@keyframes flipOut{0%{opacity:1;transform:none}100%{opacity:0;transform:perspective(800px) rotateY(18deg) scale(.95)}}
-@keyframes flipInR{0%{opacity:0;transform:perspective(800px) rotateY(18deg) scale(.95)}60%{transform:perspective(800px) rotateY(-2deg) scale(1.01)}100%{opacity:1;transform:none}}
-.en{animation:flipIn .5s cubic-bezier(.22,1,.36,1) both}
-.ex{animation:flipOut .32s cubic-bezier(.55,0,1,.45) both}
-.ep{animation:flipInR .5s cubic-bezier(.22,1,.36,1) both}
-.xp{animation:flipOut .32s cubic-bezier(.55,0,1,.45) both}`,
+    // 0: 슬라이드
+    `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+@keyframes soU{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-40px)}}
+@keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}
+@keyframes soD{from{opacity:1;transform:none}to{opacity:0;transform:translateY(40px)}}
+.en{animation:siU .38s ease both}
+.ex{animation:soU .28s ease both}
+.ep{animation:siD .38s ease both}
+.xp{animation:soD .28s ease both}`,
+    // 1: 페이드
+    `@keyframes fdi{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes fdo{from{opacity:1;transform:none}to{opacity:0;transform:scale(1.04)}}
+.en,.ep{animation:fdi .35s ease both}
+.ex,.xp{animation:fdo .25s ease both}`,
+    // 2: 플립
+    `@keyframes flipIn{from{opacity:0;transform:perspective(700px) rotateX(12deg) scale(.97)}to{opacity:1;transform:none}}
+@keyframes flipOut{from{opacity:1;transform:none}to{opacity:0;transform:perspective(700px) rotateX(-12deg) scale(.97)}}
+.en,.ep{animation:flipIn .38s ease both}
+.ex,.xp{animation:flipOut .28s ease both}`,
   ][animType]||''
 
   const slides = questions.map((q,i) => {
@@ -226,7 +223,7 @@ ${useLoading
 }
 function sid(i){return i<0?'ss':i>=TOTAL?'done':'sl'+i}
 function upUI(){if(cur<0||cur>=TOTAL){document.getElementById('pf').style.width=cur>=TOTAL?'100%':'0%';document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';return;}document.getElementById('pf').style.width=((cur+1)/TOTAL*100)+'%';document.getElementById('sc').textContent=(cur+1)+' / '+TOTAL;document.getElementById('sc').style.opacity='1';document.getElementById('gb').className=${allowBack}&&cur>0?'v':'';}
-function go(f,t,d){if(anim)return;anim=true;const from=document.getElementById(sid(f)),to=document.getElementById(sid(t));if(!from||!to)return;from.classList.add(d==='n'?'ex':'xp');from.classList.remove('active');to.style.display='flex';to.classList.add(d==='n'?'en':'ep');setTimeout(()=>{from.style.display='none';from.classList.remove(d==='n'?'ex':'xp');to.classList.remove(d==='n'?'en':'ep');to.classList.add('active');anim=false;const inp=to.querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(inp)setTimeout(()=>inp.focus(),60);},480);}
+function go(f,t,d){if(anim)return;anim=true;const from=document.getElementById(sid(f)),to=document.getElementById(sid(t));if(!from||!to){anim=false;return;}const outCls=d==='n'?'ex':'xp';const inCls=d==='n'?'en':'ep';from.classList.add(outCls);from.classList.remove('active');setTimeout(()=>{from.style.display='none';from.classList.remove(outCls);to.style.display='flex';to.classList.add(inCls);to.classList.add('active');setTimeout(()=>{to.classList.remove(inCls);anim=false;const inp=to.querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(inp)inp.focus();},380);},280);}
 function sf(){if(cur===0)return;const f=cur;cur=0;go(f,0,'n');upUI();}
 function gn(s){if(anim)return;if(!vld(s))return;const f=cur;cur++;go(f,cur,'n');upUI();}
 function gp(s){if(anim||cur<=0)return;const f=cur;cur--;go(f,cur,'p');upUI();}
