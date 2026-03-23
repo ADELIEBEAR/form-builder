@@ -17,6 +17,9 @@ const nid = () => ++UID
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
+  bgBlur: 0,
+  bgOverlay: 0.5,
+  bgOverlayColor: '#000000',
   allowBack: true, autoNext: false, useConfetti: true, useKb: true,
   startTag: '✦ Form', startBtnText: '시작하기', startDesc: '',
   doneTitle: '제출 완료!', doneDesc: '응답해주셔서 감사합니다 🎉',
@@ -33,6 +36,7 @@ export default function Builder() {
   const [theme, setTheme] = useState(COLOR_THEMES[0])
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [coverImgData, setCoverImgData] = useState(null)
+  const [bgImgData, setBgImgData] = useState(null)
   const [qImgData, setQImgData] = useState({})
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -60,6 +64,7 @@ export default function Builder() {
       setTheme({ c1: form.theme_c1, c2: form.theme_c2 })
       setQuestions(form.questions || [])
       setSettings(prev => ({ ...DEFAULT_SETTINGS, ...(form.settings || {}) }))
+      if (form.settings?.bgImgData) setBgImgData(form.settings.bgImgData)
       setCurrentFormId(form.id)
       setCurrentSlug(form.slug)
       setIsPublished(form.is_published)
@@ -69,7 +74,7 @@ export default function Builder() {
   // 미리보기
   const updatePreview = useCallback(() => {
     if (!pvRef.current) return
-    pvRef.current.srcdoc = generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData })
+    pvRef.current.srcdoc = generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData, bgImgData })
   }, [title, questions, theme, settings, coverImgData, qImgData])
 
   useEffect(() => {
@@ -89,7 +94,7 @@ export default function Builder() {
     if (!title.trim()) { if (!silent) showToast('폼 제목을 입력해주세요.', 'fail'); return }
     setSaving(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings })
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null } })
       setCurrentFormId(saved.id)
       if (!silent) showToast('✅ 저장되었습니다!', 'ok')
       if (!formId) {
@@ -130,7 +135,7 @@ export default function Builder() {
     if (!title.trim()) { showToast('폼 제목을 입력해주세요.', 'fail'); return }
     setPublishing(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings })
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null } })
       setCurrentFormId(saved.id)
       const published = await publishForm(saved.id, title)
       setCurrentSlug(published.slug)
@@ -181,7 +186,7 @@ export default function Builder() {
   function onQImg(e, id) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setQImgData(prev => ({ ...prev, [id]: ev.target.result })); r.readAsDataURL(f) }
   function setSetting(key, val) { setSettings(prev => ({ ...prev, [key]: val })) }
   function showToast(msg, type) { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
-  const genHTML = () => generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData })
+  const genHTML = () => generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData, bgImgData })
   const shareUrl = currentSlug ? `${window.location.origin}/f/${currentSlug}` : ''
 
   const isLight = appTheme === 'light'
@@ -290,6 +295,39 @@ export default function Builder() {
                     {COLOR_THEMES.map((t,i) => (
                       <div key={i} className={`${s.tdot} ${theme.c1===t.c1?s.tdotOn:''}`} style={{background:`linear-gradient(135deg,${t.c1},${t.c2})`}} title={t.name} onClick={()=>setTheme(t)}/>
                     ))}
+                  </div>
+                  <div className={s.lsep}/>
+                  <div className={s.lsec}>배경 이미지</div>
+                  <div className={s.bgSection}>
+                    {bgImgData
+                      ? <div className={s.bgPreview}>
+                          <img src={bgImgData} className={s.bgThumb} alt="" />
+                          <button className={s.bgDel} onClick={() => setBgImgData(null)}>✕ 제거</button>
+                        </div>
+                      : <label className={s.bgUpload}>
+                          🖼️ 배경 이미지 업로드
+                          <input type="file" accept="image/*" style={{display:'none'}} onChange={e => {
+                            const f = e.target.files[0]; if (!f) return
+                            const r = new FileReader(); r.onload = ev => setBgImgData(ev.target.result); r.readAsDataURL(f)
+                          }} />
+                        </label>
+                    }
+                    {bgImgData && <>
+                      <div className={s.sliderRow}>
+                        <span>블러</span>
+                        <input type="range" min="0" max="20" step="1" value={settings.bgBlur} onChange={e => setSetting('bgBlur', Number(e.target.value))} className={s.slider} />
+                        <span>{settings.bgBlur}px</span>
+                      </div>
+                      <div className={s.sliderRow}>
+                        <span>오버레이</span>
+                        <input type="range" min="0" max="90" step="5" value={Math.round(settings.bgOverlay * 100)} onChange={e => setSetting('bgOverlay', Number(e.target.value) / 100)} className={s.slider} />
+                        <span>{Math.round(settings.bgOverlay * 100)}%</span>
+                      </div>
+                      <div className={s.colorRow}>
+                        <span>오버레이 색상</span>
+                        <input type="color" value={settings.bgOverlayColor} onChange={e => setSetting('bgOverlayColor', e.target.value)} className={s.colorPick} />
+                      </div>
+                    </>}
                   </div>
                   <div className={s.lsep}/>
                   <div className={s.lsec}>애니메이션</div>

@@ -253,3 +253,20 @@
 .themeGrid::-webkit-scrollbar-thumb,
 .animGrid::-webkit-scrollbar-thumb,
 .fontGrid::-webkit-scrollbar-thumb { background: rgba(124,108,252,.3); border-radius: 99px; }
+
+/* ── 배경 이미지 섹션 ── */
+.bgSection { display: flex; flex-direction: column; gap: 8px; }
+.bgUpload { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; background: var(--b-inp); border: 1.5px dashed var(--b-border2); border-radius: 10px; font-size: 12px; color: var(--b-muted2); cursor: pointer; transition: all .15s; text-align: center; }
+.bgUpload:hover { border-color: rgba(124,108,252,.4); color: var(--a1); background: rgba(124,108,252,.05); }
+.bgPreview { position: relative; border-radius: 10px; overflow: hidden; }
+.bgThumb { width: 100%; height: 80px; object-fit: cover; display: block; border-radius: 10px; }
+.bgDel { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.65); border: none; color: #fff; font-size: 11px; border-radius: 6px; padding: 3px 8px; cursor: pointer; transition: background .15s; }
+.bgDel:hover { background: rgba(248,113,113,.7); }
+.sliderRow { display: flex; align-items: center; gap: 8px; }
+.sliderRow span { font-size: 10px; color: var(--b-muted); white-space: nowrap; }
+.sliderRow span:first-child { min-width: 38px; }
+.sliderRow span:last-child { min-width: 28px; text-align: right; }
+.slider { flex: 1; height: 3px; border-radius: 99px; accent-color: var(--a1); cursor: pointer; }
+.colorRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.colorRow span { font-size: 10px; color: var(--b-muted); }
+.colorPick { width: 36px; height: 24px; border: 1px solid var(--b-border); border-radius: 6px; cursor: pointer; padding: 1px; background: var(--b-inp); }

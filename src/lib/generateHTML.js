@@ -12,13 +12,14 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     animType=0, fontFamily="'Noto Sans KR',sans-serif",
     conceptTheme='default',
     useStart=true,
+    bgBlur=0, bgOverlay=0.5, bgOverlayColor='#000000',
     allowBack=true, autoNext=false, useConfetti=true, useKb=true,
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
     doneCta='', doneUrl='',
     scriptUrl='https://script.google.com/macros/s/여기에_URL_입력/exec',
   } = settings
-  const { coverImgData=null, qImgData={} } = assets
+  const { coverImgData=null, qImgData={}, bgImgData=null } = assets
   const TOTAL = questions.length
 
   if (!TOTAL) return `<html><body style="background:#0e0e14;color:var(--tx3);font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px">질문을 추가해주세요.</body></html>`
@@ -155,7 +156,11 @@ const animCSS = [
 <style>
 :root{--c1:${theme.c1};--c2:${theme.c2};--tx:#f0eff8;--tx2:#9997ab;--tx3:#7a788f;--bg2:#1a1a28;--bd:rgba(255,255,255,.09);--bd2:rgba(255,255,255,.15);--ls-bg:rgba(255,255,255,.025)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:${fontFamily};min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:${fontFamily};min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;overflow:hidden;-webkit-font-smoothing:antialiased;position:relative}
+${bgImgData ? `
+#bg-img{position:fixed;inset:0;z-index:-2;background-image:url('${bgImgData}');background-size:cover;background-position:center;filter:blur(${bgBlur}px);transform:scale(${bgBlur>0?1.05:1});transition:filter .3s}
+#bg-overlay{position:fixed;inset:0;z-index:-1;background:${bgOverlayColor};opacity:${bgOverlay}}
+` : ''}
 /* concept theme handles background */
 #pw{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);z-index:50}
 #pf{height:100%;background:linear-gradient(90deg,var(--c1),var(--c2));border-radius:0 3px 3px 0;transition:width .6s cubic-bezier(.4,0,.2,1);position:relative}
@@ -238,6 +243,7 @@ body { font-family: ${fontFamily} !important; }
 ${animCSS}
 @media(max-width:480px){.card{padding:28px 22px 22px;border-radius:20px}.ct{font-size:19px}}
 </style></head><body>
+${bgImgData ? '<div id="bg-img"></div><div id="bg-overlay"></div>' : ''}
 <div id="pw"><div id="pf"></div></div>
 <div id="sc"></div>
 <button id="gb" onclick="gp(cur)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>이전</button>

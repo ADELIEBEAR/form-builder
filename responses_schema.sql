@@ -28,3 +28,12 @@ alter table public.forms add column if not exists is_published boolean not null 
 -- 폼 slug는 누구나 조회 가능 (공개 폼)
 create policy "공개된 폼은 누구나 조회" on public.forms
   for select using (is_published = true);
+
+-- 조회수 컬럼 추가
+alter table public.forms add column if not exists view_count integer not null default 0;
+
+-- 조회수 증가 함수 (RLS 우회용)
+create or replace function public.increment_view_count(form_id uuid)
+returns void language sql security definer as $$
+  update public.forms set view_count = view_count + 1 where id = form_id and is_published = true;
+$$;
