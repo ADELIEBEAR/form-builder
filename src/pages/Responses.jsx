@@ -121,6 +121,21 @@ export default function Responses() {
     responses.flatMap(r => Object.keys(r.answers || {})).filter(k => !k.startsWith('_'))
   )]
 
+  // 미리보기용 - 단답/이메일/전화번호 타입 질문 먼저, 동의/장문은 뒤로
+  const previewKeys = [...allKeys].sort((a, b) => {
+    const shortTypes = ['이름', '성함', '닉네임', '이메일', 'email', '전화', '연락처', '번호', 'phone']
+    const lateTypes = ['동의', '약관', '개인정보']
+    const aIsShort = shortTypes.some(k => a.toLowerCase().includes(k))
+    const bIsShort = shortTypes.some(k => b.toLowerCase().includes(k))
+    const aIsLate = lateTypes.some(k => a.includes(k))
+    const bIsLate = lateTypes.some(k => b.includes(k))
+    if (aIsShort && !bIsShort) return -1
+    if (!aIsShort && bIsShort) return 1
+    if (aIsLate && !bIsLate) return 1
+    if (!aIsLate && bIsLate) return -1
+    return 0
+  })
+
   // CSV 다운로드
   function downloadCSV(data = filtered) {
     const headers = ['제출 시간', ...allKeys]
@@ -327,7 +342,7 @@ export default function Responses() {
                     {/* 미리보기 (첫 2개 답변) */}
                     {expandedId !== r.id && (
                       <div className={s.respPreview}>
-                        {allKeys.slice(0, 2).map(k => r.answers?.[k] && (
+                        {previewKeys.slice(0, 2).map(k => r.answers?.[k] && (
                           <div key={k} className={s.previewItem}>
                             <span className={s.previewKey}>{k}</span>
                             <span className={s.previewVal}>{r.answers[k]}</span>

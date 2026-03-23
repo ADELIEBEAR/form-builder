@@ -6,6 +6,104 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// 액세스 토큰 갱신
+async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+  if (!clientId || !clientSecret) return null
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.access_token || null
+}
+
+// 시트에 쓰기 (토큰 자동 갱신 포함)
+async function writeToSheet(
+  sheetId: string,
+  accessToken: string,
+  refreshToken: string,
+  rows: string[][],
+  supabase: any,
+  userId: string,
+): Promise<{ ok: boolean; error?: string }> {
+
+  // 1. 헤더 확인
+  const checkRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  )
+
+  // 401이면 토큰 만료 → 갱신
+  if (checkRes.status === 401) {
+    const newToken = await refreshAccessToken(refreshToken)
+    if (!newToken) return { ok: false, error: 'token_refresh_failed' }
+
+    // 갱신된 토큰 저장
+    await supabase.from('google_tokens').update({
+      access_token: newToken,
+      updated_at: new Date().toISOString()
+    }).eq('user_id', userId)
+
+    accessToken = newToken
+  }
+
+  const checkData = await checkRes.json().catch(() => ({}))
+  const hasHeader = checkData.values && checkData.values.length > 0
+  const finalRows = hasHeader ? rows.slice(1) : rows // 헤더 이미 있으면 데이터만
+
+  if (finalRows.length === 0) return { ok: true }
+
+  const writeRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: finalRows }),
+    }
+  )
+
+  if (!writeRes.ok) {
+    // 다시 401이면 재시도
+    if (writeRes.status === 401 && refreshToken) {
+      const newToken = await refreshAccessToken(refreshToken)
+      if (newToken) {
+        await supabase.from('google_tokens').update({
+          access_token: newToken,
+          updated_at: new Date().toISOString()
+        }).eq('user_id', userId)
+
+        const retryRes = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+          {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${newToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: finalRows }),
+          }
+        )
+        if (!retryRes.ok) return { ok: false, error: await retryRes.text() }
+        return { ok: true }
+      }
+    }
+    return { ok: false, error: await writeRes.text() }
+  }
+
+  return { ok: true }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -17,7 +115,7 @@ serve(async (req) => {
       Deno.env.get('SERVICE_ROLE_KEY') ?? ''
     )
 
-    // 폼 + sheet_id + 질문 가져오기
+    // 폼 정보
     const { data: form } = await supabase
       .from('forms')
       .select('user_id, sheet_id, questions')
@@ -25,57 +123,42 @@ serve(async (req) => {
       .single()
 
     if (!form?.sheet_id) {
-      return new Response(JSON.stringify({ ok: true, msg: 'no sheet' }), { headers: cors })
+      return new Response(JSON.stringify({ ok: true, msg: 'no sheet linked' }), { headers: cors })
     }
 
-    // 구글 토큰 가져오기
+    // 구글 토큰
     const { data: tokenData } = await supabase
       .from('google_tokens')
-      .select('access_token')
+      .select('access_token, refresh_token')
       .eq('user_id', form.user_id)
       .single()
 
     if (!tokenData?.access_token) {
-      return new Response(JSON.stringify({ ok: false, msg: 'no token' }), { headers: cors })
+      return new Response(JSON.stringify({ ok: false, msg: 'no google token - please reconnect sheet' }), { headers: cors })
     }
 
-    // 질문 순서대로 값 추출
+    // 행 구성
     const questions = form.questions || []
-    const headers = ['제출 시간', ...questions.map((q: any) => q.label || '')]
+    const headers = ['제출 시간', ...questions.map((q: any) => q.label || '질문')]
     const values = [
       new Date().toLocaleString('ko-KR'),
-      ...questions.map((q: any) => answers[q.label] || '')
+      ...questions.map((q: any) => {
+        const val = answers[q.label] || answers[q.id] || ''
+        return String(val)
+      })
     ]
 
-    // 시트에 헤더 있는지 확인
-    const checkRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${form.sheet_id}/values/A1`,
-      { headers: { 'Authorization': `Bearer ${tokenData.access_token}` } }
-    )
-    const checkData = await checkRes.json()
-    const hasHeader = checkData.values && checkData.values.length > 0
-
-    // 헤더 없으면 첫 행에 추가
-    const rows = hasHeader ? [values] : [headers, values]
-
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${form.sheet_id}/values/A1:append?valueInputOption=USER_ENTERED`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ values: rows })
-      }
+    const result = await writeToSheet(
+      form.sheet_id,
+      tokenData.access_token,
+      tokenData.refresh_token,
+      [headers, values],
+      supabase,
+      form.user_id,
     )
 
-    if (!res.ok) {
-      const err = await res.text()
-      return new Response(JSON.stringify({ ok: false, error: err }), { headers: cors })
-    }
+    return new Response(JSON.stringify(result), { headers: cors })
 
-    return new Response(JSON.stringify({ ok: true }), { headers: cors })
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: cors })
   }
