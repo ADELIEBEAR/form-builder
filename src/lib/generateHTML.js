@@ -49,7 +49,7 @@ const animCSS = [
     }
     const isLast=i===TOTAL-1
     const back=allowBack&&i>0?`<button class="bb" onclick="gp(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>이전</button>`:'<span></span>'
-    return `<div class="sl" id="sl${i}" style="${i===0&&!useStart?'display:flex':'display:none'}">
+    return `<div class="sl" id="sl${i}" style="display:none">
   <div class="card">${imgH}
     <div class="cn">STEP ${String(i+1).padStart(2,'0')} / ${String(TOTAL).padStart(2,'0')}</div>
     <div class="ct">${esc(q.label||'질문')}</div>
@@ -72,7 +72,7 @@ const animCSS = [
 
   const firstShortLabel = questions.find(q=>q.type==='short')?.label||''
 
-  const startHTML = useStart?`<div id="ss" class="sl" style="display:flex"><div class="card">
+  const startHTML = useStart?`<div id="ss" class="sl active" style="display:flex"><div class="card">
     ${coverImgData?`<img src="${coverImgData}" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:200px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`:'' }
     <div class="stag">${esc(startTag)}</div>
     <div class="stit">${esc(title)}</div>
@@ -106,7 +106,7 @@ body{font-family:${fontFamily};min-height:100vh;display:flex;flex-direction:colu
 #kh kbd{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:2px 8px;font-family:monospace;font-size:11px}
 .wrap{position:relative;z-index:1;width:100%;max-width:540px}
 .sl{width:100%;display:none;flex-direction:column}
-.sl.active,.sl[style*="flex"]{display:flex}
+.sl.active{display:flex}
 .sl.ex2{position:absolute;top:0;left:0;right:0;pointer-events:none}
 .card{background:rgba(22,22,31,.95);border:1px solid rgba(255,255,255,.09);border-radius:24px;padding:38px 34px 30px;backdrop-filter:blur(20px);position:relative;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35)}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--c1),var(--c2),transparent 80%)}
@@ -188,13 +188,13 @@ let cur=-1,anim=false;
 const ans={};
 upUI();
 ${useLoading
-  ? `if(document.getElementById('ls')){setTimeout(()=>{const ls=document.getElementById('ls');ls.style.opacity='0';ls.style.transition='opacity .4s';setTimeout(()=>{ls.style.display='none';${!useStart?'sf()':''}},400)},${loadingDelay});}`
-  : !useStart?'sf();':''
+  ? `if(document.getElementById('ls')){setTimeout(()=>{const ls=document.getElementById('ls');ls.style.opacity='0';ls.style.transition='opacity .4s';setTimeout(()=>{ls.style.display='none';${useStart?'':'sf();'}},400)},${loadingDelay});}`
+  : useStart?'':'sf();'
 }
 function sid(i){return i<0?'ss':i>=TOTAL?'done':'sl'+i}
 function upUI(){if(cur<0||cur>=TOTAL){document.getElementById('pf').style.width=cur>=TOTAL?'100%':'0%';document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';return;}document.getElementById('pf').style.width=((cur+1)/TOTAL*100)+'%';document.getElementById('sc').textContent=(cur+1)+' / '+TOTAL;document.getElementById('sc').style.opacity='1';document.getElementById('gb').className=${allowBack}&&cur>0?'v':'';}
 function go(f,t,d){if(anim)return;anim=true;const from=document.getElementById(sid(f)),to=document.getElementById(sid(t));from.classList.add('ex2',d==='n'?'ex':'xp');from.classList.remove('active');to.style.display='flex';to.classList.add(d==='n'?'en':'ep');setTimeout(()=>{from.style.display='none';from.classList.remove('ex2',d==='n'?'ex':'xp');to.classList.remove(d==='n'?'en':'ep');to.classList.add('active');anim=false;const inp=to.querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(inp)setTimeout(()=>inp.focus(),80);},450);}
-function sf(){if(cur===0)return;const f=cur;cur=0;if(f<0){document.getElementById('sl0').style.display='flex';document.getElementById('sl0').classList.add('active');upUI();const inp=document.getElementById('sl0').querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(inp)setTimeout(()=>inp.focus(),80);return;}go(f,0,'n');upUI();}
+function sf(){if(cur===0)return;const f=cur;cur=0;go(f,0,'n');upUI();}
 function gn(s){if(anim)return;if(!vld(s))return;const f=cur;cur++;go(f,cur,'n');upUI();}
 function gp(s){if(anim||cur<=0)return;const f=cur;cur--;go(f,cur,'p');upUI();}
 function pick(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.toggle('ck');el.style.transform='scale(0.96)';setTimeout(()=>el.style.transform='',100);${autoNext?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320);}`:''}}

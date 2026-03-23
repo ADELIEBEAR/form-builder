@@ -51,6 +51,7 @@ export default function Builder() {
   const [dragSrc, setDragSrc] = useState(null)
   const [showExport, setShowExport] = useState(false)
   const [activeTab, setActiveTab] = useState(0) // 0=질문 1=디자인 2=설정
+  const [designTab, setDesignTab] = useState(0) // 0=테마 1=폰트
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
 
@@ -247,61 +248,49 @@ export default function Builder() {
             {/* 탭 1: 디자인 */}
             {activeTab === 1 && (
               <>
-                <div className={s.lsec}>컨셉 테마</div>
-                <div className={s.conceptGrid}>
-                  {CONCEPT_THEMES.map(ct => (
-                    <div
-                      key={ct.id}
-                      className={`${s.conceptCard} ${settings.conceptTheme === ct.id ? s.conceptCardOn : ''}`}
-                      onClick={() => setSetting('conceptTheme', ct.id)}
-                      title={ct.desc}
-                    >
-                      <div className={s.conceptEmoji}>{ct.emoji}</div>
-                      <div className={s.conceptName}>{ct.name}</div>
-                      <div className={s.conceptDesc}>{ct.desc}</div>
-                    </div>
-                  ))}
+                {/* 서브탭: 테마 / 폰트 */}
+                <div className={s.subTabs}>
+                  <button className={`${s.subTab} ${designTab===0?s.subTabOn:''}`} onClick={()=>setDesignTab(0)}>🎨 테마</button>
+                  <button className={`${s.subTab} ${designTab===1?s.subTabOn:''}`} onClick={()=>setDesignTab(1)}>🔤 폰트</button>
                 </div>
 
-                <div className={s.lsep} />
-                <div className={s.lsec}>색상 테마</div>
-                <div className={s.themeGrid}>
-                  {COLOR_THEMES.map((t, i) => (
-                    <div
-                      key={i}
-                      className={`${s.tdot} ${theme.c1 === t.c1 ? s.tdotOn : ''}`}
-                      style={{ background: `linear-gradient(135deg,${t.c1},${t.c2})` }}
-                      onClick={() => setTheme(t)}
-                    />
-                  ))}
-                </div>
+                {designTab === 0 && <>
+                  <div className={s.lsec}>컨셉 테마</div>
+                  <div className={s.conceptGrid}>
+                    {CONCEPT_THEMES.map(ct => (
+                      <div key={ct.id} className={`${s.conceptCard} ${settings.conceptTheme===ct.id?s.conceptCardOn:''}`} onClick={()=>setSetting('conceptTheme',ct.id)} title={ct.desc}>
+                        <div className={s.conceptEmoji}>{ct.emoji}</div>
+                        <div className={s.conceptName}>{ct.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={s.lsep}/>
+                  <div className={s.lsec}>색상</div>
+                  <div className={s.themeGrid}>
+                    {COLOR_THEMES.map((t,i) => (
+                      <div key={i} className={`${s.tdot} ${theme.c1===t.c1?s.tdotOn:''}`} style={{background:`linear-gradient(135deg,${t.c1},${t.c2})`}} title={t.name} onClick={()=>setTheme(t)}/>
+                    ))}
+                  </div>
+                  <div className={s.lsep}/>
+                  <div className={s.lsec}>애니메이션</div>
+                  <div className={s.animBtns}>
+                    {['슬라이드','페이드','플립'].map((label,i)=>(
+                      <button key={i} className={`${s.animBtn} ${settings.animType===i?s.animBtnOn:''}`} onClick={()=>setSetting('animType',i)}>{label}</button>
+                    ))}
+                  </div>
+                </>}
 
-                <div className={s.lsep} />
-                <div className={s.lsec}>전환 애니메이션</div>
-                <div className={s.animBtns}>
-                  {['슬라이드', '페이드', '플립'].map((label, i) => (
-                    <button
-                      key={i}
-                      className={`${s.animBtn} ${settings.animType === i ? s.animBtnOn : ''}`}
-                      onClick={() => setSetting('animType', i)}
-                    >{label}</button>
-                  ))}
-                </div>
-
-                <div className={s.lsep} />
-                <div className={s.lsec}>폰트</div>
-                <div className={s.fontGrid}>
-                  {FONTS.map(f => (
-                    <div
-                      key={f.value}
-                      className={`${s.fontCard} ${settings.fontFamily === f.value ? s.fontCardOn : ''}`}
-                      onClick={() => setSetting('fontFamily', f.value)}
-                    >
-                      <span style={{ fontFamily: f.value, fontSize: 15 }}>{f.preview || '가나다'}</span>
-                      <span>{f.label}</span>
-                    </div>
-                  ))}
-                </div>
+                {designTab === 1 && <>
+                  <div className={s.lsec}>폰트 선택</div>
+                  <div className={s.fontGrid}>
+                    {FONTS.map(f=>(
+                      <div key={f.value} className={`${s.fontCard} ${settings.fontFamily===f.value?s.fontCardOn:''}`} onClick={()=>setSetting('fontFamily',f.value)}>
+                        <span style={{fontFamily:f.value,fontSize:20}}>{f.preview||'가나다'}</span>
+                        <span>{f.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>}
               </>
             )}
 

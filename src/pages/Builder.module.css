@@ -1,11 +1,11 @@
 .wrap { height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
 
 /* ── 상단바 ── */
-.topbar { height: 52px; display: flex; align-items: center; padding: 0 14px; background: var(--s1); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 10px; z-index: 20; }
+.topbar { height: 54px; display: flex; align-items: center; padding: 0 16px; background: var(--s1); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 10px; z-index: 20; }
 .tbLogo { display: flex; align-items: center; gap: 7px; cursor: pointer; flex-shrink: 0; }
 .tbMark { width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(135deg, var(--a1), var(--a2)); display: flex; align-items: center; justify-content: center; font-size: 11px; }
 .tbText { font-family: 'Gmarket Sans', sans-serif; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, var(--text) 30%, var(--a2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.titleWrap { flex: 1; min-width: 120px; max-width: 260px; margin: 0 auto; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; transition: all .2s; }
+.titleWrap { flex: 1; min-width: 140px; max-width: 320px; margin: 0 auto; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 9px; padding: 0 10px; transition: all .2s; }
 .titleWrap:hover { border-color: var(--border2); background: rgba(255,255,255,.08); }
 .titleWrap:focus-within { border-color: rgba(124,108,252,.5); background: rgba(124,108,252,.06); box-shadow: 0 0 0 2px rgba(124,108,252,.1); }
 .titleInp { flex: 1; background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: var(--text); font-family: 'Noto Sans KR', sans-serif; text-align: center; padding: 6px 0; }
@@ -16,12 +16,12 @@
 .workspace { display: flex; flex: 1; overflow: hidden; }
 
 /* ── 왼쪽 패널 ── */
-.lpanel { width: 210px; flex-shrink: 0; background: var(--s1); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.lpanel { width: 300px; flex-shrink: 0; background: var(--s1); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.tab { flex: 1; padding: 10px 4px; font-size: 11px; font-weight: 500; color: var(--muted); background: none; border: none; cursor: pointer; transition: color .15s; text-align: center; }
+.tab { flex: 1; padding: 11px 4px; font-size: 12px; font-weight: 500; color: var(--muted); background: none; border: none; cursor: pointer; transition: color .15s; text-align: center; }
 .tab:hover { color: var(--muted2); }
 .tabOn { color: var(--a1); border-bottom: 2px solid var(--a1); margin-bottom: -1px; }
-.lbody { flex: 1; overflow-y: auto; padding: 12px 10px; display: flex; flex-direction: column; gap: 5px; }
+.lbody { flex: 1; overflow-y: auto; padding: 14px 14px; display: flex; flex-direction: column; gap: 5px; }
 .lsec { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; padding: 5px 4px 6px; margin-top: 4px; }
 .lsec:first-child { margin-top: 0; }
 .typeRow { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 9px; cursor: pointer; border: 1px solid transparent; transition: all .15s; user-select: none; }
@@ -31,8 +31,8 @@
 .typeRow span { font-size: 10px; color: var(--muted); font-weight: 300; }
 .lsep { height: 1px; background: var(--border); margin: 6px 0; }
 /* 테마 */
-.themeGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 2px 4px; max-height: 180px; overflow-y: auto; }
-.tdot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
+.themeGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; padding: 2px 4px; max-height: 180px; overflow-y: auto; }
+.tdot { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2px solid transparent; }
 .tdot:hover { transform: scale(1.15); }
 .tdotOn { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
 /* 애니 */
@@ -116,7 +116,7 @@
 .addCard:hover { border-color: rgba(124,108,252,.35); color: var(--a1); background: rgba(124,108,252,.04); }
 
 /* ── 미리보기 ── */
-.rpanel { width: 310px; flex-shrink: 0; background: var(--s1); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.rpanel { width: 340px; flex-shrink: 0; background: var(--s1); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
 .rpHead { padding: 11px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .rpHead span { font-size: 12px; font-weight: 500; color: var(--muted2); }
 .pvWrap { flex: 1; overflow: hidden; background: #06060e; position: relative; }
@@ -131,17 +131,17 @@
 .mFoot { display: flex; gap: 7px; margin-top: 14px; justify-content: flex-end; }
 
 /* ── 폰트 카드 그리드 ── */
-.fontGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.fontGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .fontCard {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 11px 8px; border-radius: 10px; cursor: pointer;
   border: 1px solid var(--border); background: rgba(255,255,255,.03);
   transition: all .15s; text-align: center;
 }
 .fontCard:hover { border-color: rgba(124,108,252,.3); background: rgba(124,108,252,.06); }
 .fontCardOn { border-color: var(--a1); background: rgba(124,108,252,.12); }
-.fontCard span:first-child { font-size: 18px; line-height: 1.2; color: var(--text); }
-.fontCard span:last-child { font-size: 9px; color: var(--muted); font-weight: 300; }
+.fontCard span:first-child { font-size: 22px; line-height: 1.2; color: var(--text); }
+.fontCard span:last-child { font-size: 10px; color: var(--muted); font-weight: 300; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: center; }
 
 /* ── 시작화면 인라인 편집 ── */
 .startCoverWrap { position: relative; }
@@ -188,15 +188,21 @@
 .startBtnEdit::placeholder { color: rgba(255,255,255,.6); }
 
 /* ── 컨셉 테마 그리드 ── */
-.conceptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-height: 200px; overflow-y: auto; }
+.conceptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .conceptCard {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 5px; border-radius: 9px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: 10px; cursor: pointer;
   border: 1.5px solid var(--border); background: rgba(255,255,255,.03);
   transition: all .15s; text-align: center;
 }
 .conceptCard:hover { border-color: var(--border2); background: rgba(255,255,255,.06); transform: translateY(-1px); }
 .conceptCardOn { border-color: var(--a1); background: rgba(124,108,252,.1); box-shadow: 0 0 0 1px var(--a1); }
-.conceptEmoji { font-size: 18px; line-height: 1.2; }
-.conceptName { font-size: 10px; font-weight: 500; color: var(--text); }
-.conceptDesc { font-size: 9px; color: var(--muted); font-weight: 300; }
+.conceptEmoji { font-size: 22px; line-height: 1.2; }
+.conceptName { font-size: 11px; font-weight: 600; color: var(--text); }
+.conceptDesc { font-size: 9px; display: none; color: var(--muted); font-weight: 300; line-height: 1.3; }
+
+/* ── 디자인 서브탭 ── */
+.subTabs { display: flex; border-bottom: 1px solid var(--border); margin: -12px -12px 10px; flex-shrink: 0; }
+.subTab { flex: 1; padding: 10px 4px; font-size: 12px; font-weight: 500; color: var(--muted); background: none; border: none; cursor: pointer; transition: color .15s; font-family: 'Noto Sans KR', sans-serif; }
+.subTab:hover { color: var(--muted2); }
+.subTabOn { color: var(--a1); border-bottom: 2px solid var(--a1); margin-bottom: -1px; }
