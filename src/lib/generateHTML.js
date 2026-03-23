@@ -19,7 +19,9 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     doneCta='', doneUrl='',
     scriptUrl='https://script.google.com/macros/s/여기에_URL_입력/exec',
   } = settings
-  const { coverImgData=null, qImgData={}, bgImgData=null } = assets
+  const coverImgData = assets.coverImgData ?? settings.coverImgData ?? null
+const qImgData = assets.qImgData ?? settings.qImgData ?? {}
+const bgImgData = assets.bgImgData ?? settings.bgImgData ?? null
   const TOTAL = questions.length
 
   if (!TOTAL) return `<html><body style="background:#0e0e14;color:var(--tx3);font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px">질문을 추가해주세요.</body></html>`
