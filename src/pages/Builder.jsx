@@ -75,9 +75,15 @@ export default function Builder() {
 
   // 미리보기
   const updatePreview = useCallback(() => {
-    if (!pvRef.current) return
-    pvRef.current.srcdoc = generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData, bgImgData })
-  }, [title, questions, theme, settings, coverImgData, qImgData])
+  if (!pvRef.current) return
+  pvRef.current.srcdoc = generateFormHTML(
+    title,
+    questions,
+    theme,
+    settings,
+    { coverImgData, qImgData, bgImgData }
+  )
+}, [title, questions, theme, settings, coverImgData, qImgData, bgImgData])
 
   useEffect(() => {
     clearTimeout(pvTimer.current)
