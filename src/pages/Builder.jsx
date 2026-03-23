@@ -1,37 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForm, saveForm } from '../lib/supabase'
+import { getForm, saveForm, publishForm } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import s from './Builder.module.css'
 import { CONCEPT_THEMES, COLOR_THEMES, FONTS } from '../lib/themes'
 
-// ── 상수 ──
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' }
+const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', phone:'📱', email:'📧', legal:'📋' }
 let UID = 0
 const nid = () => ++UID
 
-// ── 기본 설정 ──
 const DEFAULT_SETTINGS = {
-  animType: 0,
-  conceptTheme: 'default',
-  fontFamily: "'Noto Sans KR',sans-serif",
-  useStart: true,
-  useLoading: true,
-  loadingDelay: 1800,
-  loadingText: '로딩 중',
-  allowBack: true,
-  autoNext: false,
-  useConfetti: true,
-  useKb: true,
-  startTag: '✦ Form',
-  startBtnText: '시작하기',
-  startDesc: '',
-  doneTitle: '제출 완료!',
-  doneDesc: '응답해주셔서 감사합니다 🎉',
-  doneCta: '',
-  doneUrl: '',
-  scriptUrl: '',
+  animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
+  useStart: true, useLoading: true, loadingDelay: 1800, loadingText: '로딩 중',
+  allowBack: true, autoNext: false, useConfetti: true, useKb: true,
+  startTag: '✦ Form', startBtnText: '시작하기', startDesc: '',
+  doneTitle: '제출 완료!', doneDesc: '응답해주셔서 감사합니다 🎉',
+  doneCta: '', doneUrl: '', scriptUrl: '',
 }
 
 export default function Builder() {
@@ -46,24 +32,41 @@ export default function Builder() {
   const [coverImgData, setCoverImgData] = useState(null)
   const [qImgData, setQImgData] = useState({})
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [currentFormId, setCurrentFormId] = useState(null)
+  const [currentSlug, setCurrentSlug] = useState(null)
+  const [isPublished, setIsPublished] = useState(false)
   const [toast, setToast] = useState(null)
   const [dragSrc, setDragSrc] = useState(null)
   const [showExport, setShowExport] = useState(false)
-  const [activeTab, setActiveTab] = useState(0) // 0=질문 1=디자인 2=설정
-  const [designTab, setDesignTab] = useState(0) // 0=테마 1=폰트
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
+  const [designTab, setDesignTab] = useState(0)
+  const [pvMode, setPvMode] = useState('mobile') // mobile | desktop
+  const [builderTheme, setBuilderTheme] = useState('dark') // dark | light
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
+  const autoSaveTimer = useRef(null)
 
-  // 폼 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem('builderTheme')
+    if (saved) setBuilderTheme(saved)
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('builderTheme', builderTheme)
+  }, [builderTheme])
+
   useEffect(() => {
     if (!formId) return
     getForm(formId).then(form => {
       setTitle(form.title)
       setTheme({ c1: form.theme_c1, c2: form.theme_c2 })
       setQuestions(form.questions || [])
-      setSettings(prev => ({ ...prev, ...(form.settings || {}) }))
+      setSettings(prev => ({ ...DEFAULT_SETTINGS, ...(form.settings || {}) }))
       setCurrentFormId(form.id)
+      setCurrentSlug(form.slug)
+      setIsPublished(form.is_published)
     }).catch(() => showToast('폼을 불러올 수 없습니다.', 'fail'))
   }, [formId])
 
@@ -75,27 +78,49 @@ export default function Builder() {
 
   useEffect(() => {
     clearTimeout(pvTimer.current)
-    pvTimer.current = setTimeout(updatePreview, 300)
+    pvTimer.current = setTimeout(updatePreview, 400)
   }, [updatePreview])
 
-  // 저장
-  async function handleSave() {
+  // 자동 저장 (3분마다)
+  useEffect(() => {
+    autoSaveTimer.current = setInterval(() => {
+      if (title && questions.length > 0) handleSave(true)
+    }, 180000)
+    return () => clearInterval(autoSaveTimer.current)
+  }, [title, questions, theme, settings])
+
+  async function handleSave(silent = false) {
+    if (!title.trim()) { if (!silent) showToast('폼 제목을 입력해주세요.', 'fail'); return }
     setSaving(true)
     try {
-      const saved = await saveForm(user.id, {
-        id: currentFormId, title, theme, questions, settings,
-      })
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings })
       setCurrentFormId(saved.id)
-      showToast('✅ 저장되었습니다!', 'ok')
+      if (!silent) showToast('✅ 저장되었습니다!', 'ok')
       if (!formId) navigate(`/builder/${saved.id}`, { replace: true })
     } catch {
-      showToast('저장 중 오류가 발생했습니다.', 'fail')
+      if (!silent) showToast('저장 중 오류가 발생했습니다.', 'fail')
     } finally {
       setSaving(false)
     }
   }
 
-  // 질문 CRUD
+  async function handlePublish() {
+    if (!title.trim()) { showToast('폼 제목을 입력해주세요.', 'fail'); return }
+    setPublishing(true)
+    try {
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings })
+      setCurrentFormId(saved.id)
+      const published = await publishForm(saved.id, title)
+      setCurrentSlug(published.slug)
+      setIsPublished(true)
+      setShowPublishModal(true)
+    } catch {
+      showToast('발행 중 오류가 발생했습니다.', 'fail')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   function addQ(type) {
     const q = {
       id: nid(), type, label: '', hint: '', required: true, other: false,
@@ -103,110 +128,69 @@ export default function Builder() {
       legalText: type === 'legal' ? '[개인정보 수집 및 이용 안내]\n\n수집 항목: 성명, 연락처\n수집 목적: 서비스 안내\n보유 기간: 30일' : '',
     }
     setQuestions(prev => [...prev, q])
+    setTimeout(() => {
+      document.querySelector(`[data-qid="${q.id}"] input`)?.focus()
+    }, 100)
   }
 
-  function updQ(id, key, val) {
-    setQuestions(prev => prev.map(q => q.id === id ? { ...q, [key]: val } : q))
-  }
-
-  function delQ(id) {
-    setQuestions(prev => prev.filter(q => q.id !== id))
-    setQImgData(prev => { const n = { ...prev }; delete n[id]; return n })
-  }
-
+  function updQ(id, key, val) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, [key]: val } : q)) }
+  function delQ(id) { setQuestions(prev => prev.filter(q => q.id !== id)); setQImgData(prev => { const n = { ...prev }; delete n[id]; return n }) }
   function moveQ(id, dir) {
     setQuestions(prev => {
-      const arr = [...prev]
-      const i = arr.findIndex(q => q.id === id)
-      const ni = i + dir
+      const arr = [...prev]; const i = arr.findIndex(q => q.id === id); const ni = i + dir
       if (ni < 0 || ni >= arr.length) return arr
-      ;[arr[i], arr[ni]] = [arr[ni], arr[i]]
-      return arr
+      ;[arr[i], arr[ni]] = [arr[ni], arr[i]]; return arr
     })
   }
+  function addOpt(id) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: [...q.options, `옵션 ${q.options.length + 1}`] } : q)) }
+  function updOpt(id, oi, val) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: q.options.map((o, i) => i === oi ? val : o) } : q)) }
+  function delOpt(id, oi) { setQuestions(prev => prev.map(q => q.id === id && q.options.length > 1 ? { ...q, options: q.options.filter((_, i) => i !== oi) } : q)) }
 
-  function addOpt(id) {
-    setQuestions(prev => prev.map(q =>
-      q.id === id ? { ...q, options: [...q.options, `옵션 ${q.options.length + 1}`] } : q
-    ))
-  }
-
-  function updOpt(id, oi, val) {
-    setQuestions(prev => prev.map(q =>
-      q.id === id ? { ...q, options: q.options.map((o, i) => i === oi ? val : o) } : q
-    ))
-  }
-
-  function delOpt(id, oi) {
-    setQuestions(prev => prev.map(q =>
-      q.id === id && q.options.length > 1 ? { ...q, options: q.options.filter((_, i) => i !== oi) } : q
-    ))
-  }
-
-  // 드래그
   function onDrop(targetId) {
     if (!dragSrc || dragSrc === targetId) return
     setQuestions(prev => {
-      const arr = [...prev]
-      const fi = arr.findIndex(q => q.id === dragSrc)
-      const ti = arr.findIndex(q => q.id === targetId)
-      const [item] = arr.splice(fi, 1)
-      arr.splice(ti, 0, item)
-      return arr
+      const arr = [...prev]; const fi = arr.findIndex(q => q.id === dragSrc); const ti = arr.findIndex(q => q.id === targetId)
+      const [item] = arr.splice(fi, 1); arr.splice(ti, 0, item); return arr
     })
     setDragSrc(null)
   }
 
-  // 이미지
-  function onCoverImg(e) {
-    const f = e.target.files[0]; if (!f) return
-    const r = new FileReader()
-    r.onload = ev => setCoverImgData(ev.target.result)
-    r.readAsDataURL(f)
-  }
-
-  function onQImg(e, id) {
-    const f = e.target.files[0]; if (!f) return
-    const r = new FileReader()
-    r.onload = ev => setQImgData(prev => ({ ...prev, [id]: ev.target.result }))
-    r.readAsDataURL(f)
-  }
-
-  function setSetting(key, val) {
-    setSettings(prev => ({ ...prev, [key]: val }))
-  }
-
-  function showToast(msg, type) {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 3000)
-  }
-
+  function onCoverImg(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setCoverImgData(ev.target.result); r.readAsDataURL(f) }
+  function onQImg(e, id) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setQImgData(prev => ({ ...prev, [id]: ev.target.result })); r.readAsDataURL(f) }
+  function setSetting(key, val) { setSettings(prev => ({ ...prev, [key]: val })) }
+  function showToast(msg, type) { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
   const genHTML = () => generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData })
+  const shareUrl = currentSlug ? `${window.location.origin}/f/${currentSlug}` : ''
+
+  const isLight = builderTheme === 'light'
 
   return (
-    <div className={s.wrap}>
+    <div className={`${s.wrap} ${isLight ? s.wrapLight : ''}`}>
 
       {/* ── 상단바 ── */}
       <div className={s.topbar}>
-        <div className={s.tbLogo} onClick={() => navigate('/dashboard')}>
-          <div className={s.tbMark}>✦</div>
-          <span className={s.tbText}>폼 빌더</span>
-        </div>
-        <div className={s.titleWrap}>
-          <input
-            className={s.titleInp}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="폼 제목 입력..."
-          />
-          <span className={s.titleEditHint}>✏️</span>
+        <div className={s.tbLeft}>
+          <div className={s.tbLogo} onClick={() => navigate('/dashboard')}>
+            <div className={s.tbMark}>✦</div>
+            <span className={s.tbText}>폼 빌더</span>
+          </div>
+          <div className={s.titleWrap}>
+            <input className={s.titleInp} value={title} onChange={e => setTitle(e.target.value)} placeholder="폼 제목 입력..." />
+            <span className={s.titleEditHint}>✏️</span>
+          </div>
         </div>
         <div className={s.tbRight}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>← 대시보드</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => { const w = window.open('','_blank'); w.document.write(genHTML()); w.document.close() }}>미리보기</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowExport(true)}>HTML 받기</button>
-          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-            {saving ? '저장 중...' : '💾 저장'}
+          {/* 다크/라이트 토글 */}
+          <button className={s.themeToggle} onClick={() => setBuilderTheme(t => t === 'dark' ? 'light' : 'dark')} title="빌더 테마 전환">
+            {isLight ? '🌙' : '☀️'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>← 나가기</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => { const w = window.open('','_blank'); w.document.write(genHTML()); w.document.close() }}>👁 미리보기</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleSave()} disabled={saving}>
+            {saving ? '⏳' : '💾'} {saving ? '저장중' : '저장'}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={handlePublish} disabled={publishing}>
+            {publishing ? '⏳ 발행중...' : isPublished ? '🔄 재발행' : '🚀 저장 & 발행'}
           </button>
         </div>
       </div>
@@ -215,40 +199,47 @@ export default function Builder() {
 
         {/* ── 왼쪽 패널 ── */}
         <div className={s.lpanel}>
-          {/* 탭 */}
           <div className={s.tabs}>
             {['질문', '디자인', '설정'].map((t, i) => (
-              <button key={t} className={`${s.tab} ${activeTab === i ? s.tabOn : ''}`} onClick={() => setActiveTab(i)}>{t}</button>
+              <button key={i} className={`${s.tab} ${activeTab === i ? s.tabOn : ''}`} onClick={() => setActiveTab(i)}>{t}</button>
             ))}
           </div>
 
           <div className={s.lbody}>
-
-            {/* 탭 0: 질문 추가 */}
+            {/* ── 탭 0: 질문 ── */}
             {activeTab === 0 && (
               <>
                 <div className={s.lsec}>질문 추가</div>
-                {[
-                  { type:'short', ico:'📝', label:'단답형', sub:'짧은 텍스트' },
-                  { type:'long', ico:'📄', label:'장문형', sub:'긴 텍스트' },
-                  { type:'multiple', ico:'☑️', label:'객관식', sub:'복수 선택' },
-                  { type:'single', ico:'🔘', label:'단일 선택', sub:'하나만' },
-                  { type:'phone', ico:'📱', label:'전화번호', sub:'번호 입력' },
-                  { type:'email', ico:'✉️', label:'이메일', sub:'이메일 입력' },
-                  { type:'legal', ico:'✅', label:'동의', sub:'개인정보 등' },
-                ].map(t => (
-                  <div key={t.type} className={s.typeRow} onClick={() => addQ(t.type)}>
-                    <div className={s.typeIco}>{t.ico}</div>
-                    <div><strong>{t.label}</strong><span>{t.sub}</span></div>
-                  </div>
-                ))}
+                <div className={s.typeGrid}>
+                  {Object.entries(TYPE_LABELS).map(([type, label]) => (
+                    <button key={type} className={s.typeBtn} onClick={() => { addQ(type); setActiveTab(0) }}>
+                      <span className={s.typeBtnIco}>{TYPE_ICONS[type]}</span>
+                      <span className={s.typeBtnLabel}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {questions.length > 0 && (
+                  <>
+                    <div className={s.lsep} />
+                    <div className={s.lsec}>질문 목록 ({questions.length})</div>
+                    <div className={s.qList}>
+                      {questions.map((q, i) => (
+                        <div key={q.id} className={s.qListItem}>
+                          <span className={s.qListNum}>Q{i+1}</span>
+                          <span className={s.qListLabel}>{q.label || '(제목 없음)'}</span>
+                          <span className={s.qListType}>{TYPE_ICONS[q.type]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             )}
 
-            {/* 탭 1: 디자인 */}
+            {/* ── 탭 1: 디자인 ── */}
             {activeTab === 1 && (
               <>
-                {/* 서브탭: 테마 / 폰트 */}
                 <div className={s.subTabs}>
                   <button className={`${s.subTab} ${designTab===0?s.subTabOn:''}`} onClick={()=>setDesignTab(0)}>🎨 테마</button>
                   <button className={`${s.subTab} ${designTab===1?s.subTabOn:''}`} onClick={()=>setDesignTab(1)}>🔤 폰트</button>
@@ -294,281 +285,238 @@ export default function Builder() {
               </>
             )}
 
-            {/* 탭 2: 설정 */}
+            {/* ── 탭 2: 설정 ── */}
             {activeTab === 2 && (
               <>
                 <div className={s.lsec}>시작 화면</div>
-                <ToggleRow label="시작 화면 사용" val={settings.useStart} onChange={v => setSetting('useStart', v)} />
+                <ToggleRow label="시작 화면 사용" val={settings.useStart} onChange={v => setSetting('useStart', v)} light={isLight} />
                 {settings.useStart && (
                   <>
-                    <SetRow label="태그 텍스트">
+                    <SetRow label="태그 텍스트" light={isLight}>
                       <input className={s.inp} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
                     </SetRow>
-                    <SetRow label="소개 설명">
+                    <SetRow label="소개 설명" light={isLight}>
                       <input className={s.inp} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="폼 소개..." />
                     </SetRow>
-                    <SetRow label="시작 버튼 텍스트">
+                    <SetRow label="시작 버튼 텍스트" light={isLight}>
                       <input className={s.inp} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
                     </SetRow>
-                    <SetRow label="커버 이미지">
-                      <label className={s.fileBtn}>
-                        {coverImgData ? '✅ 이미지 등록됨' : '🖼️ 이미지 업로드'}
-                        <input type="file" accept="image/*" style={{ display:'none' }} onChange={onCoverImg} />
-                      </label>
-                      {coverImgData && <button className={s.delImgBtn} onClick={() => setCoverImgData(null)}>제거</button>}
+                    <SetRow label="커버 이미지" light={isLight}>
+                      <label className={s.fileBtn}>📷 이미지 선택<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
+                      {coverImgData && <button className={s.fileDelBtn} onClick={()=>setCoverImgData(null)}>✕ 제거</button>}
                     </SetRow>
                   </>
                 )}
-
-                <div className={s.lsep} />
+                <div className={s.lsep}/>
                 <div className={s.lsec}>로딩 화면</div>
-                <ToggleRow label="로딩 화면 사용" val={settings.useLoading} onChange={v => setSetting('useLoading', v)} />
+                <ToggleRow label="로딩 화면 사용" val={settings.useLoading} onChange={v => setSetting('useLoading', v)} light={isLight} />
                 {settings.useLoading && (
                   <>
-                    <SetRow label="로딩 텍스트">
-                      <input className={s.inp} value={settings.loadingText} onChange={e => setSetting('loadingText', e.target.value)} />
+                    <SetRow label="로딩 시간 (ms)" light={isLight}>
+                      <input className={s.inp} type="number" value={settings.loadingDelay} onChange={e => setSetting('loadingDelay', Number(e.target.value))} min="500" max="5000" step="100" />
                     </SetRow>
-                    <SetRow label="로딩 시간">
-                      <select className={s.sel} value={settings.loadingDelay} onChange={e => setSetting('loadingDelay', Number(e.target.value))}>
-                        <option value={1000}>1초</option>
-                        <option value={1800}>1.8초</option>
-                        <option value={2500}>2.5초</option>
-                        <option value={3500}>3.5초</option>
-                      </select>
+                    <SetRow label="로딩 텍스트" light={isLight}>
+                      <input className={s.inp} value={settings.loadingText} onChange={e => setSetting('loadingText', e.target.value)} placeholder="로딩 중" />
                     </SetRow>
                   </>
                 )}
-
-                <div className={s.lsep} />
+                <div className={s.lsep}/>
                 <div className={s.lsec}>폼 동작</div>
-                <ToggleRow label="이전 버튼 허용" val={settings.allowBack} onChange={v => setSetting('allowBack', v)} />
-                <ToggleRow label="자동 다음 이동" val={settings.autoNext} onChange={v => setSetting('autoNext', v)} />
-                <ToggleRow label="Confetti 효과" val={settings.useConfetti} onChange={v => setSetting('useConfetti', v)} />
-                <ToggleRow label="키보드 단축키" val={settings.useKb} onChange={v => setSetting('useKb', v)} />
-
-                <div className={s.lsep} />
+                <ToggleRow label="이전 버튼" val={settings.allowBack} onChange={v => setSetting('allowBack', v)} light={isLight} />
+                <ToggleRow label="자동 다음" val={settings.autoNext} onChange={v => setSetting('autoNext', v)} light={isLight} />
+                <ToggleRow label="Confetti 효과" val={settings.useConfetti} onChange={v => setSetting('useConfetti', v)} light={isLight} />
+                <ToggleRow label="키보드 단축키" val={settings.useKb} onChange={v => setSetting('useKb', v)} light={isLight} />
+                <div className={s.lsep}/>
                 <div className={s.lsec}>완료 화면</div>
-                <SetRow label="완료 제목">
-                  <input className={s.inp} value={settings.doneTitle} onChange={e => setSetting('doneTitle', e.target.value)} />
+                <SetRow label="완료 제목" light={isLight}>
+                  <input className={s.inp} value={settings.doneTitle} onChange={e => setSetting('doneTitle', e.target.value)} placeholder="제출 완료!" />
                 </SetRow>
-                <SetRow label="완료 설명">
-                  <textarea className={`${s.inp} ${s.ta}`} value={settings.doneDesc} onChange={e => setSetting('doneDesc', e.target.value)} />
+                <SetRow label="완료 설명" light={isLight}>
+                  <input className={s.inp} value={settings.doneDesc} onChange={e => setSetting('doneDesc', e.target.value)} placeholder="감사합니다" />
                 </SetRow>
-                <SetRow label="CTA 버튼 텍스트">
-                  <input className={s.inp} value={settings.doneCta} onChange={e => setSetting('doneCta', e.target.value)} placeholder="예) 홈으로" />
+                <SetRow label="CTA 버튼" light={isLight}>
+                  <input className={s.inp} value={settings.doneCta} onChange={e => setSetting('doneCta', e.target.value)} placeholder="버튼 텍스트" />
                 </SetRow>
-                <SetRow label="CTA URL">
+                <SetRow label="CTA URL" light={isLight}>
                   <input className={s.inp} value={settings.doneUrl} onChange={e => setSetting('doneUrl', e.target.value)} placeholder="https://" />
                 </SetRow>
-
-                <div className={s.lsep} />
+                <div className={s.lsep}/>
                 <div className={s.lsec}>구글 시트 연동</div>
-                <SetRow label="Apps Script URL">
+                <SetRow label="Apps Script URL" light={isLight}>
                   <input className={s.inp} value={settings.scriptUrl} onChange={e => setSetting('scriptUrl', e.target.value)} placeholder="https://script.google.com/..." />
                 </SetRow>
+                <div className={s.lsep}/>
+                <button className="btn btn-ghost btn-sm" style={{width:'100%', marginTop:4}} onClick={() => setShowExport(true)}>📥 HTML 내보내기</button>
               </>
             )}
-
           </div>
         </div>
 
-        {/* ── 에디터 ── */}
+        {/* ── 에디터 영역 ── */}
         <div className={s.editor}>
+          <div className={s.editorInner}>
 
-          {/* 시작화면 카드 */}
-          {settings.useStart && (
-            <div className={s.startCard}>
-              {/* 커버 이미지 */}
-              {coverImgData
-                ? <div className={s.startCoverWrap}>
-                    <img src={coverImgData} className={s.startCoverImg} alt="" />
-                    <button className={s.startCoverDel} onClick={() => setCoverImgData(null)}>✕ 제거</button>
+            {/* 시작화면 카드 */}
+            {settings.useStart && (
+              <div className={s.startCard}>
+                {coverImgData
+                  ? <div className={s.startCoverWrap}><img src={coverImgData} className={s.startCoverImg} alt="" /><button className={s.startCoverDel} onClick={() => setCoverImgData(null)}>✕ 제거</button></div>
+                  : <label className={s.startCoverPlaceholder}>🖼️ 커버 이미지 업로드 (선택)<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
+                }
+                <div className={s.startBody}>
+                  <input className={s.startTagEdit} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
+                  <div className={s.startTitlePreview}>{title || '폼 제목'}</div>
+                  <input className={s.startDescEdit} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="소개 문구 입력 (선택)..." />
+                  <div className={s.startBtnWrap}>
+                    <input className={s.startBtnEdit} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                   </div>
-                : <label className={s.startCoverPlaceholder}>
-                    🖼️ 커버 이미지 업로드 (선택)
-                    <input type="file" accept="image/*" style={{ display:'none' }} onChange={onCoverImg} />
-                  </label>
-              }
-              <div className={s.startBody}>
-                {/* 태그 인라인 편집 */}
-                <input
-                  className={s.startTagEdit}
-                  value={settings.startTag}
-                  onChange={e => setSetting('startTag', e.target.value)}
-                  placeholder="✦ Form"
-                />
-                {/* 제목 (폼 타이틀과 연동) */}
-                <div className={s.startTitlePreview}>{title || '폼 제목'}</div>
-                {/* 설명 인라인 편집 */}
-                <input
-                  className={s.startDescEdit}
-                  value={settings.startDesc}
-                  onChange={e => setSetting('startDesc', e.target.value)}
-                  placeholder="소개 문구 입력 (선택)..."
-                />
-                {/* 버튼 텍스트 인라인 편집 */}
-                <div className={s.startBtnWrap}>
-                  <input
-                    className={s.startBtnEdit}
-                    value={settings.startBtnText}
-                    onChange={e => setSetting('startBtnText', e.target.value)}
-                    placeholder="시작하기"
-                  />
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 빈 상태 */}
-          {questions.length === 0 && (
-            <div className={s.empty}>
-              <div className={s.emptyIco}>✦</div>
-              <p>왼쪽 <strong>질문</strong> 탭에서 타입을 클릭해 추가하세요.</p>
-            </div>
-          )}
-
-          {/* 질문 카드들 */}
-          {questions.map((q, idx) => (
-            <div
-              key={q.id}
-              className={`${s.qcard} ${dragSrc === q.id ? s.dragging : ''}`}
-              draggable
-              onDragStart={() => setDragSrc(q.id)}
-              onDragEnd={() => setDragSrc(null)}
-              onDragOver={e => e.preventDefault()}
-              onDrop={() => onDrop(q.id)}
-            >
-              {/* 질문 이미지 */}
-              {qImgData[q.id] && (
-                <div className={s.qImgWrap}>
-                  <img src={qImgData[q.id]} className={s.qImgEl} alt="" />
-                  <button className={s.qImgDel} onClick={() => setQImgData(prev => { const n={...prev}; delete n[q.id]; return n })}>✕</button>
-                </div>
-              )}
-
-              {/* 상단 행 */}
-              <div className={s.qTop}>
-                <div className={s.dragH}>⠿</div>
-                <span className={s.qBadge}>Q{idx + 1}</span>
-                <span className={s.qTag}>{TYPE_LABELS[q.type]}</span>
-                <div className={s.qActs}>
-                  {idx > 0 && <button className={s.ib} onClick={() => moveQ(q.id, -1)}>↑</button>}
-                  {idx < questions.length - 1 && <button className={s.ib} onClick={() => moveQ(q.id, 1)}>↓</button>}
-                  <button className={`${s.ib} ${s.ibDel}`} onClick={() => delQ(q.id)}>✕</button>
+            {questions.length === 0 && (
+              <div className={s.empty}>
+                <div className={s.emptyIco}>✦</div>
+                <p>왼쪽 <strong>질문</strong> 탭에서 타입을 클릭해 추가하세요.</p>
+                <div className={s.quickAdd}>
+                  {Object.entries(TYPE_LABELS).map(([type, label]) => (
+                    <button key={type} className={s.quickAddBtn} onClick={() => addQ(type)}>{TYPE_ICONS[type]} {label}</button>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {/* 질문 텍스트 */}
-              <input
-                className={s.qLabelInp}
-                value={q.label}
-                placeholder="질문을 입력하세요..."
-                onChange={e => updQ(q.id, 'label', e.target.value)}
-              />
-              <input
-                className={s.qHintInp}
-                value={q.hint}
-                placeholder="설명 추가 (선택)"
-                onChange={e => updQ(q.id, 'hint', e.target.value)}
-              />
-
-              {/* 타입별 프리뷰 */}
-              <div className={s.qPrev}>
-                {(q.type === 'short') && <div className={s.fk}>답변을 입력하세요...</div>}
-                {(q.type === 'long') && <div className={s.fk} style={{ height: 64, lineHeight: '1.6' }}>장문 답변...</div>}
-                {(q.type === 'phone') && <div className={s.fk}>🇰🇷 +82 &nbsp; 010-0000-0000</div>}
-                {(q.type === 'email') && <div className={s.fk}>example@email.com</div>}
-                {(q.type === 'multiple' || q.type === 'single') && (
-                  <div className={s.optsList}>
-                    {q.options.map((opt, oi) => (
-                      <div key={oi} className={s.optRow}>
-                        <div className={`${s.optCb} ${q.type === 'single' ? s.optCbRound : ''}`} />
-                        <input
-                          className={s.optInp}
-                          value={opt}
-                          placeholder={`옵션 ${oi + 1}`}
-                          onChange={e => updOpt(q.id, oi, e.target.value)}
-                        />
-                        <button className={s.optDel} onClick={() => delOpt(q.id, oi)}>✕</button>
-                      </div>
-                    ))}
-                    {q.other && (
-                      <div className={s.optRow}>
-                        <div className={`${s.optCb} ${q.type === 'single' ? s.optCbRound : ''}`} />
-                        <div className={s.fk} style={{ flex: 1, padding: '6px 10px', fontSize: 13 }}>기타...</div>
-                      </div>
-                    )}
-                    <button className={s.addOptBtn} onClick={() => addOpt(q.id)}>+ 옵션 추가</button>
+            {questions.map((q, idx) => (
+              <div key={q.id} data-qid={q.id} className={`${s.qcard} ${dragSrc === q.id ? s.dragging : ''}`}
+                draggable onDragStart={() => setDragSrc(q.id)} onDragEnd={() => setDragSrc(null)}
+                onDragOver={e => e.preventDefault()} onDrop={() => onDrop(q.id)}
+              >
+                {qImgData[q.id] && (
+                  <div className={s.qImgWrap}>
+                    <img src={qImgData[q.id]} className={s.qImgEl} alt="" />
+                    <button className={s.qImgDel} onClick={() => setQImgData(prev => { const n={...prev}; delete n[q.id]; return n })}>✕</button>
                   </div>
                 )}
-                {q.type === 'legal' && (
-                  <>
-                    <textarea
-                      className={s.legalTa}
-                      value={q.legalText}
-                      placeholder="동의 내용 입력..."
-                      onChange={e => updQ(q.id, 'legalText', e.target.value)}
-                    />
-                    <div className={s.fk} style={{ fontSize: 12, display:'flex', alignItems:'center', gap: 8 }}>
-                      <div style={{ width:15, height:15, borderRadius:4, border:'1.5px solid rgba(255,255,255,.15)', flexShrink:0 }}></div>
-                      위 내용에 동의합니다.
+
+                <div className={s.qTop}>
+                  <div className={s.dragH} title="드래그해서 순서 변경">⠿</div>
+                  <span className={s.qBadge}>Q{idx + 1}</span>
+                  <span className={s.qTag}>{TYPE_ICONS[q.type]} {TYPE_LABELS[q.type]}</span>
+                  <div className={s.qActs}>
+                    {idx > 0 && <button className={s.ib} onClick={() => moveQ(q.id, -1)} title="위로">↑</button>}
+                    {idx < questions.length - 1 && <button className={s.ib} onClick={() => moveQ(q.id, 1)} title="아래로">↓</button>}
+                    <button className={`${s.ib} ${s.ibDup}`} onClick={() => { const nq = { ...q, id: nid() }; setQuestions(prev => { const arr = [...prev]; arr.splice(idx+1, 0, nq); return arr }) }} title="복제">⧉</button>
+                    <button className={`${s.ib} ${s.ibDel}`} onClick={() => delQ(q.id)} title="삭제">✕</button>
+                  </div>
+                </div>
+
+                <input className={s.qLabelInp} value={q.label} placeholder="질문을 입력하세요..." onChange={e => updQ(q.id, 'label', e.target.value)} />
+                <input className={s.qHintInp} value={q.hint} placeholder="설명 추가 (선택)" onChange={e => updQ(q.id, 'hint', e.target.value)} />
+
+                <div className={s.qPrev}>
+                  {q.type === 'short' && <div className={s.fk}>답변을 입력하세요...</div>}
+                  {q.type === 'long' && <div className={s.fk} style={{height:64,lineHeight:'1.6'}}>장문 답변...</div>}
+                  {q.type === 'phone' && <div className={s.fk}>🇰🇷 +82 &nbsp; 010-0000-0000</div>}
+                  {q.type === 'email' && <div className={s.fk}>example@email.com</div>}
+                  {(q.type === 'multiple' || q.type === 'single') && (
+                    <div className={s.optsList}>
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className={s.optRow}>
+                          <div className={`${s.optCb} ${q.type === 'single' ? s.optCbRound : ''}`} />
+                          <input className={s.optInp} value={opt} placeholder={`옵션 ${oi + 1}`} onChange={e => updOpt(q.id, oi, e.target.value)} />
+                          <button className={s.optDel} onClick={() => delOpt(q.id, oi)}>✕</button>
+                        </div>
+                      ))}
+                      {q.other && (
+                        <div className={s.optRow}>
+                          <div className={`${s.optCb} ${q.type === 'single' ? s.optCbRound : ''}`} />
+                          <div className={s.fk} style={{flex:1,padding:'6px 10px',fontSize:13}}>기타...</div>
+                        </div>
+                      )}
+                      <button className={s.addOptBtn} onClick={() => addOpt(q.id)}>+ 옵션 추가</button>
                     </div>
-                  </>
-                )}
-              </div>
+                  )}
+                  {q.type === 'legal' && (
+                    <>
+                      <textarea className={s.legalTa} value={q.legalText} placeholder="동의 내용 입력..." onChange={e => updQ(q.id, 'legalText', e.target.value)} />
+                      <div className={s.fk} style={{fontSize:12,display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{width:15,height:15,borderRadius:4,border:'1.5px solid rgba(255,255,255,.15)',flexShrink:0}}></div>
+                        위 내용에 동의합니다.
+                      </div>
+                    </>
+                  )}
+                </div>
 
-              {/* 하단 설정 행 */}
-              <div className={s.qFoot}>
-                <ToggleInline label="필수" val={q.required} onChange={v => updQ(q.id, 'required', v)} />
-                {(q.type === 'multiple' || q.type === 'single') && (
-                  <ToggleInline label="기타 입력" val={q.other} onChange={v => updQ(q.id, 'other', v)} />
-                )}
-                <label className={s.qImgAdd}>
-                  🖼️ 이미지
-                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => onQImg(e, q.id)} />
-                </label>
+                <div className={s.qFoot}>
+                  <ToggleInline label="필수" val={q.required} onChange={v => updQ(q.id, 'required', v)} light={isLight} />
+                  {(q.type === 'multiple' || q.type === 'single') && (
+                    <ToggleInline label="기타 입력" val={q.other} onChange={v => updQ(q.id, 'other', v)} light={isLight} />
+                  )}
+                  <label className={s.qImgAdd}>🖼️ 이미지<input type="file" accept="image/*" style={{display:'none'}} onChange={e => onQImg(e, q.id)} /></label>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {questions.length > 0 && (
-            <button className={s.addCard} onClick={() => addQ('short')}>+ 질문 추가</button>
-          )}
+            {questions.length > 0 && (
+              <div className={s.addCardRow}>
+                {Object.entries(TYPE_LABELS).map(([type, label]) => (
+                  <button key={type} className={s.addTypeBtn} onClick={() => addQ(type)}>{TYPE_ICONS[type]} {label}</button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* ── 미리보기 ── */}
+        {/* ── 미리보기 패널 ── */}
         <div className={s.rpanel}>
           <div className={s.rpHead}>
-            <span>실시간 미리보기</span>
+            <span className={s.rpTitle}>미리보기</span>
+            <div className={s.pvModeToggle}>
+              <button className={`${s.pvModeBtn} ${pvMode==='mobile'?s.pvModeBtnOn:''}`} onClick={()=>setPvMode('mobile')}>📱</button>
+              <button className={`${s.pvModeBtn} ${pvMode==='desktop'?s.pvModeBtnOn:''}`} onClick={()=>setPvMode('desktop')}>🖥️</button>
+            </div>
+            <button className={s.pvOpenBtn} onClick={() => { const w = window.open('','_blank'); w.document.write(genHTML()); w.document.close() }} title="새 탭에서 열기">↗</button>
           </div>
           <div className={s.pvWrap}>
-            <iframe ref={pvRef} className={s.pvIframe} sandbox="allow-scripts" />
+            <div className={`${s.pvFrame} ${pvMode==='mobile'?s.pvFrameMobile:s.pvFrameDesktop}`}>
+              <iframe ref={pvRef} className={s.pvIframe} sandbox="allow-scripts" title="미리보기" />
+            </div>
           </div>
         </div>
-
       </div>
 
-      {/* ── 내보내기 모달 ── */}
+      {/* ── 발행 완료 모달 ── */}
+      {showPublishModal && (
+        <div className={s.modalBg} onClick={() => setShowPublishModal(false)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()}>
+            <div className={s.modalIco}>🎉</div>
+            <h3>발행 완료!</h3>
+            <p>폼이 공개되었어요. 아래 링크로 공유하세요!</p>
+            <div className={s.shareBox}>
+              <input className={s.shareInp} value={shareUrl} readOnly />
+              <button className="btn btn-primary btn-sm" onClick={() => { navigator.clipboard.writeText(shareUrl); showToast('✅ 링크 복사!', 'ok') }}>복사</button>
+            </div>
+            <div className={s.mFoot}>
+              <button className="btn btn-ghost" onClick={() => setShowPublishModal(false)}>닫기</button>
+              <button className="btn btn-ghost" onClick={() => window.open(shareUrl, '_blank')}>🔗 링크 열기</button>
+              <button className="btn btn-primary" onClick={() => { navigate(`/responses/${currentFormId}`) }}>📊 응답 보기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HTML 내보내기 모달 ── */}
       {showExport && (
         <div className={s.modalBg} onClick={() => setShowExport(false)}>
           <div className={s.modal} onClick={e => e.stopPropagation()}>
-            <h3>🎉 HTML 내보내기</h3>
-            <p>코드를 복사하거나 파일로 다운로드하세요.<br />Apps Script URL을 입력하면 구글 시트 연동까지!</p>
-            <pre className={s.codeBox}>{genHTML().slice(0, 600)}...</pre>
+            <h3>📥 HTML 내보내기</h3>
+            <p>코드를 복사하거나 파일로 다운로드하세요.</p>
+            <pre className={s.codeBox}>{genHTML().slice(0, 500)}...</pre>
             <div className={s.mFoot}>
               <button className="btn btn-ghost" onClick={() => setShowExport(false)}>닫기</button>
-              <button className="btn btn-ghost" onClick={() => {
-                navigator.clipboard.writeText(genHTML())
-                showToast('✅ 복사 완료!', 'ok')
-              }}>코드 복사</button>
-              <button className="btn btn-primary" onClick={() => {
-                const a = document.createElement('a')
-                a.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(genHTML())
-                a.download = title.replace(/\s+/g, '-') + '.html'
-                a.click()
-                showToast('✅ 다운로드 완료!', 'ok')
-              }}>HTML 다운로드</button>
+              <button className="btn btn-ghost" onClick={() => { navigator.clipboard.writeText(genHTML()); showToast('✅ 복사!', 'ok') }}>코드 복사</button>
+              <button className="btn btn-primary" onClick={() => { const a = document.createElement('a'); a.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(genHTML()); a.download = (title||'form') + '.html'; a.click() }}>⬇ 다운로드</button>
             </div>
           </div>
         </div>
@@ -579,38 +527,37 @@ export default function Builder() {
   )
 }
 
-// ── 서브 컴포넌트 ──
-function ToggleRow({ label, val, onChange }) {
+function ToggleRow({ label, val, onChange, light }) {
+  const muted = light ? '#6b7280' : '#9997ab'
+  const bg = val ? '#7c6cfc' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 2px' }}>
-      <span style={{ fontSize:12, color:'#9997ab' }}>{label}</span>
-      <button
-        onClick={() => onChange(!val)}
-        style={{ position:'relative', width:26, height:15, background:val?'#7c6cfc':'rgba(255,255,255,.1)', borderRadius:99, border:'none', cursor:'pointer', transition:'background .2s', flexShrink:0 }}
-      >
-        <div style={{ position:'absolute', top:2, left: val?11:2, width:11, height:11, background:'#fff', borderRadius:'50%', transition:'left .2s' }} />
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 2px'}}>
+      <span style={{fontSize:12,color:muted}}>{label}</span>
+      <button onClick={() => onChange(!val)} style={{position:'relative',width:28,height:16,background:bg,borderRadius:99,border:'none',cursor:'pointer',transition:'background .2s',flexShrink:0}}>
+        <div style={{position:'absolute',top:2.5,left:val?12:2.5,width:11,height:11,background:'#fff',borderRadius:'50%',transition:'left .2s',boxShadow:'0 1px 3px rgba(0,0,0,.3)'}} />
       </button>
     </div>
   )
 }
 
-function ToggleInline({ label, val, onChange }) {
+function ToggleInline({ label, val, onChange, light }) {
+  const bg = val ? '#7c6cfc' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
+  const color = light ? '#6b7280' : '#7a788f'
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }} onClick={() => onChange(!val)}>
-      <button
-        style={{ position:'relative', width:24, height:14, background:val?'#7c6cfc':'rgba(255,255,255,.1)', borderRadius:99, border:'none', cursor:'pointer', transition:'background .2s', flexShrink:0 }}
-      >
-        <div style={{ position:'absolute', top:1.5, left: val?10:1.5, width:11, height:11, background:'#fff', borderRadius:'50%', transition:'left .2s' }} />
+    <div style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer'}} onClick={() => onChange(!val)}>
+      <button style={{position:'relative',width:24,height:14,background:bg,borderRadius:99,border:'none',cursor:'pointer',transition:'background .2s',flexShrink:0}}>
+        <div style={{position:'absolute',top:1.5,left:val?10:1.5,width:11,height:11,background:'#fff',borderRadius:'50%',transition:'left .2s'}} />
       </button>
-      <span style={{ fontSize:11, color:'#7a788f', fontWeight:300 }}>{label}</span>
+      <span style={{fontSize:11,color,fontWeight:300}}>{label}</span>
     </div>
   )
 }
 
-function SetRow({ label, children }) {
+function SetRow({ label, children, light }) {
+  const color = light ? '#6b7280' : '#7a788f'
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:4, padding:'2px 0' }}>
-      <span style={{ fontSize:11, color:'#7a788f' }}>{label}</span>
+    <div style={{display:'flex',flexDirection:'column',gap:4,padding:'3px 0'}}>
+      <span style={{fontSize:11,color,fontWeight:500}}>{label}</span>
       {children}
     </div>
   )

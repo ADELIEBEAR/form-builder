@@ -160,6 +160,20 @@ body{font-family:${fontFamily};min-height:100vh;display:flex;flex-direction:colu
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes lb{to{width:100%}}
 ${conceptCSS}
+/* ── 색상/폰트 오버라이드 (사용자 선택값 우선) ── */
+${conceptTheme !== 'default' ? `
+body { font-family: ${fontFamily} !important; }
+.ct, .stit { font-family: ${fontFamily} !important; }
+` : ''}
+/* 색상 테마 오버라이드 */
+.nb { background: linear-gradient(135deg,${theme.c1},${theme.c2}) !important; }
+.nb:hover { box-shadow: 0 8px 28px color-mix(in srgb, ${theme.c1} 40%, transparent) !important; }
+.sbt { background: linear-gradient(135deg,${theme.c1},${theme.c2}) !important; }
+.ci.ck { border-color: ${theme.c1} !important; }
+.ci.ck .cb { background: ${theme.c1} !important; border-color: ${theme.c1} !important; }
+.cn { color: ${theme.c1} !important; }
+.card::before { background: linear-gradient(90deg,transparent,${theme.c1},${theme.c2},transparent) !important; }
+#pf { background: linear-gradient(90deg,${theme.c1},${theme.c2}) !important; }
 ${animCSS}
 @media(max-width:480px){.card{padding:28px 22px 22px;border-radius:20px}.ct{font-size:19px}}
 </style></head><body>
