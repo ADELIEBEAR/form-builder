@@ -361,7 +361,14 @@ export default function Responses() {
                         {allKeys.map(k => (
                           <div key={k} className={s.answerRow}>
                             <div className={s.answerQ}>{k}</div>
-                            <div className={s.answerA}>{r.answers?.[k] || <span style={{color:'var(--muted)'}}>-</span>}</div>
+                            <div className={s.answerA}>
+                              {r.answers?.[k]
+                                ? String(r.answers[k]).startsWith('data:image')
+                                  ? <img src={r.answers[k]} style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
+                                  : r.answers[k]
+                                : <span style={{color:'var(--muted)'}}>-</span>
+                              }
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -396,7 +403,13 @@ export default function Responses() {
                     <td className={s.tdNum}>{filtered.length - i}</td>
                     <td className={s.tdDate}>{formatDate(r.submitted_at)}</td>
                     {allKeys.map(k => (
-                      <td key={k} className={s.td}>{r.answers?.[k] || '-'}</td>
+                      <td key={k} className={s.td}>
+                        {r.answers?.[k]
+                          ? String(r.answers[k]).startsWith('data:image')
+                            ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지" />
+                            : r.answers[k]
+                          : '-'}
+                      </td>
                     ))}
                   </tr>
                 ))}
