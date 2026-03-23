@@ -75,12 +75,17 @@ export default function PublicForm() {
   )
 
   // HTML 생성 후 fetch → postMessage 로 교체
+  const formSettings = form.settings || {}
   let html = generateFormHTML(
     form.title,
     form.questions || [],
     { c1: form.theme_c1, c2: form.theme_c2 },
-    form.settings || {},
-    {}
+    formSettings,
+    {
+      coverImgData: formSettings.coverImgData || null,
+      bgImgData: formSettings.bgImgData || null,
+      qImgData: formSettings.qImgData || {},
+    }
   )
 
   // 제출 방식을 postMessage로 교체

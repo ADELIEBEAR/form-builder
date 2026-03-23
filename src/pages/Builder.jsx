@@ -66,6 +66,7 @@ export default function Builder() {
       setSettings(prev => ({ ...DEFAULT_SETTINGS, ...(form.settings || {}) }))
       if (form.settings?.bgImgData) setBgImgData(form.settings.bgImgData)
       if (form.settings?.coverImgData) setCoverImgData(form.settings.coverImgData)
+      if (form.settings?.qImgData) setQImgData(form.settings.qImgData)
       setCurrentFormId(form.id)
       setCurrentSlug(form.slug)
       setIsPublished(form.is_published)
@@ -95,7 +96,7 @@ export default function Builder() {
     if (!title.trim()) { if (!silent) showToast('폼 제목을 입력해주세요.', 'fail'); return }
     setSaving(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null } })
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null, qImgData: qImgData || {} } })
       setCurrentFormId(saved.id)
       if (!silent) showToast('✅ 저장되었습니다!', 'ok')
       if (!formId) {
@@ -136,7 +137,7 @@ export default function Builder() {
     if (!title.trim()) { showToast('폼 제목을 입력해주세요.', 'fail'); return }
     setPublishing(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null } })
+      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null, qImgData: qImgData || {} } })
       setCurrentFormId(saved.id)
       const published = await publishForm(saved.id, title)
       setCurrentSlug(published.slug)
