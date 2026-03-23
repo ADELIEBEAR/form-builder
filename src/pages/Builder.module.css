@@ -88,7 +88,7 @@
 .subTabOn { color: var(--a1); border-bottom: 2px solid var(--a1); margin-bottom: -1px; }
 
 /* 컨셉 그리드 */
-.conceptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.conceptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 230px; overflow-y: auto; padding-right: 2px; }
 .conceptCard { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; cursor: pointer; border: 1.5px solid var(--b-border); background: var(--b-inp); transition: all .15s; text-align: center; }
 .conceptCard:hover { border-color: var(--b-border2); background: rgba(124,108,252,.06); transform: translateY(-1px); }
 .conceptCardOn { border-color: var(--a1); background: rgba(124,108,252,.1); box-shadow: 0 0 0 1px var(--a1); }
@@ -96,8 +96,8 @@
 .conceptName { font-size: 10px; font-weight: 600; color: var(--b-text); }
 
 /* 색상 그리드 */
-.themeGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; padding: 2px; max-height: 180px; overflow-y: auto; }
-.tdot { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2.5px solid transparent; }
+.themeGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 3px; max-height: 200px; overflow-y: auto; }
+.tdot { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; transition: transform .15s; border: 2.5px solid transparent; }
 .tdot:hover { transform: scale(1.15); }
 .tdotOn { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.2); transform: scale(1.1); }
 
@@ -108,7 +108,7 @@
 .animBtnOn { background: rgba(124,108,252,.15); border-color: rgba(124,108,252,.4); color: var(--a1); }
 
 /* 폰트 그리드 */
-.fontGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.fontGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 340px; overflow-y: auto; padding-right: 2px; }
 .fontCard { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 11px 8px; border-radius: 10px; cursor: pointer; border: 1px solid var(--b-border); background: var(--b-inp); transition: all .15s; text-align: center; }
 .fontCard:hover { border-color: rgba(124,108,252,.3); background: rgba(124,108,252,.06); }
 .fontCardOn { border-color: var(--a1); background: rgba(124,108,252,.12); }
@@ -235,9 +235,21 @@
 .sheetBenefit { font-size: 13px; color: #22c55e; font-weight: 500; }
 
 /* ── 애니메이션 그리드 ── */
-.animGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.animGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: 220px; overflow-y: auto; padding-right: 2px; }
 .animCard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 5px; background: var(--b-inp); border: 1px solid var(--b-border); border-radius: 9px; cursor: pointer; transition: all .15s; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
 .animCard:hover { border-color: rgba(124,108,252,.3); background: rgba(124,108,252,.06); }
 .animCardOn { border-color: var(--a1); background: rgba(124,108,252,.12); }
 .animEmoji { font-size: 18px; line-height: 1.2; }
 .animLabel { font-size: 9px; color: var(--b-muted2); font-weight: 500; }
+
+/* 패널 스크롤바 */
+.lbody::-webkit-scrollbar,
+.conceptGrid::-webkit-scrollbar,
+.themeGrid::-webkit-scrollbar,
+.animGrid::-webkit-scrollbar,
+.fontGrid::-webkit-scrollbar { width: 3px; }
+.lbody::-webkit-scrollbar-thumb,
+.conceptGrid::-webkit-scrollbar-thumb,
+.themeGrid::-webkit-scrollbar-thumb,
+.animGrid::-webkit-scrollbar-thumb,
+.fontGrid::-webkit-scrollbar-thumb { background: rgba(124,108,252,.3); border-radius: 99px; }
