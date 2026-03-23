@@ -127,3 +127,16 @@
 .modal p { font-size: 13px; color: var(--muted); margin-bottom: 16px; font-weight: 300; line-height: 1.6; }
 .codeBox { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 13px; font-size: 11px; color: var(--muted2); font-family: monospace; line-height: 1.5; overflow: auto; max-height: 240px; white-space: pre-wrap; word-break: break-all; }
 .mFoot { display: flex; gap: 7px; margin-top: 14px; justify-content: flex-end; }
+
+/* Dashboard.module.css에 추가 */
+.viewCount {
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
