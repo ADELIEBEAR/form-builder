@@ -6,13 +6,14 @@ import styles from './PublicForm.module.css'
 
 export default function PublicForm() {
   const { slug } = useParams()
+  const decodedSlug = decodeURIComponent(slug)
   const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const iframeRef = useRef(null)
 
   useEffect(() => {
-    getFormBySlug(slug)
+    getFormBySlug(decodedSlug)
       .then(f => {
         setForm(f)
         // 조회수 증가
