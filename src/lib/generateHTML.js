@@ -11,7 +11,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const {
     animType=0, fontFamily="'Noto Sans KR',sans-serif",
     conceptTheme='default',
-    useStart=true, useLoading=true, loadingDelay=1800, loadingText='로딩 중',
+    useStart=true,
     allowBack=true, autoNext=false, useConfetti=true, useKb=true,
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
@@ -220,7 +220,7 @@ body{font-family:${fontFamily};min-height:100vh;display:flex;flex-direction:colu
 .rp{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:rpa .55s linear;pointer-events:none}@keyframes rpa{to{transform:scale(4);opacity:0}}
 @keyframes cff{0%{opacity:1;transform:translateY(0) rotate(0)}80%{opacity:1}100%{transform:translateY(110vh) rotate(760deg);opacity:0}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
-@keyframes spin{to{transform:rotate(360deg)}}@keyframes lb{to{width:100%}}
+@keyframes spin{to{transform:rotate(360deg)}}
 ${conceptCSS}
 /* ── 색상/폰트 오버라이드 (사용자 선택값 우선) ── */
 ${conceptTheme !== 'default' ? `
@@ -242,7 +242,6 @@ ${animCSS}
 <div id="pw"><div id="pf"></div></div>
 <div id="sc"></div>
 <button id="gb" onclick="gp(cur)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>이전</button>
-${loadHTML}
 <div id="cfw"></div>
 ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</div>':''}
 <div id="tst"></div>
@@ -263,9 +262,7 @@ const TOTAL=${TOTAL};
 let cur=-1,anim=false;
 const ans={};
 upUI();
-${useLoading
-  ? `if(document.getElementById('ls')){setTimeout(()=>{const ls=document.getElementById('ls');ls.style.opacity='0';ls.style.transition='opacity .4s';setTimeout(()=>{ls.style.display='none';${!useStart?'initFirst();':''}},400)},${loadingDelay});}`: (!useStart?'initFirst();':'')
-}
+${!useStart?'initFirst();':''}
 function initFirst(){
   cur=0;
   const sl0=document.getElementById('sl0');

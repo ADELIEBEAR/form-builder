@@ -16,7 +16,7 @@ const nid = () => ++UID
 
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
-  useStart: true, useLoading: true, loadingDelay: 1800, loadingText: '로딩 중',
+  useStart: true,
   allowBack: true, autoNext: false, useConfetti: true, useKb: true,
   startTag: '✦ Form', startBtnText: '시작하기', startDesc: '',
   doneTitle: '제출 완료!', doneDesc: '응답해주셔서 감사합니다 🎉',
@@ -343,19 +343,7 @@ export default function Builder() {
                     </SetRow>
                   </>
                 )}
-                <div className={s.lsep}/>
-                <div className={s.lsec}>로딩 화면</div>
-                <ToggleRow label="로딩 화면 사용" val={settings.useLoading} onChange={v => setSetting('useLoading', v)} light={isLight} />
-                {settings.useLoading && (
-                  <>
-                    <SetRow label="로딩 시간 (ms)" light={isLight}>
-                      <input className={s.inp} type="number" value={settings.loadingDelay} onChange={e => setSetting('loadingDelay', Number(e.target.value))} min="500" max="5000" step="100" />
-                    </SetRow>
-                    <SetRow label="로딩 텍스트" light={isLight}>
-                      <input className={s.inp} value={settings.loadingText} onChange={e => setSetting('loadingText', e.target.value)} placeholder="로딩 중" />
-                    </SetRow>
-                  </>
-                )}
+
                 <div className={s.lsep}/>
                 <div className={s.lsec}>폼 동작</div>
                 <ToggleRow label="이전 버튼" val={settings.allowBack} onChange={v => setSetting('allowBack', v)} light={isLight} />
