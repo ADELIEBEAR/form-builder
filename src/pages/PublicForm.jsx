@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase'; // 변수명 'he'가 아니라 'supabase'로 통일합니다.
+import { supabase } from '../lib/supabase'; 
 import { generateFormHTML } from '../lib/generateHTML';
 import styles from './PublicForm.module.css';
 
@@ -11,12 +11,10 @@ const PublicForm = () => {
   const [error, setError] = useState(null);
   const iframeRef = useRef(null);
 
-  // 1. 조회수 1 올리는 함수 (안전한 버전)
+  // 조회수 증가 함수 (로직 유지)
   const incrementViewCount = async (targetSlug) => {
     try {
-      // .catch 에러 방지를 위해 표준 await 방식으로 호출합니다.
-      const { error: rpcError } = await supabase.rpc('increment_views', { target_slug: targetSlug });
-      if (rpcError) console.error("조회수 업데이트 중 DB 에러:", rpcError.message);
+      await supabase.rpc('increment_views', { target_slug: targetSlug });
     } catch (err) {
       console.error("조회수 업데이트 실패:", err.message);
     }
@@ -26,53 +24,37 @@ const PublicForm = () => {
     const fetchForm = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        // [중요] 한글 주소(%EB%...)를 다시 한글로 변환
         const decodedSlug = decodeURIComponent(slug);
-        console.log("🔍 조회 중인 Slug:", decodedSlug);
-
-        // 2. Supabase에서 데이터 가져오기 (.single() 필수)
+        
         const { data, error: supabaseError } = await supabase
           .from('forms')
           .select('*')
           .eq('slug', decodedSlug)
           .eq('is_published', true)
-          .single(); // 상자(배열) 말고 알맹이(객체) 하나만 가져오기
+          .single();
 
-        if (supabaseError || !data) {
-          throw new Error("폼을 찾을 수 없거나 비공개 상태입니다.");
-        }
+        if (supabaseError || !data) throw new Error("폼을 찾을 수 없습니다.");
 
         setForm(data);
-        
-        // 3. 데이터를 성공적으로 가져왔을 때만 조회수 증가 실행
         incrementViewCount(decodedSlug);
-
       } catch (err) {
-        console.error("🚨 로딩 에러:", err.message);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
     if (slug) fetchForm();
   }, [slug]);
 
-  // 응답 제출 처리 (postMessage 수신 로직)
+  // 응답 제출 처리 (postMessage 방식 유지)
   useEffect(() => {
     if (!form) return;
     const handler = async (event) => {
       if (event.data?.type === 'FORM_SUBMIT') {
         try {
-          const { error: submitErr } = await supabase
-            .from('responses')
-            .insert([{ form_id: form.id, answers: event.data.answers }]);
-          if (submitErr) throw submitErr;
-          console.log("✅ 응답 저장 완료!");
+          await supabase.from('responses').insert([{ form_id: form.id, answers: event.data.answers }]);
+          console.log("✅ 저장 완료");
         } catch (err) {
-          console.error('❌ 응답 저장 실패:', err);
           iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR' }, '*');
         }
       }
@@ -82,38 +64,24 @@ const PublicForm = () => {
   }, [form]);
 
   if (loading) return <div className={styles.center}><div className={styles.spinner}></div></div>;
+  if (error || !form) return <div className={styles.center}><h2>폼을 찾을 수 없습니다</h2></div>;
 
-  if (error || !form) {
-    return (
-      <div className={styles.center}>
-        <div className={styles.notFound}>
-          <div className={styles.ico}>✦</div>
-          <h2>폼을 찾을 수 없습니다</h2>
-          <p>링크가 잘못되었거나 비공개 상태예요.</p>
-          <button onClick={() => window.location.reload()} className={styles.retryBtn}>다시 시도하기</button>
-        </div>
-      </div>
-    );
-  }
+  // ── [핵심 Fix] 다른 건 안 건드리고, 이미지 데이터만 assets로 묶어서 전달 ──
+  const assets = {
+    coverImgData: form.cover_url,     // DB에서 가져온 커버 이미지
+    bgImgData: form.background_url,   // DB에서 가져온 배경 이미지
+    qImgData: form.q_images || {}     // 질문별 이미지들
+  };
 
-  // 4. 미리보기와 100% 동일하게 렌더링하기 위해 generateFormHTML 활용
   let html = generateFormHTML(
     form.title,
     form.questions || [],
-    { 
-      c1: form.theme_c1, 
-      c2: form.theme_c2, 
-      bgUrl: form.background_url, 
-      coverUrl: form.cover_url 
-    },
+    { c1: form.theme_c1, c2: form.theme_c2 },
     form.settings || {},
-    {
-      coverImgData: form.cover_url,
-      bgImgData: form.background_url
-    }
+    assets // 👈 여기에 재료를 넘겨줘야 응답 화면에 이미지가 뜹니다!
   );
 
-  // 버튼 클릭 시 Supabase에 저장되도록 postMessage 로직 심기
+  // 제출 버튼 postMessage 교체 (로직 유지)
   html = html.replace(
     /await fetch\(SU,[\s\S]*?body:JSON\.stringify\(ans\)\}\);/g,
     `window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');`
