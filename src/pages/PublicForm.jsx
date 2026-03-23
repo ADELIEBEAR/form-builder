@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getFormBySlug, submitResponse } from '../lib/supabase'
+import { getFormBySlug, submitResponse, supabase } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import styles from './PublicForm.module.css'
 
@@ -13,7 +13,11 @@ export default function PublicForm() {
 
   useEffect(() => {
     getFormBySlug(slug)
-      .then(setForm)
+      .then(f => {
+        setForm(f)
+        // 조회수 증가
+        supabase.rpc('increment_view_count', { form_id: f.id }).catch(() => {})
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [slug])

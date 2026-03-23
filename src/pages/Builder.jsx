@@ -197,7 +197,14 @@ export default function Builder() {
             <span className={s.tbText}>폼 빌더</span>
           </div>
           <div className={s.titleWrap}>
-            <input className={s.titleInp} value={title} onChange={e => setTitle(e.target.value)} placeholder="폼 제목 입력..." />
+            <textarea
+              className={s.titleInp}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="폼 제목 입력..."
+              rows={1}
+              onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
+            />
             <span className={s.titleEditHint}>✏️</span>
           </div>
         </div>
@@ -389,7 +396,7 @@ export default function Builder() {
                 }
                 <div className={s.startBody}>
                   <input className={s.startTagEdit} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
-                  <div className={s.startTitlePreview}>{title || '폼 제목'}</div>
+                  <div className={s.startTitlePreview} style={{whiteSpace:'pre-line'}}>{title || '폼 제목'}</div>
                   <input className={s.startDescEdit} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="소개 문구 입력 (선택)..." />
                   <div className={s.startBtnWrap}>
                     <input className={s.startBtnEdit} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />

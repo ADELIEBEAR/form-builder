@@ -46,7 +46,7 @@
 .tbText { font-family: 'Gmarket Sans', sans-serif; font-size: 14px; font-weight: 700; background: linear-gradient(135deg, var(--b-text) 30%, var(--a2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; white-space: nowrap; }
 .titleWrap { flex: 1; min-width: 0; max-width: 340px; display: flex; align-items: center; gap: 6px; background: var(--b-inp); border: 1px solid var(--b-inp-border); border-radius: 9px; padding: 0 10px; transition: all .2s; }
 .titleWrap:focus-within { border-color: rgba(124,108,252,.5); background: rgba(124,108,252,.06); box-shadow: 0 0 0 2px rgba(124,108,252,.1); }
-.titleInp { flex: 1; background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: var(--b-text); font-family: 'Noto Sans KR', sans-serif; text-align: center; padding: 7px 0; }
+.titleInp { flex: 1; background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: var(--b-text); font-family: 'Noto Sans KR', sans-serif; text-align: center; padding: 7px 0; resize: none; line-height: 1.4; overflow: hidden; min-height: 32px; }
 .titleInp::placeholder { color: var(--b-muted); }
 .titleEditHint { font-size: 12px; opacity: .4; pointer-events: none; flex-shrink: 0; }
 .tbRight { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }

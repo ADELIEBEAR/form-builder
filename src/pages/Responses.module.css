@@ -110,3 +110,5 @@
 .tdNum { color: var(--muted); font-size: 12px; }
 .tdDate { color: var(--muted2); font-size: 12px; white-space: nowrap; }
 .td { color: var(--text); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.viewCount { font-size: 11px; color: #60a5fa; margin-left: 4px; }
