@@ -17,10 +17,14 @@ export default function Dashboard() {
 
   async function loadForms() {
     try {
+      // getForms 함수가 호출될 때 views 컬럼도 함께 데이터에 담겨 옵니다.
       const data = await getForms(user.id)
       setForms(data || [])
-    } catch { showToast('폼을 불러오는 데 실패했습니다.', 'fail') }
-    finally { setLoading(false) }
+    } catch { 
+      showToast('폼을 불러오는 데 실패했습니다.', 'fail') 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
   async function handleDelete(formId, e) {
@@ -30,7 +34,9 @@ export default function Dashboard() {
       await deleteForm(formId)
       setForms(prev => prev.filter(f => f.id !== formId))
       showToast('폼이 삭제되었습니다.', 'ok')
-    } catch { showToast('삭제 중 오류가 발생했습니다.', 'fail') }
+    } catch { 
+      showToast('삭제 중 오류가 발생했습니다.', 'fail') 
+    }
   }
 
   async function handlePublish(form, e) {
@@ -46,8 +52,11 @@ export default function Dashboard() {
         setForms(prev => prev.map(f => f.id === form.id ? { ...f, ...updated } : f))
         showToast('🎉 폼이 공개되었습니다!', 'ok')
       }
-    } catch { showToast('오류가 발생했습니다.', 'fail') }
-    finally { setPublishing(prev => ({ ...prev, [form.id]: false })) }
+    } catch { 
+      showToast('오류가 발생했습니다.', 'fail') 
+    } finally { 
+      setPublishing(prev => ({ ...prev, [form.id]: false })) 
+    }
   }
 
   function copyShareLink(form, e) {
@@ -57,7 +66,6 @@ export default function Dashboard() {
     showToast('✅ 링크 복사 완료!', 'ok')
   }
 
-  
   async function handleSheetConnect(form, e) {
     e.stopPropagation()
     try {
@@ -142,12 +150,18 @@ export default function Dashboard() {
                 <div className={styles.formCardTop} style={{ background:`linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
                   <div className={styles.formCardTopOverlay}>
                     <span className={styles.qCount}>{form.questions?.length || 0}개 질문</span>
+                    {/* 👇 [업데이트] 조회수 표시 추가 */}
+                    <span className={styles.viewCount} title="조회수">
+                      👁️ {form.views || 0}
+                    </span>
                     {form.is_published && <span className={styles.pubBadge}>● 공개중</span>}
                   </div>
                 </div>
                 <div className={styles.formCardBody}>
                   <h3 className={styles.formTitle}>{form.title || '제목 없음'}</h3>
-                  <span className={styles.formDate}>{formatDate(form.updated_at)}</span>
+                  <div className={styles.formMeta}>
+                    <span className={styles.formDate}>{formatDate(form.updated_at)}</span>
+                  </div>
                 </div>
                 <div className={styles.formCardActions}>
                   {/* 응답 보기 */}
