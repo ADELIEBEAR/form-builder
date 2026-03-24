@@ -24,7 +24,7 @@
 .main { flex: 1; max-width: 1100px; width: 100%; margin: 0 auto; padding: 36px 32px; }
 
 .topRow { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; }
-.pageTitle { font-family: 'Gmarket Sans', sans-serif; font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+.pageTitle { font-family: 'Gmarket Sans', sans-serif; font-size: 26px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
 .pageSub { font-size: 13px; color: var(--muted); font-weight: 300; }
 
 .grid {
@@ -59,7 +59,7 @@
 .pubBadge { font-size: 10px; color: #4ade80; font-weight: 600; background: rgba(74,222,128,.15); border-radius: 6px; padding: 2px 8px; }
 
 .formCardBody { padding: 14px 16px; flex: 1; }
-.formTitle { font-size: 14px; font-weight: 500; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.formTitle { font-size: 14px; font-weight: 500; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .formDate { font-size: 11px; color: var(--muted); font-weight: 300; }
 
 .formCardActions {
@@ -78,3 +78,43 @@
 .loadingWrap { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 80px; color: var(--muted); font-size: 14px; }
 .spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.1); border-top-color: var(--a1); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 👇 여기서부터 대표님 전용 보안 모달창 CSS 추가 부분 ── */
+.adminBtn {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  padding: 6px 12px; border-radius: 8px; font-size: 12px; color: var(--muted);
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px;
+}
+.adminBtn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+
+.modalBg {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+  display: flex; justify-content: center; align-items: center; z-index: 100;
+}
+.modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+  padding: 32px; width: 100%; max-width: 380px; text-align: center;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+}
+.mIcon { font-size: 36px; margin-bottom: 16px; }
+.modal h3 { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+.pwInp {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px; font-size: 16px; color: var(--text); text-align: center;
+  margin-bottom: 12px; outline: none; transition: border-color .2s;
+}
+.pwInp:focus { border-color: var(--a1); }
+.err { color: #f87171; font-size: 12px; margin-bottom: 16px; }
+.mFoot { display: flex; gap: 10px; margin-top: 16px; }
+
+.btnGhost {
+  flex: 1; background: transparent; border: 1px solid var(--border);
+  color: var(--muted); padding: 12px; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all .2s;
+}
+.btnGhost:hover { background: rgba(255,255,255,.05); color: var(--text); }
+.btnPrimary {
+  flex: 1; background: linear-gradient(135deg, var(--a1), var(--a2));
+  color: white; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: transform .2s;
+}
+.btnPrimary:hover { transform: translateY(-1px); }
