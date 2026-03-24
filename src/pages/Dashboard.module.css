@@ -115,3 +115,19 @@
 .themeToggle { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all .15s; }
 .themeToggle:hover { background: rgba(255,255,255,.1); }
 .viewBadge { font-size: 10px; color: #60a5fa; background: rgba(96,165,250,.12); border-radius: 6px; padding: 2px 8px; }
+
+
+/* ── 👇 보안 모달창 CSS 추가 (원본 훼손 없음) ── */
+.modalBg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 999; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px 28px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 24px 48px rgba(0,0,0,0.3); }
+.mIcon { font-size: 40px; margin-bottom: 16px; }
+.modal h3 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+.pwInp { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 16px; color: var(--text); text-align: center; margin-bottom: 12px; outline: none; letter-spacing: 2px; }
+.pwInp:focus { border-color: var(--a1); }
+.err { color: #f87171; font-size: 12px; font-weight: 500; margin-bottom: 16px; }
+.mFoot { display: flex; gap: 8px; }
+.btnGhostModal { flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 10px; font-size: 13px; cursor: pointer; }
+.btnPrimaryModal { flex: 1; background: var(--a1); color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.adminLockBtn { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; }
+.adminLockBtnActive { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #10b981; }
