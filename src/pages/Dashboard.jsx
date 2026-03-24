@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState(null)
   const [publishing, setPublishing] = useState({})
-  const [editingMemo, setEditingMemo] = useState(null) // formId
+  const [editingMemo, setEditingMemo] = useState(null)
   const [memoVal, setMemoVal] = useState('')
   const [editingTitle, setEditingTitle] = useState(null)
   const [titleVal, setTitleVal] = useState('')
@@ -23,9 +23,23 @@ export default function Dashboard() {
   const memoRef = useRef(null)
   const titleRef = useRef(null)
 
+  // ── [보안 관제탑 로직] 대표님 전용 상태 ──
+  const [adminPw, setAdminPw] = useState(null)
+  const [isUnlocked, setIsUnlocked] = useState(sessionStorage.getItem('admin_unlocked') === 'true')
+  const [showPwModal, setShowPwModal] = useState(false)
+  const [showSetPwModal, setShowSetPwModal] = useState(false)
+  const [inputPw, setInputPw] = useState('')
+  const [oldPw, setOldPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [targetFormId, setTargetFormId] = useState(null)
+
   useEffect(() => {
-    loadForms()
-    saveGoogleToken()
+    if (user) {
+      setAdminPw(user.user_metadata?.admin_pw || null)
+      loadForms()
+      saveGoogleToken()
+    }
   }, [user])
 
   async function saveGoogleToken() {
@@ -148,6 +162,38 @@ export default function Dashboard() {
     return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
+  // ── [핵심] 응답 보기 클릭 시 검문소 역할 ──
+  function handleResultsClick(formId, e) {
+    e.stopPropagation()
+    if (!adminPw) {
+      alert("🚨 우측 상단에서 '관리자 암호'를 먼저 설정해야 응답을 볼 수 있습니다.")
+      setOldPw(''); setNewPw(''); setPwError(''); setShowSetPwModal(true)
+      return
+    }
+    if (isUnlocked) navigate(`/responses/${formId}`)
+    else {
+      setTargetFormId(formId)
+      setInputPw(''); setPwError(''); setShowPwModal(true)
+    }
+  }
+
+  function submitPassword() {
+    if (inputPw === adminPw) {
+      setIsUnlocked(true); sessionStorage.setItem('admin_unlocked', 'true'); setShowPwModal(false)
+      if (targetFormId) navigate(`/responses/${targetFormId}`)
+    } else setPwError('비밀번호가 일치하지 않습니다.')
+  }
+
+  async function saveNewPassword() {
+    if (adminPw && oldPw !== adminPw) return setPwError('기존 암호가 일치하지 않습니다.')
+    if (newPw.length < 4) return setPwError('새 암호는 4자리 이상 입력해주세요.')
+    try {
+      await supabase.auth.updateUser({ data: { admin_pw: newPw } })
+      setAdminPw(newPw); setIsUnlocked(true); sessionStorage.setItem('admin_unlocked', 'true'); setShowSetPwModal(false)
+      setOldPw(''); setNewPw(''); showToast('🔒 관리자 암호가 저장되었습니다.', 'ok')
+    } catch (err) { setPwError('오류가 발생했습니다.') }
+  }
+
   const filtered = forms.filter(f =>
     f.title?.toLowerCase().includes(search.toLowerCase()) ||
     f.memo?.toLowerCase().includes(search.toLowerCase())
@@ -162,6 +208,12 @@ export default function Dashboard() {
           <span className={s.logoText}>폼 빌더</span>
         </div>
         <div className={s.headerRight}>
+          
+          {/* 👇 추가된 대표님 전용 암호 설정 버튼 */}
+          <button className={`${s.adminLockBtn} ${adminPw ? s.adminLockBtnActive : ''}`} onClick={() => { setOldPw(''); setNewPw(''); setPwError(''); setShowSetPwModal(true) }}>
+            {adminPw ? '🔒 보안 켜짐' : '⚠️ 암호 설정필요'}
+          </button>
+
           <div className={s.userChip}>
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
             <span>{user?.user_metadata?.full_name || user?.email}</span>
@@ -271,8 +323,9 @@ export default function Dashboard() {
                     <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>
                       ✏️ 편집
                     </button>
-                    <button className={`${s.actionBtn}`} onClick={e => { e.stopPropagation(); navigate(`/responses/${form.id}`) }}>
-                      📊 응답
+                    {/* 👇 보안 잠금 로직이 적용된 응답 보기 버튼 */}
+                    <button className={`${s.actionBtn}`} onClick={e => handleResultsClick(form.id, e)}>
+                      {adminPw && !isUnlocked ? '🔒 응답' : '📊 응답'}
                     </button>
                   </div>
 
@@ -318,6 +371,47 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* ── 모달창 ── */}
+      {/* 1. 응답 보기 검문소 모달 */}
+      {showPwModal && (
+        <div className={s.modalBg} onClick={() => setShowPwModal(false)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()}>
+            <div className={s.mIcon}>🔒</div>
+            <h3>관리자 권한 확인</h3>
+            <p>대표 관리자 암호를 입력하세요.</p>
+            <input type="password" className={s.pwInp} value={inputPw} onChange={e => setInputPw(e.target.value)} placeholder="비밀번호 4자리" autoFocus onKeyDown={e => e.key === 'Enter' && submitPassword()} />
+            {pwError && <div className={s.err}>{pwError}</div>}
+            <div className={s.mFoot}>
+              <button className={s.btnGhost} onClick={() => setShowPwModal(false)}>취소</button>
+              <button className={s.btnPrimaryModal} onClick={submitPassword}>잠금 해제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. 대표님 암호 설정/변경 2단 모달 */}
+      {showSetPwModal && (
+        <div className={s.modalBg} onClick={() => setShowSetPwModal(false)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()}>
+            <div className={s.mIcon}>🛡️</div>
+            <h3>대표 관리자 암호 {adminPw ? '변경' : '설정'}</h3>
+            <p>{adminPw ? '직원 무단 변경을 막기 위해 기존 암호를 확인합니다.' : '수집된 DB를 보호할 암호를 설정하세요.'}</p>
+            
+            {adminPw && (
+              <input type="password" className={s.pwInp} value={oldPw} onChange={e => setOldPw(e.target.value)} placeholder="기존 암호 4자리" autoFocus style={{marginBottom: '8px'}} />
+            )}
+            
+            <input type="password" className={s.pwInp} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="새 암호 (4자리 이상)" autoFocus={!adminPw} onKeyDown={e => e.key === 'Enter' && saveNewPassword()} />
+            
+            {pwError && <div className={s.err}>{pwError}</div>}
+            <div className={s.mFoot}>
+              <button className={s.btnGhost} onClick={() => setShowSetPwModal(false)}>취소</button>
+              <button className={s.btnPrimaryModal} onClick={saveNewPassword}>설정 저장</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <div className={`toast-wrap show ${toast.type}`}>{toast.msg}</div>}
     </div>
