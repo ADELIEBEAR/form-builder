@@ -273,6 +273,7 @@ export default function Dashboard() {
       setShowPwModal(false)
       setPwError('')
       if (afterUnlock) afterUnlock()
+      else if (targetFormId) { navigate(`${RESULTS_PATH}/${targetFormId}`); setTargetFormId(null) }
       else if (panelForm) fetchPanelData(panelForm)
     } else {
       setPwError('비밀번호가 일치하지 않습니다.')
@@ -459,8 +460,12 @@ export default function Dashboard() {
                       </button>
                     </div>
                     <div className={s.actionRow}>
-                      <button className={`${s.actionBtn}`} onClick={e => { e.stopPropagation(); navigate(`${RESULTS_PATH}/${form.id}`) }}>
-                        📊 전체 응답
+                      <button className={`${s.actionBtn}`} onClick={e => {
+                        e.stopPropagation()
+                        if (!isUnlocked) { setInputPw(''); setPwError(''); setTargetFormId(form.id); setShowPwModal(true); return }
+                        navigate(`${RESULTS_PATH}/${form.id}`)
+                      }}>
+                        {isUnlocked ? '📊 전체 응답' : '🔒 전체 응답'}
                       </button>
                       <button className={`${s.actionBtn} ${form.is_published ? s.actionBtnWarning : s.actionBtnSuccess}`}
                         onClick={e => handlePublish(form, e)} disabled={publishing[form.id]}>
@@ -500,7 +505,10 @@ export default function Dashboard() {
                   {panelData && <span className={s.panelCount}>{panelData.responses.length}개 응답</span>}
                 </div>
                 <div className={s.panelHeaderRight}>
-                  <button className={s.panelFullBtn} onClick={() => navigate(`${RESULTS_PATH}/${panelForm.id}`)}>전체보기 ↗</button>
+                  <button className={s.panelFullBtn} onClick={() => {
+                  if (!isUnlocked) { setInputPw(''); setPwError(''); setTargetFormId(panelForm.id); setShowPwModal(true); return }
+                  navigate(`${RESULTS_PATH}/${panelForm.id}`)
+                }}>전체보기 ↗</button>
                   <button className={s.panelClose} onClick={() => { setPanelMode(null); setPanelForm(null) }}>✕</button>
                 </div>
               </div>
