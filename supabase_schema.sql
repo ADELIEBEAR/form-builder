@@ -18,3 +18,6 @@ create policy "본인 폼만 조회" on public.forms for select using (auth.uid(
 create policy "본인 폼만 생성" on public.forms for insert with check (auth.uid() = user_id);
 create policy "본인 폼만 수정" on public.forms for update using (auth.uid() = user_id);
 create policy "본인 폼만 삭제" on public.forms for delete using (auth.uid() = user_id);
+
+-- group_tag 컬럼 추가 (없으면 추가)
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS group_tag TEXT DEFAULT NULL;
