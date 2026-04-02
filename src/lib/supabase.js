@@ -41,7 +41,7 @@ export async function getUser() {
 export async function getForms(userId) {
   const { data, error } = await supabase
     .from('forms')
-    .select('id, title, theme_c1, theme_c2, is_published, slug, created_at, updated_at, memo, sheet_id, sheet_url, questions')
+    .select('id, title, theme_c1, theme_c2, is_published, slug, created_at, updated_at, memo, group_tag, sheet_id, sheet_url, questions')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
   if (error) throw error

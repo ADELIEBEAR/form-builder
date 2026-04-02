@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../lib/supabase'
@@ -7,7 +7,7 @@ import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
 import { useTheme } from '../lib/themeContext'
 
-const RESULTS_PATH = '/responses' // 🚨 실제 응답 페이지 라우터 주소로 변경해주세요!
+const RESULTS_PATH = '/responses'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -22,29 +22,32 @@ export default function Dashboard() {
   const [editingTitle, setEditingTitle] = useState(null)
   const [titleVal, setTitleVal] = useState('')
   const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState('전체')
+  const [editingGroup, setEditingGroup] = useState(null)
+  const [groupVal, setGroupVal] = useState('')
   const memoRef = useRef(null)
   const titleRef = useRef(null)
+  const groupRef = useRef(null)
 
-  // ── [핵심] 보안 관제탑 로직 ──
-  // 기본 비밀번호는 무조건 '0000'이며, 처음엔 굳게 잠겨있습니다.
+  // ── 관리자 잠금
   const currentAdminPw = user?.user_metadata?.admin_pw || '0000'
   const [isUnlocked, setIsUnlocked] = useState(sessionStorage.getItem('admin_unlocked') === 'true')
-  
   const [showPwModal, setShowPwModal] = useState(false)
   const [showSetPwModal, setShowSetPwModal] = useState(false)
   const [inputPw, setInputPw] = useState('')
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
-  const [targetFormId, setTargetFormId] = useState(null)
+  const [pwError, setPwError] = useState('')
+
+  // ── 응답 패널
+  const [panelForm, setPanelForm] = useState(null)   // 열린 폼
+  const [panelData, setPanelData] = useState(null)   // { responses, dupes }
+  const [panelLoading, setPanelLoading] = useState(false)
+  const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes'
 
   useEffect(() => {
-    if (user) {
-      loadForms()
-      saveGoogleToken()
-    } else {
-      // user가 null 확정되면 로딩 해제 (useAuth loading이 끝난 뒤 여기 도달)
-      setLoading(false)
-    }
+    if (user) { loadForms(); saveGoogleToken() }
+    else setLoading(false)
   }, [user])
 
   async function saveGoogleToken() {
@@ -52,31 +55,78 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.provider_token || !user) return
       await supabase.from('google_tokens').upsert({
-        user_id: user.id,
-        access_token: session.provider_token,
-        refresh_token: session.provider_refresh_token || '',
-        updated_at: new Date().toISOString()
+        user_id: user.id, access_token: session.provider_token,
+        refresh_token: session.provider_refresh_token || '', updated_at: new Date().toISOString()
       })
-    } catch (e) { console.log('토큰 저장 실패:', e) }
+    } catch {}
   }
 
   async function loadForms() {
     try {
-      // 10초 타임아웃 안전장치
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 10000)
-      )
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
       const data = await Promise.race([getForms(user.id), timeout])
       setForms(data || [])
     } catch (e) {
-      if (e.message === 'timeout') {
-        showToast('연결이 느립니다. 새로고침 해주세요.', 'fail')
-      } else {
-        showToast('폼을 불러오는 데 실패했습니다.', 'fail')
-      }
-    } finally {
-      setLoading(false)
+      showToast(e.message === 'timeout' ? '연결이 느립니다. 새로고침해주세요.' : '폼을 불러오는 데 실패했습니다.', 'fail')
+    } finally { setLoading(false) }
+  }
+
+  // ── 응답 패널 열기
+  async function openPanel(form, e) {
+    e?.stopPropagation()
+    if (!isUnlocked) {
+      setPanelForm(form)
+      setInputPw(''); setPwError('')
+      setShowPwModal(true)
+      return
     }
+    await fetchPanelData(form)
+  }
+
+  async function fetchPanelData(form) {
+    setPanelForm(form)
+    setPanelLoading(true)
+    setPanelData(null)
+    try {
+      const { data, error } = await supabase
+        .from('responses')
+        .select('id, answers, submitted_at')
+        .eq('form_id', form.id)
+        .order('submitted_at', { ascending: false })
+        .limit(100)
+      if (error) throw error
+      const responses = data || []
+      // 중복 감지 — 모든 답변 값 기준으로 같은 값이 2번 이상 나오면 중복
+      const valueMap = {}
+      responses.forEach(r => {
+        Object.values(r.answers || {}).forEach(v => {
+          const key = String(v).trim().toLowerCase()
+          if (key.length < 2) return
+          if (!valueMap[key]) valueMap[key] = []
+          valueMap[key].push(r.id)
+        })
+      })
+      const dupeIds = new Set()
+      Object.values(valueMap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupeIds.add(id)) })
+      const dupes = responses.filter(r => dupeIds.has(r.id))
+      setPanelData({ responses, dupes })
+    } catch { showToast('응답을 불러오지 못했습니다.', 'fail') }
+    finally { setPanelLoading(false) }
+  }
+
+  // ── 그룹 편집
+  function startGroup(form, e) {
+    e.stopPropagation()
+    setEditingGroup(form.id)
+    setGroupVal(form.group_tag || '')
+    setTimeout(() => groupRef.current?.focus(), 50)
+  }
+  async function saveGroup(formId) {
+    try {
+      await supabase.from('forms').update({ group_tag: groupVal.trim() || null }).eq('id', formId)
+      setForms(prev => prev.map(f => f.id === formId ? { ...f, group_tag: groupVal.trim() || null } : f))
+    } catch {}
+    setEditingGroup(null)
   }
 
   async function handleDelete(formId, e) {
@@ -85,6 +135,7 @@ export default function Dashboard() {
     try {
       await deleteForm(formId)
       setForms(prev => prev.filter(f => f.id !== formId))
+      if (panelForm?.id === formId) setPanelForm(null)
       showToast('폼이 삭제되었습니다.', 'ok')
     } catch { showToast('삭제 중 오류가 발생했습니다.', 'fail') }
   }
@@ -108,8 +159,7 @@ export default function Dashboard() {
 
   function copyShareLink(form, e) {
     e.stopPropagation()
-    const url = `${window.location.origin}/f/${form.slug}`
-    navigator.clipboard.writeText(url)
+    navigator.clipboard.writeText(`${window.location.origin}/f/${form.slug}`)
     showToast('✅ 링크 복사 완료!', 'ok')
   }
 
@@ -141,7 +191,6 @@ export default function Dashboard() {
     setMemoVal(form.memo || '')
     setTimeout(() => memoRef.current?.focus(), 50)
   }
-
   async function saveMemo(formId) {
     try {
       await supabase.from('forms').update({ memo: memoVal }).eq('id', formId)
@@ -156,7 +205,6 @@ export default function Dashboard() {
     setTitleVal(form.title)
     setTimeout(() => titleRef.current?.focus(), 50)
   }
-
   async function saveTitle(formId) {
     if (!titleVal.trim()) return setEditingTitle(null)
     try {
@@ -171,86 +219,73 @@ export default function Dashboard() {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
   }
-
   function formatDate(d) {
+    if (!d) return ''
+    return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+  function formatDateShort(d) {
+    if (!d) return ''
     return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  // ── [보안] 관리자 문지기 로직 ──
+  // ── 암호 관련
   function handleAdminAction() {
-    if (isUnlocked) {
-      setOldPw('')
-      setNewPw('')
-      setShowSetPwModal(true)
-    } else {
-      setInputPw('')
-      setShowPwModal(true)
-    }
+    if (isUnlocked) { setOldPw(''); setNewPw(''); setShowSetPwModal(true) }
+    else { setInputPw(''); setPwError(''); setShowPwModal(true) }
   }
 
-  function handleResultsClick(e, formId) {
-    e.stopPropagation()
-    if (isUnlocked) {
-      navigate(`${RESULTS_PATH}/${formId}`)
-    } else {
-      setTargetFormId(formId)
-      setInputPw('')
-      setShowPwModal(true)
-    }
-  }
-
-  function submitPassword() {
+  function submitPassword(afterUnlock) {
     if (inputPw === currentAdminPw) {
       setIsUnlocked(true)
       sessionStorage.setItem('admin_unlocked', 'true')
       setShowPwModal(false)
-      if (targetFormId) {
-        navigate(`${RESULTS_PATH}/${targetFormId}`)
-        setTargetFormId(null)
-      }
+      setPwError('')
+      if (afterUnlock) afterUnlock()
     } else {
-      alert('비밀번호가 일치하지 않습니다.')
+      setPwError('비밀번호가 일치하지 않습니다.')
     }
-    setInputPw('')
   }
 
   async function saveNewPassword() {
-    if (oldPw !== currentAdminPw) {
-      return alert('기존 암호가 일치하지 않습니다.')
-    }
-    if (newPw.length < 4) {
-      return alert('새 암호는 4자리 이상 입력해주세요.')
-    }
+    if (oldPw !== currentAdminPw) return setPwError('기존 암호가 일치하지 않습니다.')
+    if (newPw.length < 4) return setPwError('새 암호는 4자리 이상 입력해주세요.')
     try {
       await supabase.auth.updateUser({ data: { admin_pw: newPw } })
-      alert('관리자 암호가 성공적으로 변경되었습니다.')
+      showToast('암호가 변경되었습니다.', 'ok')
       setShowSetPwModal(false)
-      setOldPw('')
-      setNewPw('')
-    } catch (err) {
-      alert('암호 변경 중 오류가 발생했습니다.')
-    }
+    } catch { setPwError('암호 변경 중 오류가 발생했습니다.') }
   }
 
-  const filtered = forms.filter(f =>
-    f.title?.toLowerCase().includes(search.toLowerCase()) ||
-    f.memo?.toLowerCase().includes(search.toLowerCase())
-  )
+  // ── 그룹 목록
+  const allGroups = ['전체', ...Array.from(new Set(forms.map(f => f.group_tag).filter(Boolean)))]
+
+  const filtered = forms.filter(f => {
+    const matchSearch = f.title?.toLowerCase().includes(search.toLowerCase()) ||
+      f.memo?.toLowerCase().includes(search.toLowerCase()) ||
+      f.group_tag?.toLowerCase().includes(search.toLowerCase())
+    const matchGroup = groupFilter === '전체' || f.group_tag === groupFilter
+    return matchSearch && matchGroup
+  })
+
+  // ── 패널 응답 첫 번째 값 추출
+  function getFirstAnswers(r) {
+    const entries = Object.entries(r.answers || {}).filter(([k]) => !k.startsWith('_'))
+    return entries.slice(0, 3)
+  }
 
   return (
-    <div className={s.wrap}>
+    <div className={`${s.wrap} ${panelForm ? s.wrapPanelOpen : ''}`}>
+      {/* ── 헤더 */}
       <header className={s.header}>
         <div className={s.headerLeft} onClick={() => navigate('/')}>
           <div className={s.logoMark}>✦</div>
           <span className={s.logoText}>폼 빌더</span>
         </div>
         <div className={s.headerRight}>
-          
-          {/* 👇 관리자 잠금 버튼 */}
           <button className={`${s.adminBtn} ${isUnlocked ? s.unlocked : ''}`} onClick={handleAdminAction}>
             {isUnlocked ? '🔓 암호 변경' : '🔒 잠금 해제'}
           </button>
-
+          <button className={s.dupeBtn} onClick={() => navigate('/duplicates')}>📵 중복 체크</button>
           <div className={s.userChip}>
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
             <span>{user?.user_metadata?.full_name || user?.email}</span>
@@ -260,170 +295,260 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className={s.main}>
-        <div className={s.topRow}>
-          <div className={s.topLeft}>
-            <h1 className={s.pageTitle}>내 폼</h1>
-            <span className={s.formCount}>{forms.length}개</span>
-          </div>
-          <div className={s.topRight}>
-            <div className={s.searchWrap}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input className={s.searchInp} value={search} onChange={e => setSearch(e.target.value)} placeholder="폼 검색..." />
+      <div className={s.body}>
+        <main className={s.main}>
+          {/* 상단 */}
+          <div className={s.topRow}>
+            <div className={s.topLeft}>
+              <h1 className={s.pageTitle}>내 폼</h1>
+              <span className={s.formCount}>{forms.length}개</span>
             </div>
-            <button className="btn btn-primary" onClick={() => navigate('/builder')}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              새 폼 만들기
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className={s.loadWrap}><div className={s.spinner}></div></div>
-        ) : forms.length === 0 ? (
-          <div className={s.emptyWrap}>
-            <div className={s.emptyIco}>✦</div>
-            <h2>아직 만든 폼이 없어요</h2>
-            <p>새 폼을 만들어 응답을 받아보세요!</p>
-            <button className="btn btn-primary btn-lg" style={{ marginTop: 20 }} onClick={() => navigate('/builder')}>첫 번째 폼 만들기</button>
-          </div>
-        ) : (
-          <div className={s.grid}>
-            <div className={s.newCard} onClick={() => navigate('/builder')}>
-              <div className={s.newIco}>+</div>
-              <span>새 폼 만들기</span>
+            <div className={s.topRight}>
+              <div className={s.searchWrap}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input className={s.searchInp} value={search} onChange={e => setSearch(e.target.value)} placeholder="제목, 메모, 그룹 검색..." />
+              </div>
+              <button className="btn btn-primary" onClick={() => navigate('/builder')}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                새 폼 만들기
+              </button>
             </div>
+          </div>
 
-            {filtered.map(form => (
-              <div key={form.id} className={s.formCard}>
-                <div className={s.cardTop} style={{ background: `linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
-                  <div className={s.cardTopRow}>
-                    <span className={s.qBadge}>{form.questions?.length || 0}문항</span>
-                    {form.is_published
-                      ? <span className={s.pubBadge}>● 공개중</span>
-                      : <span className={s.draftBadge}>초안</span>
-                    }
-                  </div>
-                </div>
+          {/* 그룹 필터 탭 */}
+          {allGroups.length > 1 && (
+            <div className={s.groupTabs}>
+              {allGroups.map(g => (
+                <button key={g} className={`${s.groupTab} ${groupFilter === g ? s.groupTabOn : ''}`} onClick={() => setGroupFilter(g)}>
+                  {g}
+                  {g !== '전체' && <span className={s.groupTabCount}>{forms.filter(f => f.group_tag === g).length}</span>}
+                </button>
+              ))}
+            </div>
+          )}
 
-                <div className={s.cardBody}>
-                  {editingTitle === form.id ? (
-                    <input
-                      ref={titleRef}
-                      className={`${s.titleEdit} inp`}
-                      value={titleVal}
-                      onChange={e => setTitleVal(e.target.value)}
-                      onBlur={() => saveTitle(form.id)}
-                      onKeyDown={e => e.key === 'Enter' && saveTitle(form.id)}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <div className={s.cardTitle} onClick={e => startTitle(form, e)} title="클릭해서 제목 수정">
-                      {form.title || '제목 없음'}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.editIco}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </div>
-                  )}
+          {loading ? (
+            <div className={s.loadWrap}><div className={s.spinner}></div></div>
+          ) : forms.length === 0 ? (
+            <div className={s.emptyWrap}>
+              <div className={s.emptyIco}>✦</div>
+              <h2>아직 만든 폼이 없어요</h2>
+              <p>새 폼을 만들어 응답을 받아보세요!</p>
+              <button className="btn btn-primary btn-lg" style={{ marginTop: 20 }} onClick={() => navigate('/builder')}>첫 번째 폼 만들기</button>
+            </div>
+          ) : (
+            <div className={s.grid}>
+              <div className={s.newCard} onClick={() => navigate('/builder')}>
+                <div className={s.newIco}>+</div>
+                <span>새 폼 만들기</span>
+              </div>
 
-                  {editingMemo === form.id ? (
-                    <input
-                      ref={memoRef}
-                      className={`${s.memoEdit} inp`}
-                      value={memoVal}
-                      onChange={e => setMemoVal(e.target.value)}
-                      placeholder="내부 메모 (나만 보여요)..."
-                      onBlur={() => saveMemo(form.id)}
-                      onKeyDown={e => e.key === 'Enter' && saveMemo(form.id)}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <div className={s.memo} onClick={e => startMemo(form, e)}>
-                      {form.memo
-                        ? <span className={s.memoText}>📝 {form.memo}</span>
-                        : <span className={s.memoEmpty}>+ 내부 메모 추가</span>
+              {filtered.map(form => (
+                <div key={form.id} className={`${s.formCard} ${panelForm?.id === form.id ? s.formCardActive : ''}`}>
+                  {/* 컬러 헤더 */}
+                  <div className={s.cardTop} style={{ background: `linear-gradient(135deg,${form.theme_c1},${form.theme_c2})` }}>
+                    <div className={s.cardTopRow}>
+                      <span className={s.qBadge}>{form.questions?.length || 0}문항</span>
+                      {form.is_published
+                        ? <span className={s.pubBadge}>● 공개중</span>
+                        : <span className={s.draftBadge}>초안</span>
                       }
                     </div>
-                  )}
-
-                  <div className={s.cardDate}>{formatDate(form.updated_at)}</div>
-                </div>
-
-                <div className={s.cardActions}>
-                  <div className={s.actionRow}>
-                    <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>
-                      ✏️ 편집
-                    </button>
-                    {/* 👇 보안이 적용된 응답 보기 버튼 */}
-                    <button className={`${s.actionBtn}`} onClick={e => handleResultsClick(e, form.id)}>
-                      {isUnlocked ? '📊 응답 보기' : '🔒 응답 보기'}
-                    </button>
                   </div>
 
-                  <div className={s.actionRow}>
-                    <button
-                      className={`${s.actionBtn} ${form.is_published ? s.actionBtnWarning : s.actionBtnSuccess}`}
-                      onClick={e => handlePublish(form, e)}
-                      disabled={publishing[form.id]}
-                    >
-                      {publishing[form.id] ? '...' : form.is_published ? '🔒 비공개' : '🚀 발행'}
-                    </button>
-                    {form.is_published && (
-                      <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>
-                        🔗 링크 복사
-                      </button>
-                    )}
-                  </div>
-
-                  <div className={s.actionRow}>
-                    {form.sheet_url ? (
-                      <>
-                        <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>
-                          📗 시트 열기
-                        </button>
-                        <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={e => handleSheetDisconnect(form.id, e)}>
-                          연결 해제
-                        </button>
-                      </>
+                  <div className={s.cardBody}>
+                    {/* 제목 */}
+                    {editingTitle === form.id ? (
+                      <input ref={titleRef} className={`${s.titleEdit} inp`} value={titleVal}
+                        onChange={e => setTitleVal(e.target.value)}
+                        onBlur={() => saveTitle(form.id)}
+                        onKeyDown={e => e.key === 'Enter' && saveTitle(form.id)}
+                        onClick={e => e.stopPropagation()} />
                     ) : (
-                      <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => handleSheetConnect(form, e)} style={{ flex: 1 }}>
-                        📗 구글 시트 연결
-                      </button>
+                      <div className={s.cardTitle} onClick={e => startTitle(form, e)} title="클릭해서 제목 수정">
+                        {form.title || '제목 없음'}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.editIco}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </div>
                     )}
-                    <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>
-                      🗑️
-                    </button>
+
+                    {/* 그룹 태그 */}
+                    {editingGroup === form.id ? (
+                      <input ref={groupRef} className={s.groupEdit} value={groupVal}
+                        onChange={e => setGroupVal(e.target.value)}
+                        onBlur={() => saveGroup(form.id)}
+                        onKeyDown={e => e.key === 'Enter' && saveGroup(form.id)}
+                        onClick={e => e.stopPropagation()}
+                        placeholder="그룹명 입력 (예: 코인채널, 주식채널)" />
+                    ) : (
+                      <div className={s.groupTagWrap} onClick={e => startGroup(form, e)}>
+                        {form.group_tag
+                          ? <span className={s.groupTag}>📁 {form.group_tag}</span>
+                          : <span className={s.groupTagEmpty}>+ 그룹 설정</span>
+                        }
+                      </div>
+                    )}
+
+                    {/* 메모 */}
+                    {editingMemo === form.id ? (
+                      <input ref={memoRef} className={`${s.memoEdit} inp`} value={memoVal}
+                        onChange={e => setMemoVal(e.target.value)}
+                        placeholder="내부 메모 (나만 보여요)..."
+                        onBlur={() => saveMemo(form.id)}
+                        onKeyDown={e => e.key === 'Enter' && saveMemo(form.id)}
+                        onClick={e => e.stopPropagation()} />
+                    ) : (
+                      <div className={s.memo} onClick={e => startMemo(form, e)}>
+                        {form.memo
+                          ? <span className={s.memoText}>📝 {form.memo}</span>
+                          : <span className={s.memoEmpty}>+ 내부 메모 추가</span>
+                        }
+                      </div>
+                    )}
+
+                    <div className={s.cardDate}>{formatDate(form.updated_at)}</div>
+                  </div>
+
+                  <div className={s.cardActions}>
+                    <div className={s.actionRow}>
+                      <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>✏️ 편집</button>
+                      {/* 응답 미리보기 — 패널 열기 */}
+                      <button className={`${s.actionBtn} ${s.actionBtnPanel} ${panelForm?.id === form.id ? s.actionBtnPanelOn : ''}`}
+                        onClick={e => panelForm?.id === form.id ? setPanelForm(null) : openPanel(form, e)}>
+                        {panelForm?.id === form.id ? '✕ 닫기' : (isUnlocked ? '👁 응답 보기' : '🔒 응답 보기')}
+                      </button>
+                    </div>
+                    <div className={s.actionRow}>
+                      <button className={`${s.actionBtn}`} onClick={e => { e.stopPropagation(); navigate(`${RESULTS_PATH}/${form.id}`) }}>
+                        📊 전체 응답
+                      </button>
+                      <button className={`${s.actionBtn} ${form.is_published ? s.actionBtnWarning : s.actionBtnSuccess}`}
+                        onClick={e => handlePublish(form, e)} disabled={publishing[form.id]}>
+                        {publishing[form.id] ? '...' : form.is_published ? '🔒 비공개' : '🚀 발행'}
+                      </button>
+                    </div>
+                    <div className={s.actionRow}>
+                      {form.is_published && (
+                        <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>🔗 링크 복사</button>
+                      )}
+                      {form.sheet_url ? (
+                        <>
+                          <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>📗 시트</button>
+                          <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={e => handleSheetDisconnect(form.id, e)}>해제</button>
+                        </>
+                      ) : (
+                        <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => handleSheetConnect(form, e)}>📗 시트 연결</button>
+                      )}
+                      <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>🗑️</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+              ))}
+            </div>
+          )}
+        </main>
 
-      {/* ── 1. 잠금 해제 묻는 모달 ── */}
+        {/* ── 우측 응답 패널 */}
+        {panelForm && (
+          <aside className={s.panel}>
+            <div className={s.panelHeader}>
+              <div className={s.panelTitle}>
+                <span>{panelForm.title}</span>
+                {panelData && <span className={s.panelCount}>{panelData.responses.length}개 응답</span>}
+              </div>
+              <div className={s.panelHeaderRight}>
+                <button className={s.panelFullBtn} onClick={() => navigate(`${RESULTS_PATH}/${panelForm.id}`)}>전체보기 ↗</button>
+                <button className={s.panelClose} onClick={() => setPanelForm(null)}>✕</button>
+              </div>
+            </div>
+
+            <div className={s.panelTabs}>
+              <button className={`${s.panelTab} ${panelTab === 'recent' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('recent')}>
+                최근 응답
+              </button>
+              <button className={`${s.panelTab} ${panelTab === 'dupes' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('dupes')}>
+                중복 의심
+                {panelData?.dupes.length > 0 && <span className={s.dupeBadge}>{panelData.dupes.length}</span>}
+              </button>
+            </div>
+
+            <div className={s.panelBody}>
+              {panelLoading ? (
+                <div className={s.panelLoading}><div className={s.spinner}></div></div>
+              ) : !panelData ? null : panelTab === 'recent' ? (
+                panelData.responses.length === 0 ? (
+                  <div className={s.panelEmpty}>아직 응답이 없습니다</div>
+                ) : panelData.responses.map((r, i) => (
+                  <div key={r.id} className={s.respItem}>
+                    <div className={s.respItemHead}>
+                      <span className={s.respNum}>#{panelData.responses.length - i}</span>
+                      <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                      {panelData.dupes.find(d => d.id === r.id) && <span className={s.dupeTag}>중복의심</span>}
+                    </div>
+                    {getFirstAnswers(r).map(([k, v]) => (
+                      <div key={k} className={s.respRow}>
+                        <span className={s.respKey}>{k}</span>
+                        <span className={s.respVal}>{String(v).slice(0, 60)}{String(v).length > 60 ? '...' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              ) : (
+                panelData.dupes.length === 0 ? (
+                  <div className={s.panelEmpty}>✅ 중복 의심 응답 없음</div>
+                ) : (
+                  <>
+                    <div className={s.dupeInfo}>같은 이름·연락처·이메일로 2회 이상 제출된 응답입니다.</div>
+                    {panelData.dupes.map((r, i) => (
+                      <div key={r.id} className={`${s.respItem} ${s.respItemDupe}`}>
+                        <div className={s.respItemHead}>
+                          <span className={s.dupeTag}>중복의심</span>
+                          <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                        </div>
+                        {getFirstAnswers(r).map(([k, v]) => (
+                          <div key={k} className={s.respRow}>
+                            <span className={s.respKey}>{k}</span>
+                            <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                )
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* ── 잠금 해제 모달 */}
       {showPwModal && (
         <div className={s.modalBg} onClick={() => setShowPwModal(false)}>
           <div className={s.modal} onClick={e => e.stopPropagation()}>
             <div className={s.mIcon}>🔒</div>
             <h3>관리자 잠금 해제</h3>
-            <p>비밀번호를 입력하세요. (기본: 0000)</p>
-            <input type="password" className={s.pwInp} value={inputPw} onChange={e => setInputPw(e.target.value)} placeholder="비밀번호" autoFocus onKeyDown={e => e.key === 'Enter' && submitPassword()} />
+            <p>비밀번호를 입력하면 응답을 확인할 수 있습니다.<br/><span style={{fontSize:11,opacity:.6}}>(기본: 0000)</span></p>
+            <input type="password" className={s.pwInp} value={inputPw} onChange={e => { setInputPw(e.target.value); setPwError('') }}
+              placeholder="비밀번호" autoFocus
+              onKeyDown={e => e.key === 'Enter' && submitPassword(() => panelForm && fetchPanelData(panelForm))} />
+            {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowPwModal(false)}>취소</button>
-              <button className={s.btnPrimaryModal} onClick={submitPassword}>확인</button>
+              <button className={s.btnPrimaryModal} onClick={() => submitPassword(() => panelForm && fetchPanelData(panelForm))}>확인</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── 2. 암호 변경 모달 ── */}
+      {/* ── 암호 변경 모달 */}
       {showSetPwModal && (
         <div className={s.modalBg} onClick={() => setShowSetPwModal(false)}>
           <div className={s.modal} onClick={e => e.stopPropagation()}>
             <div className={s.mIcon}>⚙️</div>
             <h3>관리자 암호 변경</h3>
             <p>기존 암호와 새 암호를 입력하세요.</p>
-            <input type="password" className={s.pwInp} value={oldPw} onChange={e => setOldPw(e.target.value)} placeholder="기존 암호" autoFocus style={{marginBottom: '8px'}} />
-            <input type="password" className={s.pwInp} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="새 암호 (4자리 이상)" onKeyDown={e => e.key === 'Enter' && saveNewPassword()} />
+            <input type="password" className={s.pwInp} value={oldPw} onChange={e => { setOldPw(e.target.value); setPwError('') }} placeholder="기존 암호" autoFocus style={{marginBottom:'8px'}} />
+            <input type="password" className={s.pwInp} value={newPw} onChange={e => { setNewPw(e.target.value); setPwError('') }} placeholder="새 암호 (4자리 이상)" onKeyDown={e => e.key === 'Enter' && saveNewPassword()} />
+            {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowSetPwModal(false)}>취소</button>
               <button className={s.btnPrimaryModal} onClick={saveNewPassword}>변경하기</button>
