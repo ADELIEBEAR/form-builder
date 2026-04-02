@@ -59,7 +59,7 @@ export default function Builder() {
 
   useEffect(() => {
     if (!formId) return
-    getForm(formId).then(form => {
+    function applyForm(form) {
       setTitle(form.title)
       setTheme({ c1: form.theme_c1, c2: form.theme_c2 })
       setQuestions(form.questions || [])
@@ -70,6 +70,16 @@ export default function Builder() {
       setCurrentFormId(form.id)
       setCurrentSlug(form.slug)
       setIsPublished(form.is_published)
+    }
+    // 세션 캐시 먼저 적용 (즉시 표시)
+    try {
+      const cached = sessionStorage.getItem('form_' + formId)
+      if (cached) applyForm(JSON.parse(cached))
+    } catch {}
+    // 항상 최신 데이터도 fetch
+    getForm(formId).then(form => {
+      applyForm(form)
+      try { sessionStorage.setItem('form_' + formId, JSON.stringify(form)) } catch {}
     }).catch(() => showToast('폼을 불러올 수 없습니다.', 'fail'))
   }, [formId])
 
@@ -104,6 +114,7 @@ export default function Builder() {
     try {
       const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null, qImgData: qImgData || {} } })
       setCurrentFormId(saved.id)
+      try { sessionStorage.setItem('form_' + saved.id, JSON.stringify(saved)) } catch {}
       if (!silent) showToast('✅ 저장되었습니다!', 'ok')
       if (!formId) {
         navigate(`/builder/${saved.id}`, { replace: true })

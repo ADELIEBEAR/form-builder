@@ -41,11 +41,15 @@ export async function getUser() {
 export async function getForms(userId) {
   const { data, error } = await supabase
     .from('forms')
-    .select('*')
+    .select('id, title, theme_c1, theme_c2, is_published, slug, created_at, updated_at, memo, sheet_id, sheet_url, questions')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
   if (error) throw error
-  return data
+  // questions는 문항 수만 필요하므로 개수만 남기고 내용은 제거
+  return (data || []).map(f => ({
+    ...f,
+    questions: f.questions ? Array(f.questions.length) : []
+  }))
 }
 
 // 폼 하나 가져오기
