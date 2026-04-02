@@ -131,3 +131,18 @@
 .btnPrimaryModal { flex: 1; background: var(--a1); color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .adminLockBtn { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s; }
 .adminLockBtnActive { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #10b981; }
+
+/* ── 관리자 버튼 ── */
+.adminBtn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid rgba(248,113,113,.3);
+  background: rgba(248,113,113,.08); color: var(--danger);
+  transition: all .15s; font-family: 'Noto Sans KR', sans-serif;
+}
+.adminBtn:hover { background: rgba(248,113,113,.15); }
+.adminBtn.unlocked {
+  border-color: rgba(74,222,128,.3);
+  background: rgba(74,222,128,.08); color: var(--success);
+}
+.adminBtn.unlocked:hover { background: rgba(74,222,128,.15); }

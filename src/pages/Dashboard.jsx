@@ -41,6 +41,9 @@ export default function Dashboard() {
     if (user) {
       loadForms()
       saveGoogleToken()
+    } else {
+      // user가 null 확정되면 로딩 해제 (useAuth loading이 끝난 뒤 여기 도달)
+      setLoading(false)
     }
   }, [user])
 
@@ -59,10 +62,21 @@ export default function Dashboard() {
 
   async function loadForms() {
     try {
-      const data = await getForms(user.id)
+      // 10초 타임아웃 안전장치
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 10000)
+      )
+      const data = await Promise.race([getForms(user.id), timeout])
       setForms(data || [])
-    } catch { showToast('폼을 불러오는 데 실패했습니다.', 'fail') }
-    finally { setLoading(false) }
+    } catch (e) {
+      if (e.message === 'timeout') {
+        showToast('연결이 느립니다. 새로고침 해주세요.', 'fail')
+      } else {
+        showToast('폼을 불러오는 데 실패했습니다.', 'fail')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleDelete(formId, e) {
