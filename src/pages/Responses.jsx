@@ -5,9 +5,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import s from './Responses.module.css'
 
-// 전화번호 정규화
+// 전화번호 정규화 — 하이픈/공백 제거
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
-function looksLikePhone(v) { return /^0\d{8,10}$/.test(normalizePhone(v)) }
+// 한국 전화번호 패턴만 인식 (010/011/016/017/018/019 + 7~8자리)
+function looksLikePhone(v) {
+  const n = normalizePhone(v)
+  return /^01[0-9]\d{7,8}$/.test(n)
+}
 
 export default function Responses() {
   const { formId } = useParams()
@@ -66,40 +70,69 @@ export default function Responses() {
     else showToast('알림 권한이 거부되었습니다.','fail')
   }
 
-  // ── 전화번호 중복 맵 계산
-  const dupePhoneMap = useMemo(() => {
-    const map = {} // normalizedPhone → [responseId, ...]
-    responses.forEach(r => {
-      Object.values(r.answers||{}).forEach(v => {
-        if (!looksLikePhone(v)) return
-        const n = normalizePhone(v)
-        if (!map[n]) map[n] = []
-        map[n].push(r.id)
-      })
-    })
-    // 2개 이상인 것만
-    return Object.fromEntries(Object.entries(map).filter(([,ids]) => ids.length >= 2))
-  }, [responses])
+  // ── 전체 폼 기준 중복 전화번호 맵
+  // { normalizedPhone → [{formId, formTitle, responseId, date}] }
+  const [crossDupeMap, setCrossDupeMap] = useState({})
 
+  useEffect(() => {
+    if (!user || !form) return
+    loadCrossDupes()
+  }, [form])
+
+  async function loadCrossDupes() {
+    try {
+      // 내 폼 목록
+      const { data: formList } = await supabase
+        .from('forms').select('id, title').eq('user_id', user.id)
+      if (!formList?.length) return
+
+      // 현재 폼 제외한 다른 폼들 응답
+      const otherFormIds = formList.filter(f => f.id !== formId).map(f => f.id)
+      if (!otherFormIds.length) return
+
+      const formTitleMap = Object.fromEntries(formList.map(f => [f.id, f.title]))
+
+      const { data: otherResp } = await supabase
+        .from('responses').select('id, form_id, answers, submitted_at')
+        .in('form_id', otherFormIds)
+
+      // 다른 폼에서 전화번호 수집
+      const map = {}
+      ;(otherResp||[]).forEach(r => {
+        Object.values(r.answers||{}).forEach(v => {
+          if (!looksLikePhone(v)) return
+          const n = normalizePhone(v)
+          if (!map[n]) map[n] = []
+          map[n].push({ formId: r.form_id, formTitle: formTitleMap[r.form_id]||'다른 폼', responseId: r.id, date: r.submitted_at })
+        })
+      })
+      setCrossDupeMap(map)
+    } catch {}
+  }
+
+  // 이 응답이 다른 폼에서도 신청했는지
   function isDupe(r) {
-    return Object.values(r.answers||{}).some(v => looksLikePhone(v) && dupePhoneMap[normalizePhone(v)])
+    return Object.values(r.answers||{}).some(v => {
+      if (!looksLikePhone(v)) return false
+      return !!crossDupeMap[normalizePhone(v)]
+    })
   }
 
   function getDupeInfo(r) {
-    // 이 응답의 중복 전화번호와 몇 번 나왔는지
     const results = []
     Object.values(r.answers||{}).forEach(v => {
       if (!looksLikePhone(v)) return
       const n = normalizePhone(v)
-      if (dupePhoneMap[n]) {
-        const count = dupePhoneMap[n].length
-        results.push({ phone: String(v), count })
+      const others = crossDupeMap[n]
+      if (others?.length) {
+        const formNames = [...new Set(others.map(o => o.formTitle))].slice(0,3).join(', ')
+        results.push({ phone: String(v), formNames, count: others.length })
       }
     })
     return results
   }
 
-  const dupeCount = useMemo(() => responses.filter(r => isDupe(r)).length, [dupePhoneMap, responses])
+  const dupeCount = useMemo(() => responses.filter(r => isDupe(r)).length, [crossDupeMap, responses])
 
   // 필터링
   const filtered = responses
@@ -158,7 +191,7 @@ export default function Responses() {
   function showDupeTooltip(e, r) {
     const info = getDupeInfo(r)
     if (!info.length) return
-    const content = info.map(i => `📵 ${i.phone} — 이 폼에서 ${i.count}명 동일번호`).join('\n')
+    const content = info.map(i => `📵 ${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`).join('\n')
     setTooltip({ x: e.clientX, y: e.clientY, content })
   }
 
@@ -285,9 +318,9 @@ export default function Responses() {
                         <div className={s.respFull}>
                           {dupe && (
                             <div className={s.dupeWarningBox}>
-                              📵 중복 전화번호 감지
+                              📵 다른 폼에서도 신청 이력 있음
                               {dupeInfo.map(i=>(
-                                <span key={i.phone} className={s.dupeWarningPhone}>{i.phone} · 이 폼에서 {i.count}건</span>
+                                <span key={i.phone} className={s.dupeWarningPhone}>{i.phone} → {i.formNames}</span>
                               ))}
                             </div>
                           )}
