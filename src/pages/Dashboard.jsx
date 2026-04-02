@@ -96,18 +96,22 @@ export default function Dashboard() {
         .limit(100)
       if (error) throw error
       const responses = data || []
-      // 중복 감지 — 모든 답변 값 기준으로 같은 값이 2번 이상 나오면 중복
-      const valueMap = {}
+      // 전화번호만 기준으로 중복 감지
+      function normPhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
+      function isPhone(v) { return /^01[0-9]\d{7,8}$/.test(normPhone(v)) }
+
+      const phoneMap = {}
       responses.forEach(r => {
         Object.values(r.answers || {}).forEach(v => {
-          const key = String(v).trim().toLowerCase()
-          if (key.length < 2) return
-          if (!valueMap[key]) valueMap[key] = []
-          valueMap[key].push(r.id)
+          if (!isPhone(v)) return
+          const n = normPhone(v)
+          if (!phoneMap[n]) phoneMap[n] = []
+          phoneMap[n].push(r.id)
         })
       })
+      // 같은 폼 안에서 같은 번호가 2번 이상인 것만
       const dupeIds = new Set()
-      Object.values(valueMap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupeIds.add(id)) })
+      Object.values(phoneMap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupeIds.add(id)) })
       const dupes = responses.filter(r => dupeIds.has(r.id))
       setPanelData({ responses, dupes })
     } catch { showToast('응답을 불러오지 못했습니다.', 'fail') }

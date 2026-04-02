@@ -110,12 +110,13 @@ export default function Responses() {
     } catch {}
   }
 
-  // 이 응답이 다른 폼에서도 신청했는지
+  // 이 응답이 다른 폼에서도 신청했는지 — crossDupeMap을 인자로 직접 받아서 클로저 문제 방지
+  const dupePhoneSet = useMemo(() => new Set(Object.keys(crossDupeMap)), [crossDupeMap])
+
   function isDupe(r) {
-    return Object.values(r.answers||{}).some(v => {
-      if (!looksLikePhone(v)) return false
-      return !!crossDupeMap[normalizePhone(v)]
-    })
+    return Object.values(r.answers||{}).some(v =>
+      looksLikePhone(v) && dupePhoneSet.has(normalizePhone(v))
+    )
   }
 
   function getDupeInfo(r) {
@@ -132,7 +133,9 @@ export default function Responses() {
     return results
   }
 
-  const dupeCount = useMemo(() => responses.filter(r => isDupe(r)).length, [crossDupeMap, responses])
+  const dupeCount = useMemo(() => responses.filter(r =>
+    Object.values(r.answers||{}).some(v => looksLikePhone(v) && dupePhoneSet.has(normalizePhone(v)))
+  ).length, [dupePhoneSet, responses])
 
   // 필터링
   const filtered = responses
