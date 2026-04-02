@@ -138,8 +138,8 @@
 .startTagEdit { background: transparent; border: none; outline: none; font-size: 10px; font-weight: 700; color: var(--a1); letter-spacing: .1em; margin-bottom: 4px; width: 100%; border-bottom: 1px dashed rgba(124,108,252,.3); padding: 2px 0; }
 .startTagEdit:focus { border-bottom-color: var(--a1); }
 .startTitlePreview { font-family: 'Gmarket Sans', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--b-text); pointer-events: none; }
-.startDescEdit { background: transparent; border: none; outline: none; font-size: 12px; color: var(--b-muted2); width: 100%; border-bottom: 1px dashed rgba(255,255,255,.1); padding: 2px 0; margin-bottom: 12px; font-family: 'Noto Sans KR', sans-serif; }
-.startDescEdit::placeholder { color: rgba(153,151,171,.35); }
+.startDescEdit { background: transparent; border: none; outline: none; font-size: 12px; color: var(--b-muted2); width: 100%; border-bottom: 1px dashed var(--b-border2); padding: 2px 0; margin-bottom: 12px; font-family: 'Noto Sans KR', sans-serif; }
+.startDescEdit::placeholder { color: var(--b-muted); opacity: .5; }
 .startDescEdit:focus { border-bottom-color: rgba(124,108,252,.4); }
 .startBtnWrap { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg, var(--a1), var(--a2)); border-radius: 10px; padding: 9px 18px; }
 .startBtnEdit { background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: #fff; font-family: 'Noto Sans KR', sans-serif; min-width: 60px; }
@@ -270,3 +270,82 @@
 .colorRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .colorRow span { font-size: 10px; color: var(--b-muted); }
 .colorPick { width: 36px; height: 24px; border: 1px solid var(--b-border); border-radius: 6px; cursor: pointer; padding: 1px; background: var(--b-inp); }
+
+/* ── 라이트 모드 전용 보정 ── */
+.wrapLight .qcard { box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+.wrapLight .qHintInp::placeholder { color: rgba(107,114,128,.5); }
+.wrapLight .fk { color: #6b7280; }
+.wrapLight .optCb { border-color: rgba(0,0,0,.25); }
+.wrapLight .startDescEdit { border-bottom-color: rgba(0,0,0,.12); }
+.wrapLight .legalTa { color: #1a1a2a; }
+.wrapLight .qcard:hover { box-shadow: 0 4px 18px rgba(0,0,0,.1); }
+.wrapLight .modal { background: #fff; color: #1a1a2a; border: 1px solid rgba(0,0,0,.12); }
+.wrapLight .modal h3 { color: #1a1a2a; }
+.wrapLight .modal p { color: #6b7280; }
+.wrapLight .codeBox { background: #f4f5f7; color: #1a1a2a; border: 1px solid rgba(0,0,0,.1); }
+.wrapLight .shareBox { background: #f4f5f7; }
+.wrapLight .shareInp { background: #fff; color: #1a1a2a; border: 1px solid rgba(0,0,0,.15); }
+.wrapLight .sheetBenefit { color: #374151; }
+.wrapLight .empty { color: #9ca3af; }
+
+/* ── 조건 분기 섹션 ── */
+.branchSection {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--b-inp);
+  border: 1px solid var(--b-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.branchTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--b-text);
+  margin-bottom: 2px;
+}
+.branchRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.branchOptLabel {
+  flex: 0 0 80px;
+  font-size: 11px;
+  color: var(--b-muted2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--b-s2);
+  border-radius: 5px;
+  padding: 3px 7px;
+  min-width: 0;
+}
+.branchArrow {
+  font-size: 13px;
+  color: var(--a1);
+  flex-shrink: 0;
+}
+.branchSelect {
+  flex: 1;
+  background: var(--b-card);
+  border: 1px solid var(--b-border2);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: var(--b-text);
+  outline: none;
+  cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.branchSelect:focus { border-color: var(--a1); }
+
+/* 라이트 모드 분기 보정 */
+.wrapLight .branchSelect { background: #fff; color: #1a1a2a; }
+.wrapLight .branchOptLabel { background: #e5e7eb; color: #374151; }

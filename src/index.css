@@ -15,6 +15,17 @@
   --danger: #f87171;
   --success: #4ade80;
   --warning: #fbbf24;
+
+  /* ── 라이트/다크 공용 시맨틱 변수 ── */
+  /* 입력/버튼 배경 (다크: 흰색 4%, 라이트: 검정 4%) */
+  --surface: rgba(255,255,255,.05);
+  --surface-hover: rgba(255,255,255,.09);
+  --surface-active: rgba(255,255,255,.13);
+  /* 네비/헤더 반투명 */
+  --nav-bg: rgba(8,8,15,.9);
+  /* 카드 이미지 위 배지 */
+  --img-badge-bg: rgba(0,0,0,.28);
+  --img-badge-text: rgba(255,255,255,.9);
 }
 
 /* ── 라이트 테마 ── */
@@ -35,13 +46,21 @@
   --danger: #ef4444;
   --success: #16a34a;
   --warning: #d97706;
+
+  /* 라이트 오버라이드 */
+  --surface: rgba(0,0,0,.05);
+  --surface-hover: rgba(0,0,0,.08);
+  --surface-active: rgba(0,0,0,.12);
+  --nav-bg: rgba(255,255,255,.92);
+  --img-badge-bg: rgba(0,0,0,.32);
+  --img-badge-text: rgba(255,255,255,.95);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); transition: background .25s, color .25s; font-family: 'Noto Sans KR', sans-serif; -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font-family: inherit; }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
 
 /* ── 버튼 공통 ── */
 .btn {
@@ -51,7 +70,7 @@ button, input, textarea, select { font-family: inherit; }
   text-decoration: none; letter-spacing: -.01em;
 }
 .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
-.btn-ghost:hover { background: rgba(255,255,255,.06); color: var(--text); border-color: var(--border2); }
+.btn-ghost:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
 .btn-primary { background: linear-gradient(135deg, var(--a1), var(--a2)); color: #fff; }
 .btn-primary:hover { opacity: .87; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,108,252,.3); }
 .btn-primary:active { transform: scale(.97); }
@@ -66,7 +85,7 @@ button, input, textarea, select { font-family: inherit; }
 
 /* ── 입력 공통 ── */
 .inp {
-  width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
   border-radius: 10px; padding: 9px 13px; font-size: 13px; color: var(--text);
   outline: none; transition: border-color .2s, box-shadow .2s;
 }

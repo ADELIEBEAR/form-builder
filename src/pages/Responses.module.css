@@ -13,17 +13,17 @@
   flex-wrap: wrap; gap: 8px; flex-shrink: 0;
 }
 .headerLeft { display: flex; align-items: center; gap: 12px; }
-.backBtn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted2); transition: all .15s; flex-shrink: 0; }
-.backBtn:hover { background: rgba(255,255,255,.09); color: var(--text); }
+.backBtn { width: 32px; height: 32px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted2); transition: all .15s; flex-shrink: 0; }
+.backBtn:hover { background: var(--surface-hover); color: var(--text); }
 .formName { font-family: 'Gmarket Sans', sans-serif; font-size: 15px; font-weight: 700; }
 .headerMeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
 .totalBadge { font-size: 11px; color: var(--a1); background: rgba(124,108,252,.1); border: 1px solid rgba(124,108,252,.2); border-radius: 99px; padding: 1px 9px; }
-.filterBadge { font-size: 11px; color: var(--muted2); background: rgba(255,255,255,.05); border-radius: 99px; padding: 1px 9px; }
+.filterBadge { font-size: 11px; color: var(--muted2); background: var(--surface); border-radius: 99px; padding: 1px 9px; }
 .newBadge { font-size: 11px; color: #ff4444; background: rgba(255,68,68,.1); border: 1px solid rgba(255,68,68,.25); border-radius: 99px; padding: 1px 9px; cursor: pointer; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.6} }
 .headerRight { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.notifBtn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all .15s; }
-.notifBtn:hover { background: rgba(255,255,255,.09); }
+.notifBtn { width: 32px; height: 32px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all .15s; }
+.notifBtn:hover { background: var(--surface-hover); }
 .notifOn { background: rgba(124,108,252,.1); border-color: rgba(124,108,252,.3); }
 
 /* ── 필터 바 ── */
@@ -34,7 +34,7 @@
 }
 .searchWrap { position: relative; flex: 1; min-width: 180px; max-width: 280px; }
 .searchIco { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-.searchInp { width: 100%; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; padding: 7px 30px 7px 30px; font-size: 12px; color: var(--text); outline: none; transition: border-color .2s; font-family: 'Noto Sans KR', sans-serif; }
+.searchInp { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 30px 7px 30px; font-size: 12px; color: var(--text); outline: none; transition: border-color .2s; font-family: 'Noto Sans KR', sans-serif; }
 .searchInp:focus { border-color: rgba(124,108,252,.4); }
 .searchInp::placeholder { color: var(--muted); }
 .searchClear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 2px; }
@@ -42,12 +42,12 @@
 .dateBtn { padding: 5px 11px; border-radius: 7px; background: transparent; border: 1px solid var(--border); font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
 .dateBtn:hover { border-color: var(--border2); color: var(--text); }
 .dateBtnOn { background: rgba(124,108,252,.12); border-color: rgba(124,108,252,.35); color: var(--a1); }
-.dateInput { background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11px; color: var(--text); outline: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
+.dateInput { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11px; color: var(--text); outline: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
 .dateInput:focus { border-color: rgba(124,108,252,.4); }
 .filterRight { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .sortBtn { padding: 5px 11px; border-radius: 7px; background: transparent; border: 1px solid var(--border); font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap; font-family: 'Noto Sans KR', sans-serif; }
 .sortBtn:hover { border-color: var(--border2); color: var(--text); }
-.viewToggle { display: flex; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.viewToggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .viewBtn { padding: 5px 12px; background: transparent; border: none; font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
 .viewBtnOn { background: rgba(124,108,252,.15); color: var(--a1); }
 
@@ -104,7 +104,7 @@
 .thNum { width: 40px; }
 .thDate { width: 130px; }
 .tr { cursor: pointer; transition: background .12s; }
-.tr:hover td { background: rgba(255,255,255,.02); }
+.tr:hover td { background: var(--surface); }
 .trSelected td { background: rgba(124,108,252,.05); }
 .tdCheck, .tdNum, .tdDate, .td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
 .tdNum { color: var(--muted); font-size: 12px; }

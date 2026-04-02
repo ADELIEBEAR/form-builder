@@ -158,7 +158,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
     // ── 2. 말랑말랑 ──────────────────────────
     soft: `
-:root{--tx:#3d1a4a;--tx2:#6b3a7a;--tx3:#9a70aa;--bg2:rgba(255,245,252,0.8);--bd:rgba(244,114,182,.25);--bd2:rgba(244,114,182,.4);--ls-bg:rgba(244,114,182,.05)}
 @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
 body{background-color:#fdf4ff;background-image:url('https://images.unsplash.com/random/1920x1080/?pastel,clouds,cotton');background-size:cover;background-position:center;background-attachment:fixed;color:#3d1a4a;font-family:'Jua',sans-serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,0.4);backdrop-filter:blur(5px);pointer-events:none;z-index:-1}
@@ -205,7 +204,6 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
     // ── 4. 진지 (미니멀 모노) ────────────────
     serious: `
-:root{--tx:#111111;--tx2:#444444;--tx3:#777777;--bg2:rgba(245,245,243,0.8);--bd:rgba(0,0,0,.18);--bd2:rgba(0,0,0,.28);--ls-bg:rgba(0,0,0,.03)}
 @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap');
 body{background-color:#f9f9f7;background-image:url('https://images.unsplash.com/random/1920x1080/?minimalist,architecture,monochrome');background-size:cover;background-position:center;background-attachment:fixed;color:#111;font-family:'Nanum Myeongjo',serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(249,249,247,0.85);backdrop-filter:blur(8px);pointer-events:none;z-index:-1}
@@ -227,7 +225,6 @@ body::before{content:'';position:fixed;inset:0;background:rgba(249,249,247,0.85)
 
     // ── 5. 레트로 ────────────────────────────
     retro: `
-:root{--tx:#3d2c12;--tx2:#7a5a2a;--tx3:#a08050;--bg2:rgba(253,245,224,0.85);--bd:rgba(180,120,40,.35);--bd2:rgba(180,120,40,.5);--ls-bg:rgba(180,120,40,.06)}
 @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap');
 body{background-color:#fef3e2;background-image:url('https://images.unsplash.com/random/1920x1080/?synthwave,80s,retro,sunset');background-size:cover;background-position:center;background-attachment:fixed;color:#3d2c12;font-family:'Black Han Sans',sans-serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(254,243,226,0.7);backdrop-filter:blur(4px);pointer-events:none;z-index:-1}
@@ -251,7 +248,6 @@ body::before{content:'';position:fixed;inset:0;background:rgba(254,243,226,0.7);
 
     // ── 6. 네이처 ────────────────────────────
     nature: `
-:root{--tx:#14532d;--tx2:#166534;--tx3:#4d7c60;--bg2:rgba(247,254,249,0.8);--bd:rgba(22,163,74,.28);--bd2:rgba(22,163,74,.42);--ls-bg:rgba(22,163,74,.05)}
 @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
 body{background-color:#f0fdf4;background-image:url('https://images.unsplash.com/random/1920x1080/?forest,leaves,nature,green');background-size:cover;background-position:center;background-attachment:fixed;color:#14532d;font-family:'Gowun Dodum',sans-serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(240,253,244,0.7);backdrop-filter:blur(10px);pointer-events:none;z-index:-1}
@@ -295,7 +291,6 @@ body::before{content:'';position:fixed;inset:0;background:linear-gradient(135deg
 
     // ── 8. 카와이 ────────────────────────────
     kawaii: `
-:root{--tx:#5d2167;--tx2:#7b3580;--tx3:#a06090;--bg2:rgba(255,245,252,0.8);--bd:rgba(244,114,182,.3);--bd2:rgba(244,114,182,.5);--ls-bg:rgba(244,114,182,.06)}
 @import url('https://fonts.googleapis.com/css2?family=Hi+Melody&display=swap');
 body{background-color:#fff0f8;background-image:url('https://images.unsplash.com/random/1920x1080/?cute,pastel,pink,cherry-blossom');background-size:cover;background-position:center;background-attachment:fixed;color:#5d2167;font-family:'Hi Melody',cursive}
 body::before{content:'';position:fixed;inset:0;background:rgba(255,240,248,0.75);backdrop-filter:blur(8px);pointer-events:none;z-index:-1}
@@ -366,7 +361,6 @@ body::before{content:'';position:fixed;inset:0;background:linear-gradient(135deg
 
     // ── 11. 신문 ──────────────────────────────
     newspaper: `
-:root{--tx:#1a1a1a;--tx2:#444444;--tx3:#777777;--bg2:rgba(242,237,227,0.8);--bd:rgba(0,0,0,.18);--bd2:rgba(0,0,0,.28);--ls-bg:rgba(0,0,0,.04)}
 @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
 body{background-color:#f2ede3;background-image:url('https://images.unsplash.com/random/1920x1080/?newspaper,vintage,paper,typography');background-size:cover;background-position:center;background-attachment:fixed;color:#1a1a1a;font-family:'Nanum Myeongjo',serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(242,237,227,0.9);backdrop-filter:blur(2px);pointer-events:none;z-index:-1}
@@ -412,7 +406,6 @@ body::before{content:'';position:fixed;inset:0;background:linear-gradient(to bot
 
     // ── 13. 캔디 ──────────────────────────────
     candy: `
-:root{--tx:#222222;--tx2:#444444;--tx3:#888888;--bg2:rgba(255,255,255,0.9);--bd:rgba(0,0,0,.25);--bd2:rgba(0,0,0,.4);--ls-bg:rgba(0,0,0,.04)}
 @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
 body{background-color:#fffef0;background-image:url('https://images.unsplash.com/random/1920x1080/?candy,pop-art,colorful,sweet');background-size:cover;background-position:center;background-attachment:fixed;color:#222;font-family:'Jua',sans-serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(255,254,240,0.85);backdrop-filter:blur(6px);pointer-events:none;z-index:-1}
@@ -436,7 +429,6 @@ body::before{content:'';position:fixed;inset:0;background:rgba(255,254,240,0.85)
 
     // ── 14. 먹물 (동양) ──────────────────────
     ink: `
-:root{--tx:#1a1208;--tx2:#3d2a10;--tx3:#7a5a30;--bg2:rgba(245,240,230,0.8);--bd:rgba(60,40,10,.2);--bd2:rgba(60,40,10,.35);--ls-bg:rgba(60,40,10,.04)}
 @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
 body{background-color:#f7f4ee;background-image:url('https://images.unsplash.com/random/1920x1080/?watercolor,ink,rice-paper,asian');background-size:cover;background-position:center;background-attachment:fixed;color:#1c1208;font-family:'Nanum Myeongjo',serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(247,244,238,0.85);backdrop-filter:blur(6px);pointer-events:none;z-index:-1}
@@ -528,7 +520,6 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
     // ── 18. 클린 (의료) ──────────────────────
     medical: `
-:root{--tx:#1e2d40;--tx2:#2d4a6e;--tx3:#5a7a9a;--bg2:rgba(240,246,255,0.8);--bd:rgba(30,80,160,.2);--bd2:rgba(30,80,160,.32);--ls-bg:rgba(30,80,160,.04)}
 body{background-color:#f8faff;background-image:url('https://images.unsplash.com/random/1920x1080/?clinic,clean,white,medical');background-size:cover;background-position:center;background-attachment:fixed;color:#1e2d40;font-family:'IBM Plex Sans KR','Noto Sans KR',sans-serif}
 body::before{content:'';position:fixed;inset:0;background:rgba(248,250,255,0.9);backdrop-filter:blur(6px);pointer-events:none;z-index:-1}
 .card{background:rgba(255,255,255,0.95);border:1px solid #dde3ef;border-radius:16px;box-shadow:0 8px 30px rgba(30,45,64,.08);backdrop-filter:blur(10px)}

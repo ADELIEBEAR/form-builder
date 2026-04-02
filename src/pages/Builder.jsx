@@ -9,8 +9,8 @@ import { useTheme } from '../lib/themeContext'
 import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 
-const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', phone:'전화번호', email:'이메일', legal:'동의' }
-const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', phone:'📱', email:'📧', legal:'📋' }
+const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', quiz:'퀴즈', phone:'전화번호', email:'이메일', legal:'동의' }
+const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
 let UID = 0
 const nid = () => ++UID
 
@@ -159,7 +159,9 @@ export default function Builder() {
   function addQ(type) {
     const q = {
       id: nid(), type, label: '', hint: '', required: true, other: false,
-      options: (type === 'multiple' || type === 'single') ? ['옵션 1', '옵션 2'] : [],
+      options: (type === 'multiple' || type === 'single') ? ['옵션 1', '옵션 2'] : type === 'quiz' ? ['옵션 1', '옵션 2', '옵션 3', '옵션 4'] : [],
+      correctAnswer: type === 'quiz' ? 0 : undefined,
+      explanation: type === 'quiz' ? '' : undefined,
       legalText: type === 'legal' ? '[개인정보 수집 및 이용 안내]\n\n수집 항목: 성명, 연락처\n수집 목적: 서비스 안내\n보유 기간: 30일' : '',
     }
     setQuestions(prev => [...prev, q])
@@ -518,12 +520,77 @@ export default function Builder() {
                     <>
                       <textarea className={s.legalTa} value={q.legalText} placeholder="동의 내용 입력..." onChange={e => updQ(q.id, 'legalText', e.target.value)} />
                       <div className={s.fk} style={{fontSize:12,display:'flex',alignItems:'center',gap:8}}>
-                        <div style={{width:15,height:15,borderRadius:4,border:'1.5px solid rgba(255,255,255,.15)',flexShrink:0}}></div>
+                        <div style={{width:15,height:15,borderRadius:4,border:`1.5px solid ${isLight?'rgba(0,0,0,.2)':'rgba(255,255,255,.15)'}`,flexShrink:0}}></div>
                         위 내용에 동의합니다.
                       </div>
                     </>
                   )}
+                  {q.type === 'quiz' && (
+                    <div className={s.optsList}>
+                      <div style={{fontSize:11,color:isLight?'#374151':'#9997ab',marginBottom:6,fontWeight:600}}>🧩 보기 — 초록 버튼으로 정답 지정</div>
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className={s.optRow}>
+                          <button
+                            title="정답으로 설정"
+                            onClick={() => updQ(q.id, 'correctAnswer', oi)}
+                            style={{
+                              width:20, height:20, borderRadius:'50%', flexShrink:0, cursor:'pointer',
+                              border: q.correctAnswer === oi ? '2px solid #22c55e' : `2px solid ${isLight?'rgba(0,0,0,.2)':'rgba(255,255,255,.2)'}`,
+                              background: q.correctAnswer === oi ? '#22c55e' : 'transparent',
+                              fontSize:10, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
+                              transition:'all .15s'
+                            }}
+                          >{q.correctAnswer === oi ? '✓' : ''}</button>
+                          <input className={s.optInp} value={opt} placeholder={`보기 ${oi + 1}`} onChange={e => updOpt(q.id, oi, e.target.value)} />
+                          <button className={s.optDel} onClick={() => delOpt(q.id, oi)}>✕</button>
+                        </div>
+                      ))}
+                      <button className={s.addOptBtn} onClick={() => addOpt(q.id)}>+ 보기 추가</button>
+                      <div style={{marginTop:10, paddingTop:8, borderTop:`1px solid ${isLight?'rgba(0,0,0,.07)':'rgba(255,255,255,.07)'}`}}>
+                        <div style={{fontSize:11,color:isLight?'#374151':'#9997ab',marginBottom:4,fontWeight:500}}>💬 정답 해설 (선택)</div>
+                        <input className={s.inp} value={q.explanation||''} placeholder="정답 해설 입력..." onChange={e => updQ(q.id, 'explanation', e.target.value)} />
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* ── 조건 분기 UI (single / quiz 타입) ── */}
+                {(q.type === 'single' || q.type === 'quiz') && q.options.length > 0 && (
+                  <div className={s.branchSection}>
+                    <div className={s.branchTitle}>
+                      <span>🔀 조건 분기</span>
+                      <span style={{fontSize:10, fontWeight:400, opacity:.6}}>선택지별로 이동할 질문 지정</span>
+                    </div>
+                    {q.options.map((opt, oi) => {
+                      const br = q.branches?.find(b => b.optionIdx === oi)
+                      return (
+                        <div key={oi} className={s.branchRow}>
+                          <div className={s.branchOptLabel} title={opt}>{opt || `보기 ${oi+1}`}</div>
+                          <span className={s.branchArrow}>→</span>
+                          <select
+                            className={s.branchSelect}
+                            value={br?.targetIdx ?? ''}
+                            onChange={e => {
+                              const val = e.target.value
+                              setQuestions(prev => prev.map(pq => {
+                                if (pq.id !== q.id) return pq
+                                const branches = (pq.branches || []).filter(b => b.optionIdx !== oi)
+                                if (val !== '') branches.push({ optionIdx: oi, targetIdx: val === 'done' ? 'done' : parseInt(val) })
+                                return { ...pq, branches }
+                              }))
+                            }}
+                          >
+                            <option value="">다음 질문 (순서대로)</option>
+                            {questions.map((tq, ti) => ti !== idx && (
+                              <option key={ti} value={ti}>Q{ti+1}. {tq.label || '(제목 없음)'}</option>
+                            ))}
+                            <option value="done">🏁 완료 화면으로 이동</option>
+                          </select>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
                 <div className={s.qFoot}>
                   <ToggleInline label="필수" val={q.required} onChange={v => updQ(q.id, 'required', v)} light={isLight} />
