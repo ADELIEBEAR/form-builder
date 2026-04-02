@@ -40,8 +40,11 @@ export default function Dashboard() {
   const [pwError, setPwError] = useState('')
 
   // ── 응답 패널
-  const [panelForm, setPanelForm] = useState(null)   // 열린 폼
+  const [panelMode, setPanelMode] = useState(null)   // null | 'form' | 'all'
+  const [panelForm, setPanelForm] = useState(null)   // 열린 폼 (form 모드)
   const [panelData, setPanelData] = useState(null)   // { responses, dupes }
+  const [allRespData, setAllRespData] = useState(null) // 전체 응답
+  const [allRespLoading, setAllRespLoading] = useState(false)
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes'
 
@@ -80,10 +83,12 @@ export default function Dashboard() {
       setShowPwModal(true)
       return
     }
+    setPanelMode('form')
     await fetchPanelData(form)
   }
 
   async function fetchPanelData(form) {
+    setPanelMode('form')
     setPanelForm(form)
     setPanelLoading(true)
     setPanelData(null)
@@ -116,6 +121,29 @@ export default function Dashboard() {
       setPanelData({ responses, dupes })
     } catch { showToast('응답을 불러오지 못했습니다.', 'fail') }
     finally { setPanelLoading(false) }
+  }
+
+  // ── 전체 응답 불러오기
+  async function fetchAllResp() {
+    setPanelMode('all')
+    setPanelForm(null)
+    setAllRespLoading(true)
+    setAllRespData(null)
+    try {
+      // 폼 목록 (그룹 태그 포함)
+      const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
+
+      const { data, error } = await supabase
+        .from('responses')
+        .select('id, form_id, answers, submitted_at')
+        .in('form_id', forms.map(f => f.id))
+        .order('submitted_at', { ascending: false })
+        .limit(300)
+      if (error) throw error
+
+      setAllRespData(data || [])
+    } catch { showToast('전체 응답을 불러오지 못했습니다.', 'fail') }
+    finally { setAllRespLoading(false) }
   }
 
   // ── 그룹 편집
@@ -245,6 +273,7 @@ export default function Dashboard() {
       setShowPwModal(false)
       setPwError('')
       if (afterUnlock) afterUnlock()
+      else if (panelForm) fetchPanelData(panelForm)
     } else {
       setPwError('비밀번호가 일치하지 않습니다.')
     }
@@ -278,7 +307,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={`${s.wrap} ${panelForm ? s.wrapPanelOpen : ''}`}>
+    <div className={`${s.wrap} ${panelMode ? s.wrapPanelOpen : ''}`}>
       {/* ── 헤더 */}
       <header className={s.header}>
         <div className={s.headerLeft} onClick={() => navigate('/')}>
@@ -290,6 +319,14 @@ export default function Dashboard() {
             {isUnlocked ? '🔓 암호 변경' : '🔒 잠금 해제'}
           </button>
           <button className={s.dupeBtn} onClick={() => navigate('/duplicates')}>📵 중복 체크</button>
+          <button className={`${s.allRespBtn} ${panelMode === 'all' ? s.allRespBtnOn : ''}`}
+            onClick={() => {
+              if (panelMode === 'all') { setPanelMode(null); return }
+              if (!isUnlocked) { setInputPw(''); setPwError(''); setShowPwModal(true); return }
+              fetchAllResp()
+            }}>
+            {isUnlocked ? '📋 전체 응답' : '🔒 전체 응답'}
+          </button>
           <div className={s.userChip}>
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
             <span>{user?.user_metadata?.full_name || user?.email}</span>
@@ -451,75 +488,116 @@ export default function Dashboard() {
           )}
         </main>
 
-        {/* ── 우측 응답 패널 */}
-        {panelForm && (
+        {/* ── 우측 패널 (폼별 or 전체) */}
+        {panelMode && (
           <aside className={s.panel}>
-            <div className={s.panelHeader}>
-              <div className={s.panelTitle}>
-                <span>{panelForm.title}</span>
-                {panelData && <span className={s.panelCount}>{panelData.responses.length}개 응답</span>}
-              </div>
-              <div className={s.panelHeaderRight}>
-                <button className={s.panelFullBtn} onClick={() => navigate(`${RESULTS_PATH}/${panelForm.id}`)}>전체보기 ↗</button>
-                <button className={s.panelClose} onClick={() => setPanelForm(null)}>✕</button>
-              </div>
-            </div>
 
-            <div className={s.panelTabs}>
-              <button className={`${s.panelTab} ${panelTab === 'recent' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('recent')}>
-                최근 응답
-              </button>
-              <button className={`${s.panelTab} ${panelTab === 'dupes' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('dupes')}>
-                중복 의심
-                {panelData?.dupes.length > 0 && <span className={s.dupeBadge}>{panelData.dupes.length}</span>}
-              </button>
-            </div>
-
-            <div className={s.panelBody}>
-              {panelLoading ? (
-                <div className={s.panelLoading}><div className={s.spinner}></div></div>
-              ) : !panelData ? null : panelTab === 'recent' ? (
-                panelData.responses.length === 0 ? (
-                  <div className={s.panelEmpty}>아직 응답이 없습니다</div>
-                ) : panelData.responses.map((r, i) => (
-                  <div key={r.id} className={s.respItem}>
-                    <div className={s.respItemHead}>
-                      <span className={s.respNum}>#{panelData.responses.length - i}</span>
-                      <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
-                      {panelData.dupes.find(d => d.id === r.id) && <span className={s.dupeTag}>중복의심</span>}
-                    </div>
-                    {getFirstAnswers(r).map(([k, v]) => (
-                      <div key={k} className={s.respRow}>
-                        <span className={s.respKey}>{k}</span>
-                        <span className={s.respVal}>{String(v).slice(0, 60)}{String(v).length > 60 ? '...' : ''}</span>
+            {/* ── 폼별 응답 패널 */}
+            {panelMode === 'form' && panelForm && (<>
+              <div className={s.panelHeader}>
+                <div className={s.panelTitle}>
+                  <span>{panelForm.title}</span>
+                  {panelData && <span className={s.panelCount}>{panelData.responses.length}개 응답</span>}
+                </div>
+                <div className={s.panelHeaderRight}>
+                  <button className={s.panelFullBtn} onClick={() => navigate(`${RESULTS_PATH}/${panelForm.id}`)}>전체보기 ↗</button>
+                  <button className={s.panelClose} onClick={() => { setPanelMode(null); setPanelForm(null) }}>✕</button>
+                </div>
+              </div>
+              <div className={s.panelTabs}>
+                <button className={`${s.panelTab} ${panelTab === 'recent' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('recent')}>최근 응답</button>
+                <button className={`${s.panelTab} ${panelTab === 'dupes' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('dupes')}>
+                  중복 의심
+                  {panelData?.dupes.length > 0 && <span className={s.dupeBadge}>{panelData.dupes.length}</span>}
+                </button>
+              </div>
+              <div className={s.panelBody}>
+                {panelLoading ? (
+                  <div className={s.panelLoading}><div className={s.spinner}></div></div>
+                ) : !panelData ? null : panelTab === 'recent' ? (
+                  panelData.responses.length === 0 ? (
+                    <div className={s.panelEmpty}>아직 응답이 없습니다</div>
+                  ) : panelData.responses.map((r, i) => (
+                    <div key={r.id} className={s.respItem}>
+                      <div className={s.respItemHead}>
+                        <span className={s.respNum}>#{panelData.responses.length - i}</span>
+                        <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                        {panelData.dupes.find(d => d.id === r.id) && <span className={s.dupeTag}>중복</span>}
                       </div>
-                    ))}
-                  </div>
-                ))
-              ) : (
-                panelData.dupes.length === 0 ? (
-                  <div className={s.panelEmpty}>✅ 중복 의심 응답 없음</div>
-                ) : (
-                  <>
-                    <div className={s.dupeInfo}>같은 이름·연락처·이메일로 2회 이상 제출된 응답입니다.</div>
-                    {panelData.dupes.map((r, i) => (
-                      <div key={r.id} className={`${s.respItem} ${s.respItemDupe}`}>
-                        <div className={s.respItemHead}>
-                          <span className={s.dupeTag}>중복의심</span>
-                          <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                      {getFirstAnswers(r).map(([k, v]) => (
+                        <div key={k} className={s.respRow}>
+                          <span className={s.respKey}>{k}</span>
+                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
                         </div>
-                        {getFirstAnswers(r).map(([k, v]) => (
-                          <div key={k} className={s.respRow}>
-                            <span className={s.respKey}>{k}</span>
-                            <span className={s.respVal}>{String(v).slice(0, 60)}</span>
-                          </div>
-                        ))}
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  panelData.dupes.length === 0 ? (
+                    <div className={s.panelEmpty}>✅ 중복 의심 응답 없음</div>
+                  ) : panelData.dupes.map((r, i) => (
+                    <div key={r.id} className={`${s.respItem} ${s.respItemDupe}`}>
+                      <div className={s.respItemHead}>
+                        <span className={s.dupeTag}>중복</span>
+                        <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
                       </div>
-                    ))}
-                  </>
-                )
-              )}
-            </div>
+                      {getFirstAnswers(r).map(([k, v]) => (
+                        <div key={k} className={s.respRow}>
+                          <span className={s.respKey}>{k}</span>
+                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </>)}
+
+            {/* ── 전체 응답 패널 */}
+            {panelMode === 'all' && (<>
+              <div className={s.panelHeader}>
+                <div className={s.panelTitle}>
+                  <span>전체 응답</span>
+                  {allRespData && <span className={s.panelCount}>{allRespData.length}개</span>}
+                </div>
+                <div className={s.panelHeaderRight}>
+                  <button className={s.panelClose} onClick={() => setPanelMode(null)}>✕</button>
+                </div>
+              </div>
+              <div className={s.panelBody}>
+                {allRespLoading ? (
+                  <div className={s.panelLoading}><div className={s.spinner}></div></div>
+                ) : !allRespData ? null : allRespData.length === 0 ? (
+                  <div className={s.panelEmpty}>응답이 없습니다</div>
+                ) : allRespData.map((r, i) => {
+                  const form = forms.find(f => f.id === r.form_id)
+                  return (
+                    <div key={r.id} className={s.respItem}>
+                      <div className={s.respItemHead}>
+                        <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                      </div>
+                      {/* 폼명 + 그룹 */}
+                      <div className={s.respFormBadgeRow}>
+                        {form?.group_tag && (
+                          <span className={s.respGroupTag}>{form.group_tag}</span>
+                        )}
+                        <span className={s.respFormName}
+                          style={{background: `linear-gradient(135deg,${form?.theme_c1||'#7c6cfc'},${form?.theme_c2||'#c084fc'})`}}>
+                          {form?.title?.slice(0, 16)}{form?.title?.length > 16 ? '…' : ''}
+                        </span>
+                      </div>
+                      {getFirstAnswers(r).map(([k, v]) => (
+                        <div key={k} className={s.respRow}>
+                          <span className={s.respKey}>{k}</span>
+                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            </>)}
+
           </aside>
         )}
       </div>
@@ -537,7 +615,10 @@ export default function Dashboard() {
             {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowPwModal(false)}>취소</button>
-              <button className={s.btnPrimaryModal} onClick={() => submitPassword(() => panelForm && fetchPanelData(panelForm))}>확인</button>
+              <button className={s.btnPrimaryModal} onClick={() => submitPassword(() => {
+                if (panelForm) fetchPanelData(panelForm)
+                else fetchAllResp()
+              })}>확인</button>
             </div>
           </div>
         </div>

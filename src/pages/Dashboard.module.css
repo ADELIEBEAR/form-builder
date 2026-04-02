@@ -176,3 +176,13 @@
 /* 중복 체크 버튼 */
 .dupeBtn { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid rgba(248,113,113,.3); background: rgba(248,113,113,.08); color: var(--danger); transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
 .dupeBtn:hover { background: rgba(248,113,113,.18); }
+
+/* 전체 응답 버튼 */
+.allRespBtn { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid rgba(124,108,252,.3); background: rgba(124,108,252,.08); color: var(--a1); transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
+.allRespBtn:hover { background: rgba(124,108,252,.16); }
+.allRespBtnOn { background: rgba(124,108,252,.2) !important; border-color: var(--a1) !important; }
+
+/* 전체 응답 폼 배지 */
+.respFormBadgeRow { display: flex; align-items: center; gap: 5px; margin: 2px 0 4px; flex-wrap: wrap; }
+.respGroupTag { font-size: 10px; color: var(--a1); background: rgba(124,108,252,.12); border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+.respFormName { font-size: 10px; color: #fff; border-radius: 4px; padding: 2px 8px; font-weight: 500; }
