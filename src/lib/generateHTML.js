@@ -354,12 +354,8 @@ function finishForm(){
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
   ans._formTitle='${esc2(title)}';
-  if(window.__EMBEDDED__){
-    window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');
-    if(SU&&SU.indexOf('여기에')===-1){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
-  }else{
-    if(SU&&SU.indexOf('여기에')===-1){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
-  }
+  window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');
+  if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
 async function sub(){
   if(anim)return;if(!vld(${TOTAL-1}))return;
