@@ -481,9 +481,7 @@ export default function Dashboard() {
                       {form.is_published && (
                         <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>🔗 링크 복사</button>
                       )}
-                      {form.sheet_url && (
-                        <span className={s.sheetConnected}>✅ 시트 연결됨</span>
-                      )}
+                      <span className={s.sheetConnected}>✅ 시트 백업 연결됨</span>
                       <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>🗑️</button>
                     </div>
                   </div>

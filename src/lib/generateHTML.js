@@ -17,7 +17,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
     doneCta='', doneUrl='',
-    scriptUrl='',
+    scriptUrl='https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec',
   } = settings
   const coverImgData = assets.coverImgData ?? settings.coverImgData ?? null
   const qImgData = assets.qImgData ?? settings.qImgData ?? {}
