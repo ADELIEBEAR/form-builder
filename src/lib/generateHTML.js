@@ -17,7 +17,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
     doneCta='', doneUrl='',
-    scriptUrl='https://script.google.com/macros/s/여기에_URL_입력/exec',
+    scriptUrl='',
   } = settings
   const coverImgData = assets.coverImgData ?? settings.coverImgData ?? null
   const qImgData = assets.qImgData ?? settings.qImgData ?? {}
@@ -254,7 +254,7 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
   </div></div>
 </div>
 <script>
-const SU='${scriptUrl.replace(/'/g,"\\'")}';
+const SU='${scriptUrl.replace(/'/g,"\\'")}'||'https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec';
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
@@ -353,7 +353,13 @@ function finishForm(){
   ${useConfetti?'if(!qzTotal||qzScore===qzTotal)setTimeout(cf,420);else if(qzScore>0)setTimeout(cf,420);':''}
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
-  if(window.__EMBEDDED__){window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');}else{try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
+  ans._formTitle='${esc2(title)}';
+  if(window.__EMBEDDED__){
+    window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');
+    if(SU&&SU.indexOf('여기에')===-1){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
+  }else{
+    if(SU&&SU.indexOf('여기에')===-1){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
+  }
 }
 async function sub(){
   if(anim)return;if(!vld(${TOTAL-1}))return;

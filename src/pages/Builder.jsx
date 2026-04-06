@@ -432,8 +432,9 @@ export default function Builder() {
                 </SetRow>
                 <div className={s.lsep}/>
                 <div className={s.lsec}>구글 시트 연동</div>
-                <SetRow label="Apps Script URL" light={isLight}>
-                  <input className={s.inp} value={settings.scriptUrl} onChange={e => setSetting('scriptUrl', e.target.value)} placeholder="https://script.google.com/..." />
+                <SetRow label="📊 구글 시트 백업 URL" light={isLight}>
+                  <input className={s.inp} value={settings.scriptUrl} onChange={e => setSetting('scriptUrl', e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
+                  <div style={{fontSize:10,color:isLight?'#6b7280':'#7a788f',marginTop:3,lineHeight:1.5}}>Apps Script 웹앱 URL 입력 시 제출마다 구글 시트에 자동 백업됩니다</div>
                 </SetRow>
                 <div className={s.lsep}/>
                 <button className="btn btn-ghost btn-sm" style={{width:'100%', marginTop:4}} onClick={() => setShowExport(true)}>📥 HTML 내보내기</button>
