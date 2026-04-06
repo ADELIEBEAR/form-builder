@@ -254,7 +254,7 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
   </div></div>
 </div>
 <script>
-const SU=(function(){var s="${scriptUrl.replace(/"/g,'\"')}";return s||"https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec"})();
+const SU='${esc2(scriptUrl)||"https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec"}'; 
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
