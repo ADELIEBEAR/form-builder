@@ -353,7 +353,7 @@ function finishForm(){
   ${useConfetti?'if(!qzTotal||qzScore===qzTotal)setTimeout(cf,420);else if(qzScore>0)setTimeout(cf,420);':''}
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
-  try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}
+  if(window.__EMBEDDED__){window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');}else{try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
 async function sub(){
   if(anim)return;if(!vld(${TOTAL-1}))return;

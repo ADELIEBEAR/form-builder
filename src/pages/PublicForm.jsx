@@ -81,11 +81,8 @@ const PublicForm = () => {
     assets // 👈 여기에 재료를 넘겨줘야 응답 화면에 이미지가 뜹니다!
   );
 
-  // 제출 버튼 postMessage 교체 (로직 유지)
-  html = html.replace(
-    /await fetch\(SU,[\s\S]*?body:JSON\.stringify\(ans\)\}\);/g,
-    `window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');`
-  );
+  // iframe 임베드 플래그 주입 — finishForm에서 postMessage로 전송
+  html = html.replace('<\/script>', 'window.__EMBEDDED__=true;<\/script>');
 
   return (
     <div className={styles.wrap}>
