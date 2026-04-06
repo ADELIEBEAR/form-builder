@@ -76,7 +76,7 @@ const PublicForm = () => {
   // settings에 scriptUrl 없으면 기본 백업 URL 사용
   const settings = {
     ...(form.settings || {}),
-    scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec'
+    scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec'
   };
 
   let html = generateFormHTML(

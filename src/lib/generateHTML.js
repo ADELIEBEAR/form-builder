@@ -282,7 +282,30 @@ function go(f,t,d){
   fe.classList.add(oc);fe.classList.remove('active');
   setTimeout(()=>{fe.style.display='none';fe.classList.remove(oc);te.style.display='flex';te.classList.add(ic);te.classList.add('active');setTimeout(()=>{te.classList.remove(ic);anim=false;const i=te.querySelector('input[type=text],input[type=tel],input[type=email],textarea');if(i)i.focus();},380);},280);
 }
-function sf(){if(cur===0)return;const p=cur;cur=0;HIST.length=0;go(p,0,'n');upUI();}
+function sf(){
+  if(anim)return;
+  const p=cur;
+  cur=0;
+  HIST.length=0;
+  const fromEl=document.getElementById(p<0?'ss':'sl'+p);
+  const toEl=document.getElementById('sl0');
+  if(!fromEl||!toEl){anim=false;return;}
+  if(p<0){
+    // 시작화면→첫질문
+    anim=true;
+    fromEl.classList.add('ex');fromEl.classList.remove('active');
+    setTimeout(()=>{fromEl.style.display='none';fromEl.classList.remove('ex');
+      toEl.style.display='flex';toEl.classList.add('en');toEl.classList.add('active');
+      setTimeout(()=>{toEl.classList.remove('en');anim=false;
+        const inp=toEl.querySelector('input[type=text],input[type=tel],input[type=email],textarea');
+        if(inp)inp.focus();
+      },380);
+    },280);
+  } else {
+    go(p,0,'n');
+  }
+  upUI();
+}
 function gn(s){
   if(anim)return;if(!vld(s))return;
   const br=BRANCH[s];
