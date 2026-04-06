@@ -254,7 +254,7 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
   </div></div>
 </div>
 <script>
-const SU='${esc2(scriptUrl)||"https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec"}'; 
+const _SU1='${esc2(scriptUrl)}';const _SU2='https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec';const SU=_SU1||_SU2;
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
@@ -353,7 +353,7 @@ function finishForm(){
   ${useConfetti?'if(!qzTotal||qzScore===qzTotal)setTimeout(cf,420);else if(qzScore>0)setTimeout(cf,420);':''}
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
-  ans._formTitle='${esc2(title)}';
+  ans._formTitle="${esc(title)}";
   window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');
   if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
