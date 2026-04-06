@@ -82,7 +82,7 @@ const PublicForm = () => {
   );
 
   // iframe 임베드 플래그 주입 — finishForm에서 postMessage로 전송
-  html = html.replace('<\/script>', 'window.__EMBEDDED__=true;<\/script>');
+  html = html.replace('</s' + 'cript>', 'window.__EMBEDDED__=true;</s' + 'cript>');
 
   return (
     <div className={styles.wrap}>
