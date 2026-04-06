@@ -481,13 +481,8 @@ export default function Dashboard() {
                       {form.is_published && (
                         <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>🔗 링크 복사</button>
                       )}
-                      {form.sheet_url ? (
-                        <>
-                          <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => { e.stopPropagation(); window.open(form.sheet_url, '_blank') }}>📗 시트</button>
-                          <button className={`${s.actionBtn} ${s.actionBtnMuted}`} onClick={e => handleSheetDisconnect(form.id, e)}>해제</button>
-                        </>
-                      ) : (
-                        <button className={`${s.actionBtn} ${s.actionBtnSheet}`} onClick={e => handleSheetConnect(form, e)}>📗 시트 연결</button>
+                      {form.sheet_url && (
+                        <span className={s.sheetConnected}>✅ 시트 연결됨</span>
                       )}
                       <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>🗑️</button>
                     </div>

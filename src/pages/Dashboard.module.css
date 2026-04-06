@@ -186,3 +186,6 @@
 .respFormBadgeRow { display: flex; align-items: center; gap: 5px; margin: 2px 0 4px; flex-wrap: wrap; }
 .respGroupTag { font-size: 10px; color: var(--a1); background: rgba(124,108,252,.12); border-radius: 4px; padding: 1px 7px; font-weight: 600; }
 .respFormName { font-size: 10px; color: #fff; border-radius: 4px; padding: 2px 8px; font-weight: 500; }
+
+/* 시트 연결 표시 */
+.sheetConnected { font-size: 11px; color: #22c55e; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; }
