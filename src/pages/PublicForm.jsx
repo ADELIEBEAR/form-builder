@@ -73,12 +73,18 @@ const PublicForm = () => {
     qImgData: form.q_images || {}     // 질문별 이미지들
   };
 
+  // settings에 scriptUrl 없으면 기본 백업 URL 사용
+  const settings = {
+    ...(form.settings || {}),
+    scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycbwuAXvf42y4dN-rscrs1dGoWj7OCHgtlISqLY8hEYxviaBUDkfTOb-N6Q8VIiQbFXKlyQ/exec'
+  };
+
   let html = generateFormHTML(
     form.title,
     form.questions || [],
     { c1: form.theme_c1, c2: form.theme_c2 },
-    form.settings || {},
-    assets // 👈 여기에 재료를 넘겨줘야 응답 화면에 이미지가 뜹니다!
+    settings,
+    assets
   );
 
   // iframe 임베드 플래그 주입 — finishForm에서 postMessage로 전송

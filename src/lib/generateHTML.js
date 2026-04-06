@@ -354,7 +354,7 @@ function finishForm(){
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
   ans._formTitle="${esc(title).replace(/\n/g,' ')}";
-  window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');
+  try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');}catch(e){}
   if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
 async function sub(){
