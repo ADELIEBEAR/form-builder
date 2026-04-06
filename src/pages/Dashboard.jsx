@@ -198,14 +198,19 @@ export default function Dashboard() {
   async function handleSheetConnect(form, e) {
     e.stopPropagation()
     try {
-      showToast('⏳ 구글 계정 선택 중...', 'info')
-      const { sheetId, sheetUrl } = await createAndConnectSheet(form.id, form.title)
-      await supabase.from('forms').update({ sheet_id: sheetId, sheet_url: sheetUrl }).eq('id', form.id)
-      setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_id: sheetId, sheet_url: sheetUrl } : f))
-      showToast('✅ 구글 시트 연결 완료!', 'ok')
+      // Apps Script URL + 백업 시트로 연결
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec'
+      const sheetUrl = 'https://docs.google.com/spreadsheets/d/14BpX7cxcKVrw2LF0bQWW9CNjmBcY7HVj7HcQNaaSPL0/edit'
+      await supabase.from('forms').update({ sheet_id: 'backup', sheet_url: sheetUrl }).eq('id', form.id)
+      // 폼 settings에 scriptUrl 저장
+      const form_data = forms.find(f => f.id === form.id)
+      const settings = { ...(form_data?.settings || {}), scriptUrl }
+      await supabase.from('forms').update({ settings }).eq('id', form.id)
+      setForms(prev => prev.map(f => f.id === form.id ? { ...f, sheet_id: 'backup', sheet_url: sheetUrl, settings } : f))
+      showToast('✅ 백업 시트 연결 완료!', 'ok')
       window.open(sheetUrl, '_blank')
     } catch (err) {
-      if (err.message !== 'popup_closed_by_user') showToast('시트 연결 실패: ' + err.message, 'fail')
+      showToast('연결 실패: ' + err.message, 'fail')
     }
   }
 
