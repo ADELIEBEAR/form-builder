@@ -9,6 +9,19 @@ import { useTheme } from '../lib/themeContext'
 
 const RESULTS_PATH = '/responses'
 
+function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
+function looksLikePhone(v) { return /^01[0-9]\d{7,8}$/.test(normalizePhone(v)) }
+function formatPhone(v) {
+  const n = normalizePhone(v)
+  if (n.length === 10) return n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6)
+  if (n.length === 11) return n.slice(0,3)+'-'+n.slice(3,7)+'-'+n.slice(7)
+  return v
+}
+function formatVal(v) {
+  const s = String(v||'')
+  return looksLikePhone(s) ? formatPhone(s) : s
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const { theme, toggle } = useTheme()
@@ -22,7 +35,7 @@ export default function Dashboard() {
   const [editingTitle, setEditingTitle] = useState(null)
   const [titleVal, setTitleVal] = useState('')
   const [search, setSearch] = useState('')
-  const [groupFilter, setGroupFilter] = useState('전체')
+  const [groupFilter, setGroupFilter] = useState(() => sessionStorage.getItem('groupFilter') || '전체')
   const [editingGroup, setEditingGroup] = useState(null)
   const [groupVal, setGroupVal] = useState('')
   const memoRef = useRef(null)
@@ -366,7 +379,7 @@ export default function Dashboard() {
           {allGroups.length > 1 && (
             <div className={s.groupTabs}>
               {allGroups.map(g => (
-                <button key={g} className={`${s.groupTab} ${groupFilter === g ? s.groupTabOn : ''}`} onClick={() => setGroupFilter(g)}>
+                <button key={g} className={`${s.groupTab} ${groupFilter === g ? s.groupTabOn : ''}`} onClick={() => { setGroupFilter(g); sessionStorage.setItem('groupFilter', g) }}>
                   {g}
                   {g !== '전체' && <span className={s.groupTabCount}>{forms.filter(f => f.group_tag === g).length}</span>}
                 </button>
@@ -533,7 +546,7 @@ export default function Dashboard() {
                       {getFirstAnswers(r).map(([k, v]) => (
                         <div key={k} className={s.respRow}>
                           <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
                         </div>
                       ))}
                     </div>
@@ -550,7 +563,7 @@ export default function Dashboard() {
                       {getFirstAnswers(r).map(([k, v]) => (
                         <div key={k} className={s.respRow}>
                           <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
                         </div>
                       ))}
                     </div>
@@ -595,7 +608,7 @@ export default function Dashboard() {
                       {getFirstAnswers(r).map(([k, v]) => (
                         <div key={k} className={s.respRow}>
                           <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{String(v).slice(0, 60)}</span>
+                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
                         </div>
                       ))}
                     </div>

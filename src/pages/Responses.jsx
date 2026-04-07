@@ -12,6 +12,19 @@ function looksLikePhone(v) {
   const n = normalizePhone(v)
   return /^01[0-9]\d{7,8}$/.test(n)
 }
+// 전화번호 포맷 — 010-1234-5678
+function formatPhone(v) {
+  const n = normalizePhone(v)
+  if (/^01[0-9]\d{7,8}$/.test(n)) {
+    if (n.length === 10) return n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6)
+    if (n.length === 11) return n.slice(0,3)+'-'+n.slice(3,7)+'-'+n.slice(7)
+  }
+  return v
+}
+function formatVal(v) {
+  const s = String(v)
+  return looksLikePhone(s) ? formatPhone(s) : s
+}
 
 export default function Responses() {
   const { formId } = useParams()
@@ -311,7 +324,7 @@ export default function Responses() {
                           {previewKeys.slice(0,2).map(k=>r.answers?.[k]&&(
                             <div key={k} className={s.previewItem}>
                               <span className={s.previewKey}>{k}</span>
-                              <span className={s.previewVal}>{r.answers[k]}</span>
+                              <span className={s.previewVal}>{formatVal(r.answers[k])}</span>
                             </div>
                           ))}
                         </div>
@@ -391,7 +404,7 @@ export default function Responses() {
                           {r.answers?.[k]
                             ? String(r.answers[k]).startsWith('data:image')
                               ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>
-                              : r.answers[k]
+                              : formatVal(r.answers[k])
                             : '-'}
                         </td>
                       ))}

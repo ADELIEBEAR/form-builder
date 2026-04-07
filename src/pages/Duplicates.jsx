@@ -170,7 +170,7 @@ export default function Duplicates() {
                   <div className={s.dupeHead} onClick={()=>setExpandedPhone(isOpen?null:group.normalized)}>
                     <div className={s.dupeHeadLeft}>
                       <span className={s.dupeCntBadge}>{group.entries.length}회 신청</span>
-                      <span className={s.dupePhone}>{group.phone}</span>
+                      <span className={s.dupePhone}>{formatPhone(group.phone)}</span>
                     </div>
 
                     {/* 어느 폼에 신청했는지 pill */}
@@ -209,7 +209,7 @@ export default function Duplicates() {
                           <div className={s.dupeEntryAnswers}>
                             <div className={s.dupeEntryRow}>
                               <span className={s.dupeEntryKey}>{entry.questionKey}</span>
-                              <span className={`${s.dupeEntryVal} ${s.dupeEntryPhone}`}>{entry.phone}</span>
+                              <span className={`${s.dupeEntryVal} ${s.dupeEntryPhone}`}>{formatPhone(entry.phone)}</span>
                             </div>
                             {getOtherAnswers(entry.answers, entry.questionKey).map(([k,v])=>(
                               <div key={k} className={s.dupeEntryRow}>
