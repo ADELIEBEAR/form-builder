@@ -347,7 +347,7 @@ export default function Responses() {
                           {allKeys.map(k=>(
                             <div key={k} className={s.answerRow}>
                               <div className={s.answerQ}>{k}</div>
-                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&dupePhoneMap[normalizePhone(r.answers?.[k])]?s.answerADupe:''}`}>
+                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&dupePhoneSet.has(normalizePhone(r.answers?.[k]))?s.answerADupe:''}`}>
                                 {r.answers?.[k]
                                   ? String(r.answers[k]).startsWith('data:image')
                                     ? <img src={r.answers[k]} style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
@@ -400,7 +400,7 @@ export default function Responses() {
                         )}
                       </td>
                       {allKeys.map(k=>(
-                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&dupePhoneMap[normalizePhone(r.answers?.[k])]?s.tdDupeCell:''}`}>
+                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&dupePhoneSet.has(normalizePhone(r.answers?.[k]))?s.tdDupeCell:''}`}>
                           {r.answers?.[k]
                             ? String(r.answers[k]).startsWith('data:image')
                               ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>
