@@ -189,7 +189,7 @@ export default function Responses() {
 
   function downloadCSV(data=filtered) {
     const headers=['제출 시간',...allKeys]
-    const rows=data.map(r=>[new Date(r.submitted_at).toLocaleString('ko-KR'),...allKeys.map(k=>r.answers?.[k]||'')])
+    const rows=data.map(r=>[new Date(r.submitted_at).toLocaleString('ko-KR'),...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')])
     const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
     const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'})
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob)
