@@ -11,6 +11,23 @@ const PublicForm = () => {
   const [error, setError] = useState(null);
   const iframeRef = useRef(null);
 
+  const openPdfFile = (pdfUrl) => {
+    if (!pdfUrl || typeof pdfUrl !== 'string') return;
+    const trimmedUrl = pdfUrl.trim();
+    if (!trimmedUrl) return;
+
+    const popup = window.open(trimmedUrl, '_blank', 'noopener,noreferrer');
+    if (popup) return;
+
+    const link = document.createElement('a');
+    link.href = trimmedUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   // 조회수 증가 함수 (로직 유지)
   const incrementViewCount = async (targetSlug) => {
     try {
@@ -52,6 +69,7 @@ const PublicForm = () => {
     const handler = async (event) => {
       if (event.data?.type === 'FORM_SUBMIT') {
         try {
+          openPdfFile(event.data?.pdfUrl);
           await supabase.from('responses').insert([{ form_id: form.id, answers: event.data.answers }]);
           console.log("✅ 저장 완료");
         } catch (err) {
