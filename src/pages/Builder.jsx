@@ -636,7 +636,7 @@ export default function Builder() {
           </div>
           <div className={s.pvWrap}>
             <div className={`${s.pvFrame} ${pvMode==='mobile'?s.pvFrameMobile:s.pvFrameDesktop}`}>
-              <iframe ref={pvRef} className={s.pvIframe} sandbox="allow-scripts allow-same-origin" title="미리보기" />
+              <iframe ref={pvRef} className={s.pvIframe} sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="미리보기" />
             </div>
           </div>
         </div>
