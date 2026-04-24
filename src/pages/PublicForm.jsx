@@ -113,7 +113,7 @@ const PublicForm = () => {
         ref={iframeRef}
         className={styles.iframe}
         srcDoc={html}
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
         title={form.title}
       />
     </div>
