@@ -16,9 +16,10 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     allowBack=true, autoNext=false, useConfetti=true, useKb=true,
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
-    doneCta='', doneUrl='',
+    doneCta='', doneUrl='', donePdfUrl='',
     scriptUrl='https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec',
   } = settings
+  const submitPdfUrl = donePdfUrl || (/\.pdf(\?|#|$)/i.test(doneUrl) ? doneUrl : '')
   const coverImgData = assets.coverImgData ?? settings.coverImgData ?? null
   const qImgData = assets.qImgData ?? settings.qImgData ?? {}
   const bgImgData = assets.bgImgData ?? settings.bgImgData ?? null
@@ -377,7 +378,7 @@ function finishForm(){
   tst('✅ 완료되었습니다!','ok');
   ans._ts=new Date().toLocaleString('ko-KR');
   ans._formTitle="${esc(title).replace(/\n/g,' ')}";
-  try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans},'*');}catch(e){}
+  try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans,pdfUrl:'${esc2(submitPdfUrl)}'},'*');}catch(e){}
   if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
 async function sub(){
