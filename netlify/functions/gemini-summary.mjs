@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = 'gemini-1.5-flash'
+const DEFAULT_MODEL = 'gemini-2.5-flash'
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
@@ -51,7 +51,7 @@ ${JSON.stringify(safeRows, null, 2)}
 짧고 실무적으로 말해.
 `;
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL
+  const model = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_MODEL)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
 
   try {
@@ -78,6 +78,14 @@ ${JSON.stringify(safeRows, null, 2)}
   } catch (error) {
     return json(500, { error: error?.message || 'Gemini 호출 중 오류가 발생했습니다.' })
   }
+}
+
+function normalizeModelName(value) {
+  const model = String(value || '').trim()
+  if (!model) return DEFAULT_MODEL
+  if (model === 'gemini-1.5-flash') return DEFAULT_MODEL
+  if (model.startsWith('models/')) return model.replace(/^models\//, '')
+  return model
 }
 
 function json(statusCode, body) {
