@@ -1,11 +1,47 @@
 /* Safe UI fixes for AI summary and duplicate labels */
 [class*="aiSummary"] {
-  max-height: 68vh !important;
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(960px, calc(100vw - 36px)) !important;
+  max-height: min(760px, calc(100vh - 70px)) !important;
   overflow: auto !important;
   white-space: pre-wrap !important;
   overflow-wrap: anywhere !important;
   word-break: keep-all !important;
   display: block !important;
+  z-index: 99999 !important;
+  padding: 22px 24px 28px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(124,108,252,.45) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.62) !important;
+  background: var(--card, #17172a) !important;
+  color: var(--text, #fff) !important;
+  font-size: 14px !important;
+  line-height: 1.75 !important;
+}
+
+[class*="aiSummary"]::before {
+  content: "AI 중복 제외 DB 분석 결과";
+  display: block;
+  position: sticky;
+  top: -22px;
+  margin: -22px -24px 18px;
+  padding: 16px 22px;
+  background: linear-gradient(135deg, rgba(124,108,252,.35), rgba(34,197,94,.18));
+  border-bottom: 1px solid rgba(124,108,252,.32);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+button[class*="geminiBtn"] {
+  font-size: 0 !important;
+}
+
+button[class*="geminiBtn"]::after {
+  content: "AI로 중복 제외 DB 계산";
+  font-size: 12px;
 }
 
 [class*="dupeWarningBox"] {
@@ -54,4 +90,13 @@
   background: rgba(248,113,113,.14);
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+@media (max-width: 720px) {
+  [class*="aiSummary"] {
+    width: 100vw !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+  }
 }
