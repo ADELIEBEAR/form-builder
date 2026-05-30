@@ -1,0 +1,63 @@
+/* Safe UI fixes for AI summary and duplicate labels */
+[class*="aiSummary"] {
+  max-height: 68vh !important;
+  overflow: auto !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: keep-all !important;
+  display: block !important;
+}
+
+[class*="dupeWarningBox"] {
+  max-height: none !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+[class*="dupeTooltip"] {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  max-width: 420px !important;
+}
+
+[class*="applyOrderTag"] {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: help;
+}
+
+[class*="applyOrderFirst"] {
+  color: #22c55e;
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.24);
+}
+
+[class*="applyOrderDupe"] {
+  color: var(--danger);
+  background: rgba(248,113,113,.14);
+  border-color: rgba(248,113,113,.28);
+}
+
+[class*="firstApplyText"] {
+  color: #22c55e !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+[class*="dupeTagTableDanger"] {
+  color: var(--danger);
+  background: rgba(248,113,113,.14);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+[class*="dupeTagTableFirst"] {
+  color: #22c55e;
+  background: rgba(34,197,94,.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
