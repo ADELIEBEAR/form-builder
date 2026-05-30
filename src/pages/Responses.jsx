@@ -25,6 +25,13 @@ function formatVal(v) {
   const s = String(v)
   return looksLikePhone(s) ? formatPhone(s) : s
 }
+function getPhonesFromAnswers(answers) {
+  const set = new Set()
+  Object.values(answers || {}).forEach(v => {
+    if (looksLikePhone(v)) set.add(normalizePhone(v))
+  })
+  return [...set]
+}
 
 export default function Responses() {
   const { formId } = useParams()
@@ -94,25 +101,19 @@ export default function Responses() {
 
   async function loadCrossDupes() {
     try {
-      // 내 폼 목록
       const { data: formList } = await supabase
         .from('forms').select('id, title').eq('user_id', user.id)
       if (!formList?.length) return
 
-      // 현재 폼 제외한 다른 폼들 응답
       const otherFormIds = formList.filter(f => f.id !== formId).map(f => f.id)
       if (!otherFormIds.length) return
 
       const formTitleMap = Object.fromEntries(formList.map(f => [f.id, f.title]))
-
       const otherResp = await getResponsesForForms(otherFormIds, 'id, form_id, answers, submitted_at')
 
-      // 다른 폼에서 전화번호 수집
       const map = {}
       ;(otherResp||[]).forEach(r => {
-        Object.values(r.answers||{}).forEach(v => {
-          if (!looksLikePhone(v)) return
-          const n = normalizePhone(v)
+        getPhonesFromAnswers(r.answers).forEach(n => {
           if (!map[n]) map[n] = []
           map[n].push({ formId: r.form_id, formTitle: formTitleMap[r.form_id]||'다른 폼', responseId: r.id, date: r.submitted_at })
         })
@@ -121,32 +122,78 @@ export default function Responses() {
     } catch {}
   }
 
-  // 이 응답이 다른 폼에서도 신청했는지 — crossDupeMap을 인자로 직접 받아서 클로저 문제 방지
+  // 같은 폼 안에서는 번호별 첫 신청은 정상, 2번째부터 중복 후보
+  const sameFormPhoneMap = useMemo(() => {
+    const map = {}
+    const sorted = [...responses].sort((a,b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+    sorted.forEach(r => {
+      getPhonesFromAnswers(r.answers).forEach(phone => {
+        if (!map[phone]) map[phone] = []
+        map[phone].push({ responseId: r.id, date: r.submitted_at })
+      })
+    })
+    return map
+  }, [responses])
+
+  const localDupeInfoById = useMemo(() => {
+    const result = {}
+    Object.entries(sameFormPhoneMap).forEach(([phone, entries]) => {
+      entries.forEach((entry, idx) => {
+        if (!result[entry.responseId]) result[entry.responseId] = []
+        result[entry.responseId].push({
+          phone,
+          displayPhone: formatPhone(phone),
+          order: idx + 1,
+          total: entries.length,
+          isDuplicate: idx > 0,
+        })
+      })
+    })
+    return result
+  }, [sameFormPhoneMap])
+
   const dupePhoneSet = useMemo(() => new Set(Object.keys(crossDupeMap)), [crossDupeMap])
 
+  function getLocalApplyInfo(r) {
+    const infos = localDupeInfoById[r.id] || []
+    return infos.find(i => i.total > 1) || null
+  }
+
+  function hasSameFormDuplicate(r) {
+    return (localDupeInfoById[r.id] || []).some(i => i.isDuplicate)
+  }
+
+  function hasCrossFormDuplicate(r) {
+    return getPhonesFromAnswers(r.answers).some(n => dupePhoneSet.has(n))
+  }
+
   function isDupe(r) {
-    return Object.values(r.answers||{}).some(v =>
-      looksLikePhone(v) && dupePhoneSet.has(normalizePhone(v))
-    )
+    return hasSameFormDuplicate(r) || hasCrossFormDuplicate(r)
   }
 
   function getDupeInfo(r) {
     const results = []
-    Object.values(r.answers||{}).forEach(v => {
-      if (!looksLikePhone(v)) return
-      const n = normalizePhone(v)
+    ;(localDupeInfoById[r.id] || []).forEach(i => {
+      if (i.total <= 1) return
+      results.push({
+        type: 'same',
+        phone: i.displayPhone,
+        order: i.order,
+        total: i.total,
+        label: i.isDuplicate ? `${i.order}번째 신청!` : '첫번째 신청',
+      })
+    })
+    getPhonesFromAnswers(r.answers).forEach(n => {
       const others = crossDupeMap[n]
       if (others?.length) {
         const formNames = [...new Set(others.map(o => o.formTitle))].slice(0,3).join(', ')
-        results.push({ phone: String(v), formNames, count: others.length })
+        results.push({ type: 'cross', phone: formatPhone(n), formNames, count: others.length })
       }
     })
     return results
   }
 
-  const dupeCount = useMemo(() => responses.filter(r =>
-    Object.values(r.answers||{}).some(v => looksLikePhone(v) && dupePhoneSet.has(normalizePhone(v)))
-  ).length, [dupePhoneSet, responses])
+  const dupeCount = useMemo(() => responses.filter(isDupe).length, [responses, localDupeInfoById, crossDupeMap])
 
   // 필터링
   const filtered = responses
@@ -186,8 +233,12 @@ export default function Responses() {
   })
 
   function downloadCSV(data=filtered) {
-    const headers=['제출 시간',...allKeys]
-    const rows=data.map(r=>[new Date(r.submitted_at).toLocaleString('ko-KR'),...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')])
+    const headers=['제출 시간','중복구분',...allKeys]
+    const rows=data.map(r=>{
+      const info = getDupeInfo(r)
+      const tags = info.map(i => i.type === 'same' ? `같은폼 ${i.label}` : `다른폼 ${i.count}건`).join(' / ')
+      return [new Date(r.submitted_at).toLocaleString('ko-KR'), tags, ...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')]
+    })
     const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
     const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'})
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob)
@@ -201,11 +252,13 @@ export default function Responses() {
   function formatDateFull(d) { return new Date(d).toLocaleString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}) }
   function showToast(msg,type) { setToast({msg,type}); setTimeout(()=>setToast(null),3500) }
 
-  // 툴팁 핸들러
   function showDupeTooltip(e, r) {
     const info = getDupeInfo(r)
     if (!info.length) return
-    const content = info.map(i => `📵 ${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`).join('\n')
+    const content = info.map(i => {
+      if (i.type === 'same') return `${i.phone}\n→ 같은 폼 ${i.label} / 총 ${i.total}번 신청`
+      return `${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`
+    }).join('\n')
     setTooltip({ x: e.clientX, y: e.clientY, content })
   }
 
@@ -213,7 +266,6 @@ export default function Responses() {
 
   return (
     <div className={s.wrap} onClick={() => setTooltip(null)}>
-      {/* 헤더 */}
       <header className={s.header}>
         <div className={s.headerLeft}>
           <button className={s.backBtn} onClick={() => navigate('/dashboard')}>
@@ -245,7 +297,6 @@ export default function Responses() {
         </div>
       </header>
 
-      {/* 필터 바 */}
       <div className={s.filterBar}>
         <div className={s.searchWrap}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -293,7 +344,10 @@ export default function Responses() {
               <div className={s.cardGrid}>
                 {items.map(r => {
                   const dupe = isDupe(r)
-                  const dupeInfo = dupe ? getDupeInfo(r) : []
+                  const dupeInfo = getDupeInfo(r)
+                  const localApply = getLocalApplyInfo(r)
+                  const sameFormSecondOrMore = localApply?.order > 1
+                  const crossDuplicate = hasCrossFormDuplicate(r)
                   return (
                     <div key={r.id}
                       className={`${s.respCard} ${selected.has(r.id)?s.respCardSelected:''} ${expandedId===r.id?s.respCardExpanded:''} ${dupe?s.respCardDupe:''}`}
@@ -305,12 +359,20 @@ export default function Responses() {
                             onChange={()=>toggleSelect(r.id)} onClick={e=>e.stopPropagation()} />
                           <span className={s.respNum}>#{responses.length-responses.findIndex(x=>x.id===r.id)}</span>
                           <span className={s.respDate}>{formatDate(r.submitted_at)}</span>
-                          {dupe && (
+                          {localApply?.total > 1 && (
+                            <span className={`${s.applyOrderTag} ${sameFormSecondOrMore ? s.applyOrderDupe : s.applyOrderFirst}`}
+                              onMouseEnter={e=>{e.stopPropagation();showDupeTooltip(e,r)}}
+                              onMouseLeave={()=>setTooltip(null)}
+                              onClick={e=>e.stopPropagation()}>
+                              {sameFormSecondOrMore ? `${localApply.order}번째 신청!` : '첫번째 신청'}
+                            </span>
+                          )}
+                          {crossDuplicate && (
                             <span className={s.dupeTagCard}
                               onMouseEnter={e=>{e.stopPropagation();showDupeTooltip(e,r)}}
                               onMouseLeave={()=>setTooltip(null)}
                               onClick={e=>e.stopPropagation()}>
-                              📵 중복
+                              다른폼 중복
                             </span>
                           )}
                         </div>
@@ -330,11 +392,16 @@ export default function Responses() {
 
                       {expandedId===r.id && (
                         <div className={s.respFull}>
-                          {dupe && (
+                          {dupeInfo.length > 0 && (
                             <div className={s.dupeWarningBox}>
-                              📵 다른 폼에서도 신청 이력 있음
-                              {dupeInfo.map(i=>(
-                                <span key={i.phone} className={s.dupeWarningPhone}>{i.phone} → {i.formNames}</span>
+                              {dupeInfo.map((i, idx)=> i.type === 'same' ? (
+                                <span key={`${i.phone}-${idx}`} className={sameFormSecondOrMore ? s.dupeWarningPhone : s.firstApplyText}>
+                                  {i.isDuplicate ? '' : ''}{i.order === 1
+                                    ? `✅ ${i.phone} 첫번째 신청입니다. 이후 같은 폼에 총 ${i.total}번 신청 이력이 있습니다.`
+                                    : `📵 ${i.phone} 같은 폼 ${i.order}번째 신청! 첫 신청 이후 중복 후보입니다.`}
+                                </span>
+                              ) : (
+                                <span key={`${i.phone}-${idx}`} className={s.dupeWarningPhone}>📵 {i.phone} → 다른 폼에서도 신청: {i.formNames}</span>
                               ))}
                             </div>
                           )}
@@ -345,7 +412,7 @@ export default function Responses() {
                           {allKeys.map(k=>(
                             <div key={k} className={s.answerRow}>
                               <div className={s.answerQ}>{k}</div>
-                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&dupePhoneSet.has(normalizePhone(r.answers?.[k]))?s.answerADupe:''}`}>
+                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&(dupePhoneSet.has(normalizePhone(r.answers?.[k])) || (sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).length > 1)?s.answerADupe:''}`}>
                                 {r.answers?.[k]
                                   ? String(r.answers[k]).startsWith('data:image')
                                     ? <img src={r.answers[k]} style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
@@ -380,7 +447,8 @@ export default function Responses() {
               <tbody>
                 {filtered.map((r,i)=>{
                   const dupe = isDupe(r)
-                  const dupeInfo = dupe ? getDupeInfo(r) : []
+                  const localApply = getLocalApplyInfo(r)
+                  const crossDuplicate = hasCrossFormDuplicate(r)
                   return (
                     <tr key={r.id} className={`${s.tr} ${selected.has(r.id)?s.trSelected:''} ${dupe?s.trDupe:''}`}
                       onClick={()=>toggleSelect(r.id)}>
@@ -388,7 +456,15 @@ export default function Responses() {
                       <td className={s.tdNum}>{filtered.length-i}</td>
                       <td className={s.tdDate}>{formatDate(r.submitted_at)}</td>
                       <td className={s.tdDupe}>
-                        {dupe && (
+                        {localApply?.total > 1 && (
+                          <span className={`${s.dupeTagTable} ${localApply.order > 1 ? s.dupeTagTableDanger : s.dupeTagTableFirst}`}
+                            onMouseEnter={e=>{e.stopPropagation(); showDupeTooltip(e,r)}}
+                            onMouseLeave={()=>setTooltip(null)}
+                            onClick={e=>e.stopPropagation()}>
+                            {localApply.order > 1 ? `${localApply.order}회` : '첫'}
+                          </span>
+                        )}
+                        {crossDuplicate && (
                           <span className={s.dupeTagTable}
                             onMouseEnter={e=>{e.stopPropagation(); showDupeTooltip(e,r)}}
                             onMouseLeave={()=>setTooltip(null)}
@@ -398,7 +474,7 @@ export default function Responses() {
                         )}
                       </td>
                       {allKeys.map(k=>(
-                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&dupePhoneSet.has(normalizePhone(r.answers?.[k]))?s.tdDupeCell:''}`}>
+                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&(dupePhoneSet.has(normalizePhone(r.answers?.[k])) || (sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).length > 1)?s.tdDupeCell:''}`}>
                           {r.answers?.[k]
                             ? String(r.answers[k]).startsWith('data:image')
                               ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>
@@ -415,7 +491,6 @@ export default function Responses() {
         </div>
       )}
 
-      {/* 중복 툴팁 */}
       {tooltip && (
         <div className={s.dupeTooltip} style={{left: tooltip.x + 12, top: tooltip.y - 10}}
           onMouseEnter={()=>setTooltip(null)}>
