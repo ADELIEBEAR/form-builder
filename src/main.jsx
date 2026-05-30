@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { ThemeProvider } from './lib/themeContext'
 import './index.css'
+import './fixes-duplicates-ai.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>
