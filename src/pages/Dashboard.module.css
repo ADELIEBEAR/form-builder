@@ -189,3 +189,36 @@
 
 /* 시트 연결 표시 */
 .sheetConnected { font-size: 11px; color: #22c55e; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; }
+
+/* 전체 폼 통계 / CSV / Gemini */
+.statsBtn { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid rgba(34,197,94,.3); background: rgba(34,197,94,.08); color: #22c55e; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
+.statsBtn:hover { background: rgba(34,197,94,.16); }
+.statsBtnOn { background: rgba(34,197,94,.2) !important; border-color: #22c55e !important; }
+.statsBox { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.statsLabel { font-size: 12px; color: var(--muted2); font-weight: 700; }
+.dateGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dateGrid label { display: flex; flex-direction: column; gap: 4px; }
+.dateGrid span { font-size: 10px; color: var(--muted); }
+.dateGrid input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; font-size: 12px; outline: none; font-family: 'Noto Sans KR', sans-serif; }
+.dateGrid input:focus { border-color: var(--a1); }
+.statsActions { display: flex; gap: 7px; }
+.statsPrimaryBtn, .statsGhostBtn, .geminiBtn { flex: 1; border-radius: 9px; padding: 9px 10px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
+.statsPrimaryBtn { background: rgba(124,108,252,.16); border: 1px solid rgba(124,108,252,.35); color: var(--a1); }
+.statsPrimaryBtn:hover { background: rgba(124,108,252,.24); }
+.statsGhostBtn { background: var(--surface); border: 1px solid var(--border); color: var(--muted2); }
+.statsGhostBtn:hover { background: var(--surface-hover); color: var(--text); }
+.statsPrimaryBtn:disabled, .statsGhostBtn:disabled, .geminiBtn:disabled { opacity: .55; cursor: not-allowed; }
+.statsSummaryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.statsSummaryGrid div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 8px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.statsSummaryGrid b { font-size: 18px; color: var(--text); }
+.statsSummaryGrid span { font-size: 10px; color: var(--muted); }
+.geminiBtn { flex: none; width: 100%; background: linear-gradient(135deg, rgba(124,108,252,.24), rgba(34,197,94,.18)); border: 1px solid rgba(124,108,252,.35); color: var(--text); }
+.geminiBtn:hover { border-color: var(--a1); }
+.aiSummary { white-space: pre-wrap; font-family: 'Noto Sans KR', sans-serif; font-size: 12px; line-height: 1.65; color: var(--text); background: var(--card); border: 1px solid rgba(124,108,252,.25); border-radius: 12px; padding: 12px; margin: 0; }
+.formCountList { display: flex; flex-direction: column; gap: 6px; }
+.formCountRow { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; }
+.formCountRank { font-size: 10px; font-weight: 800; color: var(--a1); background: rgba(124,108,252,.1); border-radius: 6px; padding: 3px 6px; text-align: center; }
+.formCountInfo { min-width: 0; }
+.formCountTitle { font-size: 12px; color: var(--text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.formCountMeta { margin-top: 3px; font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.formCountNum { min-width: 42px; text-align: right; font-size: 18px; font-weight: 800; color: #22c55e; }

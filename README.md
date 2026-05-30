@@ -96,12 +96,14 @@ git push -u origin main
 ### Netlify에 환경변수 추가
 1. Netlify 대시보드 → 사이트 선택 → **Site settings**
 2. **Environment variables** → **Add a variable**
-3. 아래 두 개 추가:
+3. 아래 변수들을 추가:
 
 | Key | Value |
 |-----|-------|
 | `VITE_SUPABASE_URL` | `https://xxx.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | `eyJ...` (anon 키) |
+| `GEMINI_API_KEY` | Gemini API Key |
+| `GEMINI_MODEL` | 선택값. 기본 `gemini-1.5-flash` |
 
 4. **Deploys** 탭 → **Trigger deploy** → **Deploy site** (재배포)
 
@@ -114,6 +116,21 @@ git push -u origin main
 3. Supabase → Authentication → URL Configuration
    - Site URL: `https://여러분의앱.netlify.app`
    - Redirect URLs에 `https://여러분의앱.netlify.app/dashboard` 추가
+
+
+---
+
+## 전체 폼 통계 / 기간 CSV / Gemini 요약
+
+대시보드 상단의 **통계/CSV** 버튼에서 사용할 수 있습니다.
+
+- 전체 폼의 응답 수를 한 번에 집계합니다.
+- 시작일/종료일을 선택해 전체 폼 응답을 기간별로 조회합니다.
+- 선택한 기간의 전체 폼 응답 CSV를 한 번에 다운로드합니다.
+- 폼별 응답 수 CSV도 따로 다운로드할 수 있습니다.
+- Gemini 요약은 개인정보 원본 응답이 아니라 폼 제목, 그룹, 응답 수 같은 집계 데이터만 전송합니다.
+
+Gemini 요약을 쓰려면 Netlify 환경변수에 `GEMINI_API_KEY`를 추가한 뒤 재배포하세요.
 
 ---
 

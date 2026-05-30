@@ -21,6 +21,35 @@ function formatVal(v) {
   const s = String(v||'')
   return looksLikePhone(s) ? formatPhone(s) : s
 }
+function csvCell(value) {
+  const s = value == null ? '' : String(value)
+  return `"${s.replace(/"/g, '""')}"`
+}
+function downloadCsv(filename, rows) {
+  const csv = '\ufeff' + rows.map(row => row.map(csvCell).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+function dateStartIso(value) {
+  if (!value) return null
+  const [y, m, d] = value.split('-').map(Number)
+  return new Date(y, m - 1, d, 0, 0, 0, 0).toISOString()
+}
+function dateEndIso(value) {
+  if (!value) return null
+  const [y, m, d] = value.split('-').map(Number)
+  return new Date(y, m - 1, d + 1, 0, 0, 0, 0).toISOString()
+}
+function safeFilePart(value) {
+  return String(value || 'all').replace(/[^0-9a-zA-Z가-힣_-]/g, '-')
+}
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -38,6 +67,8 @@ export default function Dashboard() {
   const [groupFilter, setGroupFilter] = useState(() => sessionStorage.getItem('groupFilter') || '전체')
   const [editingGroup, setEditingGroup] = useState(null)
   const [groupVal, setGroupVal] = useState('')
+  const [targetFormId, setTargetFormId] = useState(null)
+  const [pendingAction, setPendingAction] = useState(null)
   const memoRef = useRef(null)
   const titleRef = useRef(null)
   const groupRef = useRef(null)
@@ -60,6 +91,15 @@ export default function Dashboard() {
   const [allRespLoading, setAllRespLoading] = useState(false)
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes'
+
+  // ── 전체 폼 통계 / 기간 CSV / Gemini 요약
+  const [statsFrom, setStatsFrom] = useState('')
+  const [statsTo, setStatsTo] = useState('')
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsRows, setStatsRows] = useState(null)
+  const [statsResponses, setStatsResponses] = useState([])
+  const [statsAiLoading, setStatsAiLoading] = useState(false)
+  const [statsAiText, setStatsAiText] = useState('')
 
   useEffect(() => {
     if (user) { loadForms(); saveGoogleToken() }
@@ -144,6 +184,166 @@ export default function Dashboard() {
       setAllRespData(data || [])
     } catch { showToast('전체 응답을 불러오지 못했습니다.', 'fail') }
     finally { setAllRespLoading(false) }
+  }
+
+
+  function getStatsOptions() {
+    const options = {}
+    if (statsFrom) options.from = dateStartIso(statsFrom)
+    if (statsTo) options.to = dateEndIso(statsTo)
+    return options
+  }
+
+  function getStatsPeriodLabel() {
+    if (statsFrom && statsTo) return `${statsFrom} ~ ${statsTo}`
+    if (statsFrom) return `${statsFrom} 이후`
+    if (statsTo) return `${statsTo}까지`
+    return '전체 기간'
+  }
+
+  function resetStatsData() {
+    setStatsRows(null)
+    setStatsResponses([])
+    setStatsAiText('')
+  }
+
+  function buildStatsRows(responses) {
+    const map = new Map(forms.map(f => [f.id, {
+      formId: f.id,
+      title: f.title || '제목 없음',
+      group: f.group_tag || '',
+      count: 0,
+      firstSubmittedAt: null,
+      lastSubmittedAt: null,
+      theme_c1: f.theme_c1,
+      theme_c2: f.theme_c2,
+    }]))
+
+    ;(responses || []).forEach(r => {
+      const row = map.get(r.form_id)
+      if (!row) return
+      row.count += 1
+      const t = new Date(r.submitted_at).getTime()
+      if (!row.lastSubmittedAt || t > new Date(row.lastSubmittedAt).getTime()) row.lastSubmittedAt = r.submitted_at
+      if (!row.firstSubmittedAt || t < new Date(row.firstSubmittedAt).getTime()) row.firstSubmittedAt = r.submitted_at
+    })
+
+    return Array.from(map.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count
+      return a.title.localeCompare(b.title, 'ko')
+    })
+  }
+
+  async function fetchStatsReport() {
+    setPanelMode('stats')
+    setPanelForm(null)
+    setStatsLoading(true)
+    setStatsAiText('')
+    try {
+      const responses = await getResponsesForForms(forms.map(f => f.id), 'id, form_id, answers, submitted_at', getStatsOptions())
+      const rows = buildStatsRows(responses || [])
+      setStatsResponses(responses || [])
+      setStatsRows(rows)
+      return { responses: responses || [], rows }
+    } catch (e) {
+      showToast('전체 폼 통계를 불러오지 못했습니다.', 'fail')
+      return null
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  async function ensureStatsReport() {
+    if (statsRows) return { responses: statsResponses, rows: statsRows }
+    return await fetchStatsReport()
+  }
+
+  async function downloadAllFormsCsv() {
+    const report = await ensureStatsReport()
+    if (!report) return
+    const { responses } = report
+    if (!responses.length) return showToast('다운로드할 응답이 없습니다.', 'fail')
+
+    const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
+    const keys = [...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))]
+    const header = ['폼명', '그룹', '제출일시', ...keys]
+    const rows = responses.map(r => {
+      const f = formMap[r.form_id] || {}
+      const submitted = new Date(r.submitted_at).toLocaleString('ko-KR')
+      return [f.title || '제목 없음', f.group_tag || '', submitted, ...keys.map(k => r.answers?.[k] ?? '')]
+    })
+
+    const period = statsFrom || statsTo ? `${safeFilePart(statsFrom || 'start')}_${safeFilePart(statsTo || 'end')}` : 'all'
+    downloadCsv(`전체폼_응답_${period}.csv`, [header, ...rows])
+    showToast('CSV 다운로드를 시작했습니다.', 'ok')
+  }
+
+  async function downloadFormCountCsv() {
+    const report = await ensureStatsReport()
+    if (!report) return
+    const header = ['폼명', '그룹', '응답 수', '첫 신청', '최근 신청']
+    const rows = report.rows.map(row => [
+      row.title,
+      row.group,
+      row.count,
+      row.firstSubmittedAt ? new Date(row.firstSubmittedAt).toLocaleString('ko-KR') : '',
+      row.lastSubmittedAt ? new Date(row.lastSubmittedAt).toLocaleString('ko-KR') : '',
+    ])
+    const period = statsFrom || statsTo ? `${safeFilePart(statsFrom || 'start')}_${safeFilePart(statsTo || 'end')}` : 'all'
+    downloadCsv(`전체폼_응답수_${period}.csv`, [header, ...rows])
+    showToast('응답 수 CSV 다운로드를 시작했습니다.', 'ok')
+  }
+
+  async function runGeminiSummary() {
+    const report = await ensureStatsReport()
+    if (!report) return
+    setStatsAiLoading(true)
+    setStatsAiText('')
+    try {
+      const res = await fetch('/.netlify/functions/gemini-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          periodLabel: getStatsPeriodLabel(),
+          totalForms: forms.length,
+          totalResponses: report.responses.length,
+          rows: report.rows,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Gemini 요약 실패')
+      setStatsAiText(data.text || '요약 결과가 없습니다.')
+    } catch (e) {
+      setStatsAiText(`Gemini 요약 실패: ${e.message}`)
+    } finally {
+      setStatsAiLoading(false)
+    }
+  }
+
+  function handleStatsClick() {
+    if (panelMode === 'stats') { setPanelMode(null); return }
+    if (!isUnlocked) {
+      setPendingAction('stats')
+      setInputPw('')
+      setPwError('')
+      setShowPwModal(true)
+      return
+    }
+    fetchStatsReport()
+  }
+
+  function runAfterUnlock() {
+    const action = pendingAction
+    setPendingAction(null)
+    if (action === 'stats') return fetchStatsReport()
+    if (action === 'all') return fetchAllResp()
+    if (targetFormId) {
+      navigate(`${RESULTS_PATH}/${targetFormId}`)
+      setTargetFormId(null)
+      return
+    }
+    if (panelForm) return fetchPanelData(panelForm)
+    return fetchAllResp()
   }
 
   // ── 그룹 편집
@@ -278,8 +478,7 @@ export default function Dashboard() {
       setShowPwModal(false)
       setPwError('')
       if (afterUnlock) afterUnlock()
-      else if (targetFormId) { navigate(`${RESULTS_PATH}/${targetFormId}`); setTargetFormId(null) }
-      else if (panelForm) fetchPanelData(panelForm)
+      else runAfterUnlock()
     } else {
       setPwError('비밀번호가 일치하지 않습니다.')
     }
@@ -328,10 +527,13 @@ export default function Dashboard() {
           <button className={`${s.allRespBtn} ${panelMode === 'all' ? s.allRespBtnOn : ''}`}
             onClick={() => {
               if (panelMode === 'all') { setPanelMode(null); return }
-              if (!isUnlocked) { setInputPw(''); setPwError(''); setShowPwModal(true); return }
+              if (!isUnlocked) { setPendingAction('all'); setInputPw(''); setPwError(''); setShowPwModal(true); return }
               fetchAllResp()
             }}>
             {isUnlocked ? '📋 전체 응답' : '🔒 전체 응답'}
+          </button>
+          <button className={`${s.statsBtn} ${panelMode === 'stats' ? s.statsBtnOn : ''}`} onClick={handleStatsClick}>
+            {isUnlocked ? '📈 통계/CSV' : '🔒 통계/CSV'}
           </button>
           <div className={s.userChip}>
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
@@ -559,6 +761,79 @@ export default function Dashboard() {
               </div>
             </>)}
 
+
+            {/* ── 전체 폼 통계 / 기간 CSV / Gemini 요약 패널 */}
+            {panelMode === 'stats' && (<>
+              <div className={s.panelHeader}>
+                <div className={s.panelTitle}>
+                  <span>전체 폼 통계 / CSV</span>
+                  <span className={s.panelCount}>{getStatsPeriodLabel()}</span>
+                </div>
+                <div className={s.panelHeaderRight}>
+                  <button className={s.panelClose} onClick={() => setPanelMode(null)}>✕</button>
+                </div>
+              </div>
+              <div className={s.panelBody}>
+                <div className={s.statsBox}>
+                  <div className={s.statsLabel}>기간 설정</div>
+                  <div className={s.dateGrid}>
+                    <label>
+                      <span>시작일</span>
+                      <input type="date" value={statsFrom} onChange={e => { setStatsFrom(e.target.value); resetStatsData() }} />
+                    </label>
+                    <label>
+                      <span>종료일</span>
+                      <input type="date" value={statsTo} onChange={e => { setStatsTo(e.target.value); resetStatsData() }} />
+                    </label>
+                  </div>
+                  <div className={s.statsActions}>
+                    <button className={s.statsPrimaryBtn} onClick={fetchStatsReport} disabled={statsLoading}>
+                      {statsLoading ? '불러오는 중...' : '기간 적용 / 응답 수 파악'}
+                    </button>
+                    <button className={s.statsGhostBtn} onClick={() => { setStatsFrom(''); setStatsTo(''); resetStatsData() }} disabled={statsLoading}>전체 기간</button>
+                  </div>
+                </div>
+
+                {statsLoading ? (
+                  <div className={s.panelLoading}><div className={s.spinner}></div></div>
+                ) : statsRows ? (<>
+                  <div className={s.statsSummaryGrid}>
+                    <div><b>{forms.length}</b><span>전체 폼</span></div>
+                    <div><b>{statsResponses.length}</b><span>전체 응답</span></div>
+                    <div><b>{statsRows.filter(r => r.count > 0).length}</b><span>응답 있는 폼</span></div>
+                  </div>
+
+                  <div className={s.statsActions}>
+                    <button className={s.statsPrimaryBtn} onClick={downloadAllFormsCsv}>전체폼 CSV 다운로드</button>
+                    <button className={s.statsGhostBtn} onClick={downloadFormCountCsv}>응답 수 CSV</button>
+                  </div>
+
+                  <button className={s.geminiBtn} onClick={runGeminiSummary} disabled={statsAiLoading}>
+                    {statsAiLoading ? 'Gemini 분석 중...' : 'Gemini로 응답 수 요약'}
+                  </button>
+                  {statsAiText && <pre className={s.aiSummary}>{statsAiText}</pre>}
+
+                  <div className={s.formCountList}>
+                    {statsRows.map((row, idx) => (
+                      <div key={row.formId} className={s.formCountRow}>
+                        <div className={s.formCountRank}>#{idx + 1}</div>
+                        <div className={s.formCountInfo}>
+                          <div className={s.formCountTitle}>{row.title}</div>
+                          <div className={s.formCountMeta}>
+                            {row.group ? `📁 ${row.group} · ` : ''}
+                            {row.lastSubmittedAt ? `최근 ${formatDateShort(row.lastSubmittedAt)}` : '응답 없음'}
+                          </div>
+                        </div>
+                        <div className={s.formCountNum}>{row.count}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>) : (
+                  <div className={s.panelEmpty}>기간을 정하고 “기간 적용 / 응답 수 파악”을 눌러주세요.</div>
+                )}
+              </div>
+            </>)}
+
             {/* ── 전체 응답 패널 */}
             {panelMode === 'all' && (<>
               <div className={s.panelHeader}>
@@ -617,14 +892,11 @@ export default function Dashboard() {
             <p>비밀번호를 입력하면 응답을 확인할 수 있습니다.<br/><span style={{fontSize:11,opacity:.6}}>(기본: 0000)</span></p>
             <input type="password" className={s.pwInp} value={inputPw} onChange={e => { setInputPw(e.target.value); setPwError('') }}
               placeholder="비밀번호" autoFocus
-              onKeyDown={e => e.key === 'Enter' && submitPassword(() => panelForm && fetchPanelData(panelForm))} />
+              onKeyDown={e => e.key === 'Enter' && submitPassword(runAfterUnlock)} />
             {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowPwModal(false)}>취소</button>
-              <button className={s.btnPrimaryModal} onClick={() => submitPassword(() => {
-                if (panelForm) fetchPanelData(panelForm)
-                else fetchAllResp()
-              })}>확인</button>
+              <button className={s.btnPrimaryModal} onClick={() => submitPassword(runAfterUnlock)}>확인</button>
             </div>
           </div>
         </div>

@@ -13,25 +13,32 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 // Supabase REST API는 기본 조회가 1,000건까지만 내려올 수 있어서
-// 응답 데이터는 1,000건 단위로 끝까지 페이지 조회한다.
+// 응답 데이터는 submitted_at 커서 기준으로 1,000건씩 끝까지 가져온다.
+// range(offset) 방식이 배포 환경/설정에 따라 1,000개에서 멈추는 경우가 있어
+// 마지막 응답 시간보다 오래된 데이터로 계속 넘기는 keyset pagination 방식을 사용한다.
 export const RESPONSE_PAGE_SIZE = 1000
-export async function fetchAllSupabaseRows(createQuery, pageSize = RESPONSE_PAGE_SIZE) {
+
+async function fetchAllResponsePages(makeQuery, pageSize = RESPONSE_PAGE_SIZE) {
   const rows = []
-  let from = 0
+  let beforeSubmittedAt = null
+  let guard = 0
 
   while (true) {
-    const to = from + pageSize - 1
-    const { data, error } = await createQuery().range(from, to)
+    const query = makeQuery(beforeSubmittedAt)
+    const { data, error } = await query.limit(pageSize)
     if (error) throw error
 
     const chunk = data || []
     rows.push(...chunk)
 
     if (chunk.length < pageSize) break
-    from += pageSize
 
-    // 실수로 무한 루프가 도는 걸 막기 위한 안전장치
-    if (from > 500000) throw new Error('응답이 너무 많아 한 번에 불러오지 못했습니다.')
+    const lastSubmittedAt = chunk[chunk.length - 1]?.submitted_at
+    if (!lastSubmittedAt || lastSubmittedAt === beforeSubmittedAt) break
+
+    beforeSubmittedAt = lastSubmittedAt
+    guard += 1
+    if (guard > 500) throw new Error('응답이 너무 많아 한 번에 불러오지 못했습니다.')
   }
 
   return rows
@@ -180,26 +187,37 @@ export async function submitResponse(formId, answers) {
 }
 
 // 응답 목록 가져오기 (폼 주인만)
-export async function getResponses(formId) {
-  return fetchAllSupabaseRows(() =>
-    supabase
+export async function getResponses(formId, options = {}) {
+  return fetchAllResponsePages((before) => {
+    let q = supabase
       .from('responses')
       .select('*')
       .eq('form_id', formId)
-      .order('submitted_at', { ascending: false })
-  )
+
+    if (options.from) q = q.gte('submitted_at', options.from)
+    if (options.to) q = q.lt('submitted_at', options.to)
+    if (before) q = q.lt('submitted_at', before)
+
+    return q.order('submitted_at', { ascending: false })
+  })
 }
 
-// 여러 폼의 응답 전체 가져오기 — 전체 응답/중복 검사/대시보드용
-export async function getResponsesForForms(formIds, columns = 'id, form_id, answers, submitted_at') {
+// 여러 폼의 응답 전체 가져오기 — 전체 응답/중복 검사/대시보드/CSV용
+export async function getResponsesForForms(formIds, columns = 'id, form_id, answers, submitted_at', options = {}) {
   if (!formIds?.length) return []
-  return fetchAllSupabaseRows(() =>
-    supabase
+
+  return fetchAllResponsePages((before) => {
+    let q = supabase
       .from('responses')
       .select(columns)
       .in('form_id', formIds)
-      .order('submitted_at', { ascending: false })
-  )
+
+    if (options.from) q = q.gte('submitted_at', options.from)
+    if (options.to) q = q.lt('submitted_at', options.to)
+    if (before) q = q.lt('submitted_at', before)
+
+    return q.order('submitted_at', { ascending: false })
+  })
 }
 
 // 구글 토큰 저장
