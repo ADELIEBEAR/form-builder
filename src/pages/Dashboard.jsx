@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, publishForm, unpublishForm, signOut } from '../lib/supabase'
+import { getForms, deleteForm, publishForm, unpublishForm, signOut, getResponsesForForms } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
@@ -106,14 +106,7 @@ export default function Dashboard() {
     setPanelLoading(true)
     setPanelData(null)
     try {
-      const { data, error } = await supabase
-        .from('responses')
-        .select('id, answers, submitted_at')
-        .eq('form_id', form.id)
-        .order('submitted_at', { ascending: false })
-        .limit(100)
-      if (error) throw error
-      const responses = data || []
+      const responses = await getResponsesForForms([form.id], 'id, form_id, answers, submitted_at')
       // 전화번호만 기준으로 중복 감지
       function normPhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
       function isPhone(v) { return /^01[0-9]\d{7,8}$/.test(normPhone(v)) }
@@ -146,13 +139,7 @@ export default function Dashboard() {
       // 폼 목록 (그룹 태그 포함)
       const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
 
-      const { data, error } = await supabase
-        .from('responses')
-        .select('id, form_id, answers, submitted_at')
-        .in('form_id', forms.map(f => f.id))
-        .order('submitted_at', { ascending: false })
-        .limit(300)
-      if (error) throw error
+      const data = await getResponsesForForms(forms.map(f => f.id), 'id, form_id, answers, submitted_at')
 
       setAllRespData(data || [])
     } catch { showToast('전체 응답을 불러오지 못했습니다.', 'fail') }

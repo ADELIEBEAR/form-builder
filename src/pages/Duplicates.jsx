@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabase'
+import { supabase, getResponsesForForms } from '../lib/supabase'
 import s from './Duplicates.module.css'
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
@@ -27,10 +27,7 @@ export default function Duplicates() {
 
       const formMap = Object.fromEntries((formList||[]).map(f=>[f.id,f]))
 
-      const { data: allResp } = await supabase
-        .from('responses').select('id, form_id, answers, submitted_at')
-        .in('form_id', (formList||[]).map(f=>f.id))
-        .order('submitted_at', { ascending: false })
+      const allResp = await getResponsesForForms((formList||[]).map(f=>f.id), 'id, form_id, answers, submitted_at')
 
       // 전화번호별 그룹핑
       const phoneMap = {}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getForm, getResponses } from '../lib/supabase'
+import { getForm, getResponses, getResponsesForForms } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import s from './Responses.module.css'
@@ -105,9 +105,7 @@ export default function Responses() {
 
       const formTitleMap = Object.fromEntries(formList.map(f => [f.id, f.title]))
 
-      const { data: otherResp } = await supabase
-        .from('responses').select('id, form_id, answers, submitted_at')
-        .in('form_id', otherFormIds)
+      const otherResp = await getResponsesForForms(otherFormIds, 'id, form_id, answers, submitted_at')
 
       // 다른 폼에서 전화번호 수집
       const map = {}

@@ -5,6 +5,30 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Supabase REST API는 기본 조회가 1,000건까지만 내려올 수 있어서
+// 응답 데이터는 1,000건 단위로 끝까지 페이지 조회한다.
+export const RESPONSE_PAGE_SIZE = 1000
+export async function fetchAllSupabaseRows(createQuery, pageSize = RESPONSE_PAGE_SIZE) {
+  const rows = []
+  let from = 0
+
+  while (true) {
+    const to = from + pageSize - 1
+    const { data, error } = await createQuery().range(from, to)
+    if (error) throw error
+
+    const chunk = data || []
+    rows.push(...chunk)
+
+    if (chunk.length < pageSize) break
+    from += pageSize
+
+    if (from > 500000) throw new Error('응답이 너무 많아 한 번에 불러오지 못했습니다.')
+  }
+
+  return rows
+}
+
 // 구글 로그인
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -142,13 +166,13 @@ export async function submitResponse(formId, answers) {
 
 // 응답 목록 가져오기 (폼 주인만)
 export async function getResponses(formId) {
-  const { data, error } = await supabase
-    .from('responses')
-    .select('*')
-    .eq('form_id', formId)
-    .order('submitted_at', { ascending: false })
-  if (error) throw error
-  return data
+  return fetchAllSupabaseRows(() =>
+    supabase
+      .from('responses')
+      .select('*')
+      .eq('form_id', formId)
+      .order('submitted_at', { ascending: false })
+  )
 }
 
 // 구글 토큰 저장
