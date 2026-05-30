@@ -30,12 +30,13 @@
   cursor: help;
 }
 
-[class*="applyOrderFirst"] {
-  color: #22c55e;
-  background: rgba(34,197,94,.12);
-  border-color: rgba(34,197,94,.24);
+/* 첫 신청은 정상 신청처럼 보이게 카드/표 라벨을 숨김 */
+[class*="applyOrderFirst"],
+[class*="dupeTagTableFirst"] {
+  display: none !important;
 }
 
+/* 두 번째 신청부터만 강조 */
 [class*="applyOrderDupe"] {
   color: var(--danger);
   background: rgba(248,113,113,.14);
@@ -51,13 +52,6 @@
 [class*="dupeTagTableDanger"] {
   color: var(--danger);
   background: rgba(248,113,113,.14);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
-[class*="dupeTagTableFirst"] {
-  color: #22c55e;
-  background: rgba(34,197,94,.12);
   border-radius: 4px;
   padding: 1px 5px;
 }
