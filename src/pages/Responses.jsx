@@ -240,9 +240,12 @@ export default function Responses() {
 
   // 툴팁 핸들러
   function showDupeTooltip(e, r) {
-    const info = getDupeInfo(r)
+    const info = getDupeInfo(r).filter(i => i.type === 'cross' || i.isDuplicate)
     if (!info.length) return
-    const content = info.map(i => `📵 ${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`).join('\n')
+    const content = info.map(i => {
+      if (i.type === 'same') return `📵 ${i.phone}\n→ 같은 폼 ${i.order}번째 신청! 첫 신청 이후 중복 후보`
+      return `📵 ${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames || '폼명 확인 필요'} (${i.count || 0}건)`
+    }).join('\n')
     setTooltip({ x: e.clientX, y: e.clientY, content })
   }
 
@@ -378,7 +381,7 @@ export default function Responses() {
 
                       {expandedId===r.id && (
                         <div className={s.respFull}>
-                          {dupeInfo.length > 0 && (
+                          {dupeInfo.some(i => i.type === 'cross' || i.isDuplicate) && (
                             <div className={s.dupeWarningBox}>
                               {dupeInfo.filter(i => i.type === 'cross' || i.isDuplicate).map((i, idx)=> i.type === 'same' ? (
                                 <span key={`${i.phone}-${idx}`} className={s.dupeWarningPhone}>📵 {i.phone} 같은 폼 {i.order}번째 신청! 첫 신청 이후 중복 후보입니다.</span>

@@ -1,4 +1,5 @@
-const DEFAULT_MODEL = 'gemini-2.5-flash'
+const DEFAULT_MODEL = 'gemini-3.5-flash'
+const FALLBACK_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash']
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') return json(405, { error: 'POST만 지원합니다.' })
@@ -68,31 +69,41 @@ ${JSON.stringify(safeGroups, null, 2)}
 5) 처리 기준
 `;
 
-  const model = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_MODEL)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
-
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, topP: 0.8, maxOutputTokens: 1100 },
-      }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) return json(res.status, { error: data?.error?.message || 'Gemini API 요청에 실패했습니다.' })
-    const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim()
-    return json(200, { text: text || 'AI 중복 분석 결과가 비어 있습니다.' })
-  } catch (error) {
-    return json(500, { error: error?.message || 'AI 호출 중 오류가 발생했습니다.' })
+  const requestedModel = normalizeModelName(process.env.GEMINI_MODEL || DEFAULT_MODEL)
+  const modelCandidates = [...new Set([requestedModel, DEFAULT_MODEL, ...FALLBACK_MODELS].filter(Boolean))]
+  const requestBody = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.05, topP: 0.75, maxOutputTokens: 1200 },
   }
+
+  let lastError = ''
+  for (const model of modelCandidates) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        lastError = data?.error?.message || `${model} 요청 실패`
+        continue
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim()
+      return json(200, { model, text: text || 'AI 중복 분석 결과가 비어 있습니다.' })
+    } catch (error) {
+      lastError = error?.message || String(error)
+    }
+  }
+
+  return json(500, { error: lastError || 'AI 호출 중 오류가 발생했습니다.' })
 }
 
 function normalizeModelName(value) {
   const model = String(value || '').trim()
   if (!model) return DEFAULT_MODEL
-  if (model === 'gemini-1.5-flash') return DEFAULT_MODEL
+  if (['gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'].includes(model)) return DEFAULT_MODEL
   if (model.startsWith('models/')) return model.replace(/^models\//, '')
   return model
 }

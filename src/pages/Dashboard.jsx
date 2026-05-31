@@ -953,10 +953,9 @@ export default function Dashboard() {
                     <button className={s.statsGhostBtn} onClick={downloadFormCountCsv}>응답 수 CSV</button>
                   </div>
 
-                  <button className={s.geminiBtn} onClick={runGeminiSummary} disabled={statsAiLoading}>
-                    {statsAiLoading ? 'AI 계산 중...' : 'AI로 중복 제외 DB 계산'}
-                  </button>
-                  {statsAiText && <pre className={s.aiSummary}>{statsAiText}</pre>}
+                  <div className={s.statsActions}>
+                    <button className={s.statsPrimaryBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산 탭에서 중복 DB 계산하기</button>
+                  </div>
 
                   <div className={s.formCountList}>
                     {statsRows.map((row, idx) => (

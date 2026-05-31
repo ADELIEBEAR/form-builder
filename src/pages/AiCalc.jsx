@@ -304,6 +304,8 @@ export default function AiCalc() {
     setAiLoading(true)
     setError('')
     try {
+      const baseText = fallbackSummary(current.analysis, periodLabel)
+      setAiText(baseText + '\n\nGemini 3.5가 위 계산값을 운영자용으로 정리 중입니다...')
       const res = await fetch('/.netlify/functions/gemini-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,10 +320,11 @@ export default function AiCalc() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'AI 분석 실패')
-      setAiText(data.text || fallbackSummary(current.analysis, periodLabel))
+      const modelLine = data.model ? `사용 모델: ${data.model}\n\n` : ''
+      setAiText(modelLine + (data.text || baseText))
     } catch (e) {
       setAiText(fallbackSummary(current.analysis, periodLabel))
-      setError(`AI 분석 실패: ${e.message}. 계산 결과는 아래에 표시했습니다.`)
+      setError(`AI 분석 실패: ${e.message}. 정확한 계산 결과는 아래에 표시했습니다.`)
     } finally {
       setAiLoading(false)
     }
@@ -372,8 +375,8 @@ export default function AiCalc() {
     <div className={s.wrap}>
       <header className={s.header}>
         <div>
-          <h1>AI 계산</h1>
-          <p>폼 신청 DB를 번호 기준으로 계산합니다. 같은 번호는 1개, 같은 폼은 2번째 신청부터 중복입니다.</p>
+          <h1>AI 중복 계산 탭</h1>
+          <p>정확한 숫자는 코드가 먼저 계산하고, Gemini 3.5는 그 결과를 운영자가 보기 좋게 정리만 합니다.</p>
         </div>
         <button onClick={() => navigate('/dashboard')}>대시보드로 돌아가기</button>
       </header>
@@ -382,7 +385,7 @@ export default function AiCalc() {
         <label><span>시작일</span><input type="date" value={from} onChange={e => { setFrom(e.target.value); setAnalysis(null); setAiText('') }} /></label>
         <label><span>종료일</span><input type="date" value={to} onChange={e => { setTo(e.target.value); setAnalysis(null); setAiText('') }} /></label>
         <button className={s.primary} onClick={runCalculation} disabled={loading || !forms.length}>{loading ? '계산 중...' : '중복 제외 DB 계산'}</button>
-        <button className={s.aiBtn} onClick={runAiSummary} disabled={loading || aiLoading || !forms.length}>{aiLoading ? 'AI 분석 중...' : 'AI로 정리'}</button>
+        <button className={s.aiBtn} onClick={runAiSummary} disabled={loading || aiLoading || !forms.length}>{aiLoading ? 'Gemini 3.5 분석 중...' : 'Gemini 3.5로 정리'}</button>
       </section>
 
       {error && <div className={s.error}>{error}</div>}
@@ -404,12 +407,12 @@ export default function AiCalc() {
           </section>
 
           <section className={s.resultBox}>
-            <h2>계산 결과</h2>
+            <h2>정확한 계산 결과</h2>
             <pre>{aiText || fallbackSummary(analysis, periodLabel)}</pre>
           </section>
 
           <section className={s.listBox}>
-            <h2>중복 그룹 TOP 50</h2>
+            <h2>중복 후보 TOP 50</h2>
             {analysis.groups.length === 0 ? <p className={s.empty}>중복 그룹이 없습니다.</p> : analysis.groups.slice(0, 50).map(group => (
               <div key={group.phone} className={s.groupRow}>
                 <div className={s.phone}>{group.formattedPhone}</div>
@@ -424,7 +427,7 @@ export default function AiCalc() {
       ) : (
         <section className={s.readyBox}>
           <h2>계산 전입니다</h2>
-          <p>기간을 정하고 “중복 제외 DB 계산”을 누르면 전체 폼을 한 번에 계산합니다.</p>
+          <p>기간을 정하고 “중복 제외 DB 계산”을 누르세요. 같은 번호는 전체 DB에서 1개로 계산하고, 같은 폼 안에서는 2번째 신청부터 중복 후보로 분리합니다.</p>
         </section>
       )}
     </div>
