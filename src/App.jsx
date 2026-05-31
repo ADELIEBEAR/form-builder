@@ -7,6 +7,7 @@ import Builder from './pages/Builder'
 import Responses from './pages/Responses'
 import PublicForm from './pages/PublicForm'
 import Duplicates from './pages/Duplicates'
+import AiCalc from './pages/AiCalc'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/builder/:formId" element={<PrivateRoute><Builder /></PrivateRoute>} />
       <Route path="/responses/:formId" element={<PrivateRoute><Responses /></PrivateRoute>} />
       <Route path="/duplicates" element={<PrivateRoute><Duplicates /></PrivateRoute>} />
+      <Route path="/ai-calc" element={<PrivateRoute><AiCalc /></PrivateRoute>} />
       <Route path="/f/:slug" element={<PublicForm />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -666,6 +666,7 @@ export default function Dashboard() {
           <button className={`${s.adminBtn} ${isUnlocked ? s.unlocked : ''}`} onClick={handleAdminAction}>
             {isUnlocked ? '🔓 암호 변경' : '🔒 잠금 해제'}
           </button>
+          <button className={s.aiCalcBtn || s.statsBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산</button>
           <button className={s.dupeBtn} onClick={() => navigate('/duplicates')}>📵 중복 체크</button>
           <button className={`${s.allRespBtn} ${panelMode === 'all' ? s.allRespBtnOn : ''}`}
             onClick={() => {
