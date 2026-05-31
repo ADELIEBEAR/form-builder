@@ -51,6 +51,132 @@ function safeFilePart(value) {
   return String(value || 'all').replace(/[^0-9a-zA-Z가-힣_-]/g, '-')
 }
 
+function extractPhonesFromAnswers(answers) {
+  const phones = new Set()
+  Object.values(answers || {}).forEach(v => {
+    if (looksLikePhone(v)) phones.add(normalizePhone(v))
+  })
+  return [...phones]
+}
+
+function buildDuplicateAnalysis(responses, forms) {
+  const formMap = new Map(forms.map(f => [f.id, f]))
+  const phoneMap = new Map()
+  const phoneFormMap = new Map()
+  const infoByResponse = new Map()
+  let noPhoneCount = 0
+  const perFormRaw = new Map(forms.map(f => [f.id, {
+    phoneSet: new Set(), noPhoneCount: 0,
+    duplicateResponses: 0, duplicatePhones: new Set(),
+    sameFormDuplicateResponses: 0, sameFormDuplicatePhones: new Set(),
+    crossFormDuplicateResponses: 0, crossFormDuplicatePhones: new Set(),
+  }]))
+
+  ;(responses || []).forEach(r => {
+    const phones = extractPhonesFromAnswers(r.answers)
+    const form = formMap.get(r.form_id)
+    const stats = perFormRaw.get(r.form_id)
+    if (!phones.length) { noPhoneCount += 1; if (stats) stats.noPhoneCount += 1; return }
+    phones.forEach(phone => {
+      const entry = { id: r.id, formId: r.form_id, formTitle: form?.title || '제목 없음', group: form?.group_tag || '', submittedAt: r.submitted_at }
+      if (!phoneMap.has(phone)) phoneMap.set(phone, [])
+      phoneMap.get(phone).push(entry)
+      const key = `${phone}::${r.form_id}`
+      if (!phoneFormMap.has(key)) phoneFormMap.set(key, [])
+      phoneFormMap.get(key).push(entry)
+      if (stats) stats.phoneSet.add(phone)
+    })
+  })
+
+  phoneMap.forEach(entries => entries.sort((a,b) => new Date(a.submittedAt) - new Date(b.submittedAt)))
+  phoneFormMap.forEach(entries => entries.sort((a,b) => new Date(a.submittedAt) - new Date(b.submittedAt)))
+
+  const groups = []
+  let sameFormGroupCount = 0, sameFormDuplicateOnlyCount = 0, sameFormResponseCount = 0
+  let crossFormGroupCount = 0, crossFormResponseCount = 0
+
+  phoneMap.forEach((entries, phone) => {
+    const formIds = [...new Set(entries.map(e => e.formId))]
+    const sameFormGroups = formIds.map(formId => {
+      const sameEntries = phoneFormMap.get(`${phone}::${formId}`) || []
+      return { formId, formTitle: sameEntries[0]?.formTitle || formMap.get(formId)?.title || '제목 없음', count: sameEntries.length }
+    }).filter(g => g.count > 1)
+    const isSame = sameFormGroups.length > 0
+    const isCross = formIds.length > 1
+    if (!isSame && !isCross) return
+    if (isSame) {
+      sameFormGroupCount += sameFormGroups.length
+      sameFormResponseCount += sameFormGroups.reduce((sum, g) => sum + g.count, 0)
+      sameFormDuplicateOnlyCount += sameFormGroups.reduce((sum, g) => sum + g.count - 1, 0)
+    }
+    if (isCross) { crossFormGroupCount += 1; crossFormResponseCount += entries.length }
+
+    let kind = '같은폼 중복'
+    if (isSame && isCross) kind = '같은폼+다른폼 중복'
+    else if (isCross) kind = '다른폼 중복'
+
+    const forms = formIds.map(formId => ({ formId, title: formMap.get(formId)?.title || '제목 없음', count: entries.filter(e => e.formId === formId).length }))
+    groups.push({
+      phone, formattedPhone: formatPhone(phone), kind,
+      count: entries.length, duplicateOnlyCount: Math.max(0, entries.length - 1), formCount: formIds.length,
+      forms, sameFormGroups,
+    })
+
+    entries.forEach((entry, index) => {
+      const sameEntries = phoneFormMap.get(`${phone}::${entry.formId}`) || []
+      const sameIndex = sameEntries.findIndex(e => e.id === entry.id)
+      const sameFormDuplicate = sameIndex > 0
+      const crossFormDuplicate = isCross
+      if (!sameFormDuplicate && !crossFormDuplicate) return
+      let rowKind = ''
+      if (sameFormDuplicate) rowKind += `같은폼 ${sameIndex + 1}번째 신청!`
+      if (crossFormDuplicate) rowKind += rowKind ? ' / 다른폼 중복' : '다른폼 중복'
+      infoByResponse.set(entry.id, {
+        phone, formattedPhone: formatPhone(phone), duplicate: true, kind: rowKind,
+        totalForPhone: entries.length, formCount: formIds.length, sameFormCount: sameEntries.length,
+      })
+      const stats = perFormRaw.get(entry.formId)
+      if (stats) {
+        stats.duplicateResponses += 1; stats.duplicatePhones.add(phone)
+        if (sameFormDuplicate) { stats.sameFormDuplicateResponses += 1; stats.sameFormDuplicatePhones.add(phone) }
+        if (crossFormDuplicate) { stats.crossFormDuplicateResponses += 1; stats.crossFormDuplicatePhones.add(phone) }
+      }
+    })
+  })
+
+  groups.sort((a,b) => b.duplicateOnlyCount - a.duplicateOnlyCount || b.count - a.count)
+  const perFormStats = {}
+  perFormRaw.forEach((stats, formId) => {
+    perFormStats[formId] = {
+      uniqueApplicants: stats.phoneSet.size + stats.noPhoneCount,
+      duplicateResponses: stats.duplicateResponses,
+      duplicatePhoneCount: stats.duplicatePhones.size,
+      sameFormDuplicateResponses: stats.sameFormDuplicateResponses,
+      sameFormDuplicatePhoneCount: stats.sameFormDuplicatePhones.size,
+      crossFormDuplicateResponses: stats.crossFormDuplicateResponses,
+      crossFormDuplicatePhoneCount: stats.crossFormDuplicatePhones.size,
+    }
+  })
+  const uniqueApplicants = phoneMap.size + noPhoneCount
+  return {
+    summary: {
+      totalResponses: (responses || []).length,
+      uniqueApplicants,
+      uniquePhoneCount: phoneMap.size,
+      noPhoneCount,
+      duplicateRemovalCount: Math.max(0, (responses || []).length - uniqueApplicants),
+      duplicatePhoneCount: groups.length,
+      duplicateGroupCount: groups.length,
+      sameFormDuplicateGroupCount: sameFormGroupCount,
+      sameFormDuplicateResponseCount: sameFormResponseCount,
+      sameFormDuplicateOnlyCount,
+      crossFormDuplicatePhoneCount: crossFormGroupCount,
+      crossFormDuplicateResponseCount: crossFormResponseCount,
+    }, groups, infoByResponse, perFormStats
+  }
+}
+
+
 export default function Dashboard() {
   const { user } = useAuth()
   const { theme, toggle } = useTheme()
@@ -98,6 +224,7 @@ export default function Dashboard() {
   const [statsLoading, setStatsLoading] = useState(false)
   const [statsRows, setStatsRows] = useState(null)
   const [statsResponses, setStatsResponses] = useState([])
+  const [statsDupes, setStatsDupes] = useState(null)
   const [statsAiLoading, setStatsAiLoading] = useState(false)
   const [statsAiText, setStatsAiText] = useState('')
 
@@ -204,6 +331,7 @@ export default function Dashboard() {
   function resetStatsData() {
     setStatsRows(null)
     setStatsResponses([])
+    setStatsDupes(null)
     setStatsAiText('')
   }
 
@@ -241,10 +369,15 @@ export default function Dashboard() {
     setStatsAiText('')
     try {
       const responses = await getResponsesForForms(forms.map(f => f.id), 'id, form_id, answers, submitted_at', getStatsOptions())
-      const rows = buildStatsRows(responses || [])
+      const dupeAnalysis = buildDuplicateAnalysis(responses || [], forms)
+      const rows = buildStatsRows(responses || []).map(row => ({
+        ...row,
+        ...(dupeAnalysis.perFormStats[row.formId] || { uniqueApplicants: row.count, duplicateResponses: 0, duplicatePhoneCount: 0, sameFormDuplicateResponses: 0, crossFormDuplicateResponses: 0 })
+      }))
       setStatsResponses(responses || [])
       setStatsRows(rows)
-      return { responses: responses || [], rows }
+      setStatsDupes(dupeAnalysis)
+      return { responses: responses || [], rows, dupes: dupeAnalysis }
     } catch (e) {
       showToast('전체 폼 통계를 불러오지 못했습니다.', 'fail')
       return null
@@ -254,7 +387,7 @@ export default function Dashboard() {
   }
 
   async function ensureStatsReport() {
-    if (statsRows) return { responses: statsResponses, rows: statsRows }
+    if (statsRows) return { responses: statsResponses, rows: statsRows, dupes: statsDupes || buildDuplicateAnalysis(statsResponses || [], forms) }
     return await fetchStatsReport()
   }
 
@@ -265,12 +398,15 @@ export default function Dashboard() {
     if (!responses.length) return showToast('다운로드할 응답이 없습니다.', 'fail')
 
     const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
+    const dupeAnalysis = report.dupes || buildDuplicateAnalysis(responses || [], forms)
     const keys = [...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))]
-    const header = ['폼명', '그룹', '제출일시', ...keys]
+    const header = ['폼명', '그룹', '제출일시', '전화번호', '중복여부', '중복구분', '동일번호 전체응답수', '동일번호 참여폼수', '같은폼 동일번호 응답수', ...keys]
     const rows = responses.map(r => {
       const f = formMap[r.form_id] || {}
       const submitted = new Date(r.submitted_at).toLocaleString('ko-KR')
-      return [f.title || '제목 없음', f.group_tag || '', submitted, ...keys.map(k => r.answers?.[k] ?? '')]
+      const info = dupeAnalysis.infoByResponse.get(r.id)
+      const phone = info?.formattedPhone || extractPhonesFromAnswers(r.answers)[0] || ''
+      return [f.title || '제목 없음', f.group_tag || '', submitted, phone, info?.duplicate ? '중복' : '', info?.kind || '', info?.totalForPhone || '', info?.formCount || '', info?.sameFormCount || '', ...keys.map(k => r.answers?.[k] ?? '')]
     })
 
     const period = statsFrom || statsTo ? `${safeFilePart(statsFrom || 'start')}_${safeFilePart(statsTo || 'end')}` : 'all'
@@ -281,11 +417,16 @@ export default function Dashboard() {
   async function downloadFormCountCsv() {
     const report = await ensureStatsReport()
     if (!report) return
-    const header = ['폼명', '그룹', '응답 수', '첫 신청', '최근 신청']
+    const header = ['폼명', '그룹', '전체 응답 수', '중복 제외 신청자 수', '중복 관련 응답 수', '중복 전화번호 수', '같은폼 중복 응답 수', '다른폼 중복 응답 수', '첫 신청', '최근 신청']
     const rows = report.rows.map(row => [
       row.title,
       row.group,
       row.count,
+      row.uniqueApplicants ?? row.count,
+      row.duplicateResponses || 0,
+      row.duplicatePhoneCount || 0,
+      row.sameFormDuplicateResponses || 0,
+      row.crossFormDuplicateResponses || 0,
       row.firstSubmittedAt ? new Date(row.firstSubmittedAt).toLocaleString('ko-KR') : '',
       row.lastSubmittedAt ? new Date(row.lastSubmittedAt).toLocaleString('ko-KR') : '',
     ])
@@ -307,6 +448,8 @@ export default function Dashboard() {
           periodLabel: getStatsPeriodLabel(),
           totalForms: forms.length,
           totalResponses: report.responses.length,
+          duplicateSummary: (report.dupes || buildDuplicateAnalysis(report.responses || [], forms)).summary,
+          duplicateGroups: (report.dupes || buildDuplicateAnalysis(report.responses || [], forms)).groups.slice(0, 80),
           rows: report.rows,
         }),
       })
@@ -766,7 +909,7 @@ export default function Dashboard() {
             {panelMode === 'stats' && (<>
               <div className={s.panelHeader}>
                 <div className={s.panelTitle}>
-                  <span>전체 폼 통계 / CSV</span>
+                  <span>전체 폼 중복 체크 / CSV</span>
                   <span className={s.panelCount}>{getStatsPeriodLabel()}</span>
                 </div>
                 <div className={s.panelHeaderRight}>
@@ -800,7 +943,8 @@ export default function Dashboard() {
                   <div className={s.statsSummaryGrid}>
                     <div><b>{forms.length}</b><span>전체 폼</span></div>
                     <div><b>{statsResponses.length}</b><span>전체 응답</span></div>
-                    <div><b>{statsRows.filter(r => r.count > 0).length}</b><span>응답 있는 폼</span></div>
+                    <div><b>{statsDupes?.summary.uniqueApplicants ?? statsResponses.length}</b><span>중복 제외 DB</span></div>
+                    <div><b>{statsDupes?.summary.duplicateRemovalCount ?? 0}</b><span>중복 제외 건수</span></div>
                   </div>
 
                   <div className={s.statsActions}>
@@ -809,7 +953,7 @@ export default function Dashboard() {
                   </div>
 
                   <button className={s.geminiBtn} onClick={runGeminiSummary} disabled={statsAiLoading}>
-                    {statsAiLoading ? 'Gemini 분석 중...' : 'Gemini로 응답 수 요약'}
+                    {statsAiLoading ? 'AI 계산 중...' : 'AI로 중복 제외 DB 계산'}
                   </button>
                   {statsAiText && <pre className={s.aiSummary}>{statsAiText}</pre>}
 

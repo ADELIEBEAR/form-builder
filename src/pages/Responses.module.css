@@ -169,3 +169,16 @@
   pointer-events: none; white-space: nowrap;
   max-width: 320px;
 }
+
+/* 같은 폼 중복 신청 라벨 */
+.applyOrderTag {
+  font-size: 10px;
+  color: var(--danger);
+  background: rgba(248,113,113,.14);
+  border: 1px solid rgba(248,113,113,.28);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 800;
+  cursor: help;
+  white-space: nowrap;
+}

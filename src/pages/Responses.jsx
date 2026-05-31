@@ -26,11 +26,9 @@ function formatVal(v) {
   return looksLikePhone(s) ? formatPhone(s) : s
 }
 function getPhonesFromAnswers(answers) {
-  const set = new Set()
-  Object.values(answers || {}).forEach(v => {
-    if (looksLikePhone(v)) set.add(normalizePhone(v))
-  })
-  return [...set]
+  const phones = new Set()
+  Object.values(answers || {}).forEach(v => { if (looksLikePhone(v)) phones.add(normalizePhone(v)) })
+  return [...phones]
 }
 
 export default function Responses() {
@@ -101,16 +99,20 @@ export default function Responses() {
 
   async function loadCrossDupes() {
     try {
+      // 내 폼 목록
       const { data: formList } = await supabase
         .from('forms').select('id, title').eq('user_id', user.id)
       if (!formList?.length) return
 
+      // 현재 폼 제외한 다른 폼들 응답
       const otherFormIds = formList.filter(f => f.id !== formId).map(f => f.id)
       if (!otherFormIds.length) return
 
       const formTitleMap = Object.fromEntries(formList.map(f => [f.id, f.title]))
+
       const otherResp = await getResponsesForForms(otherFormIds, 'id, form_id, answers, submitted_at')
 
+      // 다른 폼에서 전화번호 수집
       const map = {}
       ;(otherResp||[]).forEach(r => {
         getPhonesFromAnswers(r.answers).forEach(n => {
@@ -158,30 +160,15 @@ export default function Responses() {
     const infos = localDupeInfoById[r.id] || []
     return infos.find(i => i.total > 1) || null
   }
-
-  function hasSameFormDuplicate(r) {
-    return (localDupeInfoById[r.id] || []).some(i => i.isDuplicate)
-  }
-
-  function hasCrossFormDuplicate(r) {
-    return getPhonesFromAnswers(r.answers).some(n => dupePhoneSet.has(n))
-  }
-
-  function isDupe(r) {
-    return hasSameFormDuplicate(r) || hasCrossFormDuplicate(r)
-  }
+  function hasSameFormDuplicate(r) { return (localDupeInfoById[r.id] || []).some(i => i.isDuplicate) }
+  function hasCrossFormDuplicate(r) { return getPhonesFromAnswers(r.answers).some(n => dupePhoneSet.has(n)) }
+  function isDupe(r) { return hasSameFormDuplicate(r) || hasCrossFormDuplicate(r) }
 
   function getDupeInfo(r) {
     const results = []
     ;(localDupeInfoById[r.id] || []).forEach(i => {
       if (i.total <= 1) return
-      results.push({
-        type: 'same',
-        phone: i.displayPhone,
-        order: i.order,
-        total: i.total,
-        label: i.isDuplicate ? `${i.order}번째 신청!` : '첫번째 신청',
-      })
+      results.push({ type: 'same', phone: i.displayPhone, order: i.order, total: i.total, isDuplicate: i.isDuplicate })
     })
     getPhonesFromAnswers(r.answers).forEach(n => {
       const others = crossDupeMap[n]
@@ -235,8 +222,7 @@ export default function Responses() {
   function downloadCSV(data=filtered) {
     const headers=['제출 시간','중복구분',...allKeys]
     const rows=data.map(r=>{
-      const info = getDupeInfo(r)
-      const tags = info.map(i => i.type === 'same' ? `같은폼 ${i.label}` : `다른폼 ${i.count}건`).join(' / ')
+      const tags = getDupeInfo(r).filter(i => i.type === 'cross' || i.isDuplicate).map(i => i.type === 'same' ? `같은폼 ${i.order}번째 신청!` : `다른폼 ${i.count}건`).join(' / ')
       return [new Date(r.submitted_at).toLocaleString('ko-KR'), tags, ...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')]
     })
     const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
@@ -252,13 +238,11 @@ export default function Responses() {
   function formatDateFull(d) { return new Date(d).toLocaleString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}) }
   function showToast(msg,type) { setToast({msg,type}); setTimeout(()=>setToast(null),3500) }
 
+  // 툴팁 핸들러
   function showDupeTooltip(e, r) {
     const info = getDupeInfo(r)
     if (!info.length) return
-    const content = info.map(i => {
-      if (i.type === 'same') return `${i.phone}\n→ 같은 폼 ${i.label} / 총 ${i.total}번 신청`
-      return `${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`
-    }).join('\n')
+    const content = info.map(i => `📵 ${i.phone}\n→ 다른 폼에서도 신청: ${i.formNames}`).join('\n')
     setTooltip({ x: e.clientX, y: e.clientY, content })
   }
 
@@ -266,6 +250,7 @@ export default function Responses() {
 
   return (
     <div className={s.wrap} onClick={() => setTooltip(null)}>
+      {/* 헤더 */}
       <header className={s.header}>
         <div className={s.headerLeft}>
           <button className={s.backBtn} onClick={() => navigate('/dashboard')}>
@@ -297,6 +282,7 @@ export default function Responses() {
         </div>
       </header>
 
+      {/* 필터 바 */}
       <div className={s.filterBar}>
         <div className={s.searchWrap}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -359,12 +345,12 @@ export default function Responses() {
                             onChange={()=>toggleSelect(r.id)} onClick={e=>e.stopPropagation()} />
                           <span className={s.respNum}>#{responses.length-responses.findIndex(x=>x.id===r.id)}</span>
                           <span className={s.respDate}>{formatDate(r.submitted_at)}</span>
-                          {localApply?.total > 1 && (
-                            <span className={`${s.applyOrderTag} ${sameFormSecondOrMore ? s.applyOrderDupe : s.applyOrderFirst}`}
+                          {sameFormSecondOrMore && (
+                            <span className={s.applyOrderTag}
                               onMouseEnter={e=>{e.stopPropagation();showDupeTooltip(e,r)}}
                               onMouseLeave={()=>setTooltip(null)}
                               onClick={e=>e.stopPropagation()}>
-                              {sameFormSecondOrMore ? `${localApply.order}번째 신청!` : '첫번째 신청'}
+                              {`${localApply.order}번째 신청!`}
                             </span>
                           )}
                           {crossDuplicate && (
@@ -394,12 +380,8 @@ export default function Responses() {
                         <div className={s.respFull}>
                           {dupeInfo.length > 0 && (
                             <div className={s.dupeWarningBox}>
-                              {dupeInfo.map((i, idx)=> i.type === 'same' ? (
-                                <span key={`${i.phone}-${idx}`} className={sameFormSecondOrMore ? s.dupeWarningPhone : s.firstApplyText}>
-                                  {i.isDuplicate ? '' : ''}{i.order === 1
-                                    ? `✅ ${i.phone} 첫번째 신청입니다. 이후 같은 폼에 총 ${i.total}번 신청 이력이 있습니다.`
-                                    : `📵 ${i.phone} 같은 폼 ${i.order}번째 신청! 첫 신청 이후 중복 후보입니다.`}
-                                </span>
+                              {dupeInfo.filter(i => i.type === 'cross' || i.isDuplicate).map((i, idx)=> i.type === 'same' ? (
+                                <span key={`${i.phone}-${idx}`} className={s.dupeWarningPhone}>📵 {i.phone} 같은 폼 {i.order}번째 신청! 첫 신청 이후 중복 후보입니다.</span>
                               ) : (
                                 <span key={`${i.phone}-${idx}`} className={s.dupeWarningPhone}>📵 {i.phone} → 다른 폼에서도 신청: {i.formNames}</span>
                               ))}
@@ -456,12 +438,12 @@ export default function Responses() {
                       <td className={s.tdNum}>{filtered.length-i}</td>
                       <td className={s.tdDate}>{formatDate(r.submitted_at)}</td>
                       <td className={s.tdDupe}>
-                        {localApply?.total > 1 && (
-                          <span className={`${s.dupeTagTable} ${localApply.order > 1 ? s.dupeTagTableDanger : s.dupeTagTableFirst}`}
+                        {localApply?.order > 1 && (
+                          <span className={s.dupeTagTable}
                             onMouseEnter={e=>{e.stopPropagation(); showDupeTooltip(e,r)}}
                             onMouseLeave={()=>setTooltip(null)}
                             onClick={e=>e.stopPropagation()}>
-                            {localApply.order > 1 ? `${localApply.order}회` : '첫'}
+                            {`${localApply.order}회`}
                           </span>
                         )}
                         {crossDuplicate && (
@@ -491,6 +473,7 @@ export default function Responses() {
         </div>
       )}
 
+      {/* 중복 툴팁 */}
       {tooltip && (
         <div className={s.dupeTooltip} style={{left: tooltip.x + 12, top: tooltip.y - 10}}
           onMouseEnter={()=>setTooltip(null)}>
