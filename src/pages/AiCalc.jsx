@@ -46,6 +46,139 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
+function getNameGuess(answers) {
+  const entries = Object.entries(answers || {})
+  const nameLike = entries.find(([key]) => ['이름', '성함', '성명', '닉네임', 'name'].some(word => String(key).toLowerCase().includes(word.toLowerCase())))
+  return nameLike?.[1] || ''
+}
+
+function getPrimaryPhone(answers) {
+  const phones = extractPhonesFromAnswers(answers)
+  return phones[0] || ''
+}
+
+function buildProcessedDbRows(responses, forms) {
+  const formMap = new Map(forms.map(f => [f.id, f]))
+  const phoneMap = new Map()
+  const noPhoneRows = []
+
+  ;(responses || []).forEach(response => {
+    const phone = getPrimaryPhone(response.answers)
+    const form = formMap.get(response.form_id) || {}
+    const entry = {
+      response,
+      phone,
+      formId: response.form_id,
+      formTitle: form.title || '제목 없음',
+      group: form.group_tag || '',
+      submittedAt: response.submitted_at,
+    }
+    if (!phone) {
+      noPhoneRows.push(entry)
+      return
+    }
+    if (!phoneMap.has(phone)) phoneMap.set(phone, [])
+    phoneMap.get(phone).push(entry)
+  })
+
+  phoneMap.forEach(entries => entries.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt)))
+
+  const processed = []
+  phoneMap.forEach((entries, phone) => {
+    const formIds = [...new Set(entries.map(e => e.formId))]
+    const sameFormIndexById = new Map()
+    const sameFormTotalById = new Map()
+
+    formIds.forEach(formId => {
+      const sameEntries = entries.filter(e => e.formId === formId)
+      sameEntries.forEach((entry, index) => {
+        sameFormIndexById.set(entry.response.id, index + 1)
+        sameFormTotalById.set(entry.response.id, sameEntries.length)
+      })
+    })
+
+    entries.forEach((entry, index) => {
+      const order = index + 1
+      const sameFormOrder = sameFormIndexById.get(entry.response.id) || 1
+      const sameFormTotal = sameFormTotalById.get(entry.response.id) || 1
+      const isRepresentative = order === 1
+      const isSameFormDuplicate = sameFormOrder > 1
+      const isCrossFormDuplicate = formIds.length > 1 && !isRepresentative
+      let duplicateType = '정상'
+      if (!isRepresentative) {
+        if (isSameFormDuplicate && formIds.length > 1) duplicateType = '같은폼+다른폼 중복'
+        else if (isSameFormDuplicate) duplicateType = '같은폼 중복'
+        else duplicateType = '다른폼 중복'
+      }
+
+      processed.push({
+        status: isRepresentative ? '대표DB' : '중복후보',
+        representative: isRepresentative ? '대표' : '제외',
+        orderLabel: `${order}번째 신청`,
+        duplicateType,
+        name: getNameGuess(entry.response.answers),
+        phone,
+        formattedPhone: formatPhone(phone),
+        formTitle: entry.formTitle,
+        group: entry.group,
+        submittedAt: entry.submittedAt,
+        totalForPhone: entries.length,
+        formCount: formIds.length,
+        sameFormOrder,
+        sameFormTotal,
+        answers: entry.response.answers || {},
+      })
+    })
+  })
+
+  noPhoneRows.forEach(entry => {
+    processed.push({
+      status: '번호없음',
+      representative: '확인필요',
+      orderLabel: '',
+      duplicateType: '번호없음',
+      name: getNameGuess(entry.response.answers),
+      phone: '',
+      formattedPhone: '',
+      formTitle: entry.formTitle,
+      group: entry.group,
+      submittedAt: entry.submittedAt,
+      totalForPhone: '',
+      formCount: '',
+      sameFormOrder: '',
+      sameFormTotal: '',
+      answers: entry.response.answers || {},
+    })
+  })
+
+  return processed.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt))
+}
+
+function buildProcessedCsvRows(processedRows, allKeys) {
+  const header = [
+    '상태', '대표여부', '중복차수', '중복구분', '이름추정', '전화번호',
+    '신청폼', '그룹', '신청일시', '동일번호 전체신청수', '동일번호 참여폼수',
+    '같은폼 신청차수', '같은폼 총신청수', ...allKeys
+  ]
+  const rows = processedRows.map(row => [
+    row.status,
+    row.representative,
+    row.orderLabel,
+    row.duplicateType,
+    row.name,
+    row.formattedPhone,
+    row.formTitle,
+    row.group,
+    row.submittedAt ? new Date(row.submittedAt).toLocaleString('ko-KR') : '',
+    row.totalForPhone,
+    row.formCount,
+    row.sameFormOrder,
+    row.sameFormTotal,
+    ...allKeys.map(key => row.answers?.[key] ?? '')
+  ])
+  return [header, ...rows]
+}
+
 function buildDuplicateAnalysis(responses, forms) {
   const formMap = new Map(forms.map(f => [f.id, f]))
   const phoneMap = new Map()
@@ -330,30 +463,36 @@ export default function AiCalc() {
     }
   }
 
+  function getAllAnswerKeys() {
+    return [...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))]
+  }
+
+  function getProcessedRows() {
+    return buildProcessedDbRows(responses, forms)
+  }
+
   function downloadAllCsv() {
     if (!analysis) return
-    const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
-    const keys = [...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))]
-    const header = ['폼명', '그룹', '제출일시', '전화번호', '중복여부', '중복구분', '동일번호 전체응답수', '동일번호 참여폼수', '같은폼 동일번호 응답수', ...keys]
-    const rows = responses.map(r => {
-      const f = formMap[r.form_id] || {}
-      const info = analysis.infoByResponse.get(r.id)
-      const phones = extractPhonesFromAnswers(r.answers)
-      return [
-        f.title || '제목 없음',
-        f.group_tag || '',
-        new Date(r.submitted_at).toLocaleString('ko-KR'),
-        info?.formattedPhone || (phones[0] ? formatPhone(phones[0]) : ''),
-        info?.duplicate ? '중복' : '',
-        info?.kind || '',
-        info?.totalForPhone || '',
-        info?.formCount || '',
-        info?.sameFormCount || '',
-        ...keys.map(k => r.answers?.[k] ?? '')
-      ]
-    })
+    const allKeys = getAllAnswerKeys()
+    const processedRows = getProcessedRows()
     const fileRange = from || to ? `${from || 'start'}_${to || 'end'}` : 'all'
-    downloadCsv(`AI중복계산_전체응답_${fileRange}.csv`, [header, ...rows])
+    downloadCsv(`AI중복계산_중복처리전체_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
+  }
+
+  function downloadRepresentativeCsv() {
+    if (!analysis) return
+    const allKeys = getAllAnswerKeys()
+    const processedRows = getProcessedRows().filter(row => row.status === '대표DB')
+    const fileRange = from || to ? `${from || 'start'}_${to || 'end'}` : 'all'
+    downloadCsv(`AI중복계산_중복제외대표DB_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
+  }
+
+  function downloadDuplicateRowsCsv() {
+    if (!analysis) return
+    const allKeys = getAllAnswerKeys()
+    const processedRows = getProcessedRows().filter(row => row.status === '중복후보')
+    const fileRange = from || to ? `${from || 'start'}_${to || 'end'}` : 'all'
+    downloadCsv(`AI중복계산_중복후보_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
   }
 
   function downloadGroupsCsv() {
@@ -376,7 +515,7 @@ export default function AiCalc() {
       <header className={s.header}>
         <div>
           <h1>AI 중복 계산 탭</h1>
-          <p>정확한 숫자는 코드가 먼저 계산하고, Gemini 3.5는 그 결과를 운영자가 보기 좋게 정리만 합니다.</p>
+          <p>정확한 숫자와 CSV는 코드가 먼저 만들고, Gemini 3.5는 그 결과를 운영자용으로 정리만 합니다.</p>
         </div>
         <button onClick={() => navigate('/dashboard')}>대시보드로 돌아가기</button>
       </header>
@@ -402,7 +541,9 @@ export default function AiCalc() {
           </section>
 
           <section className={s.actions}>
-            <button onClick={downloadAllCsv}>전체 응답 CSV</button>
+            <button className={s.representativeBtn} onClick={downloadRepresentativeCsv}>중복 제외 대표 DB CSV</button>
+            <button onClick={downloadDuplicateRowsCsv}>중복 후보 CSV</button>
+            <button onClick={downloadAllCsv}>중복처리 전체 CSV</button>
             <button onClick={downloadGroupsCsv}>중복 그룹 CSV</button>
           </section>
 
@@ -427,7 +568,7 @@ export default function AiCalc() {
       ) : (
         <section className={s.readyBox}>
           <h2>계산 전입니다</h2>
-          <p>기간을 정하고 “중복 제외 DB 계산”을 누르세요. 같은 번호는 전체 DB에서 1개로 계산하고, 같은 폼 안에서는 2번째 신청부터 중복 후보로 분리합니다.</p>
+          <p>기간을 정하고 “중복 제외 DB 계산”을 누르세요. 계산 후 대표 DB CSV, 중복 후보 CSV를 따로 받을 수 있습니다.</p>
         </section>
       )}
     </div>
