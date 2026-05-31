@@ -57,10 +57,42 @@ function getPrimaryPhone(answers) {
   return phones[0] || ''
 }
 
+const TEST_KEYWORDS = ['테스트', 'test', 'TEST', 'Test', '샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', 'ㅁㄴㅇ', '확인용', '삭제', '연습']
+const BAD_PHONE_SET = new Set([
+  '01000000000', '01011111111', '01022222222', '01033333333', '01044444444',
+  '01055555555', '01066666666', '01077777777', '01088888888', '01099999999',
+  '01012345678', '01012341234', '01012121212', '01010101010', '01098765432',
+  '01111111111', '01666666666', '01999999999'
+])
+
+function isBadPhone(phone) {
+  const n = normalizePhone(phone)
+  if (!n) return false
+  if (BAD_PHONE_SET.has(n)) return true
+  const tail = n.slice(3)
+  if (/^(\d)\1+$/.test(tail)) return true
+  if (['12345678', '23456789', '34567890', '87654321', '98765432'].some(seq => n.includes(seq))) return true
+  return false
+}
+
+function hasTestKeyword(answers, formTitle = '') {
+  const haystack = [formTitle, ...Object.keys(answers || {}), ...Object.values(answers || {})]
+    .map(v => String(v || '').toLowerCase())
+    .join(' ')
+  return TEST_KEYWORDS.some(word => haystack.includes(String(word).toLowerCase()))
+}
+
+function getExclusionReason({ answers, phone, formTitle }) {
+  if (hasTestKeyword(answers, formTitle)) return '테스트/샘플 입력'
+  if (!phone) return '전화번호 없음'
+  if (isBadPhone(phone)) return '비정상 전화번호'
+  return ''
+}
+
 function buildProcessedDbRows(responses, forms) {
   const formMap = new Map(forms.map(f => [f.id, f]))
   const phoneMap = new Map()
-  const noPhoneRows = []
+  const excludedRows = []
 
   ;(responses || []).forEach(response => {
     const phone = getPrimaryPhone(response.answers)
@@ -73,8 +105,9 @@ function buildProcessedDbRows(responses, forms) {
       group: form.group_tag || '',
       submittedAt: response.submitted_at,
     }
-    if (!phone) {
-      noPhoneRows.push(entry)
+    const exclusionReason = getExclusionReason({ answers: response.answers, phone, formTitle: entry.formTitle })
+    if (exclusionReason) {
+      excludedRows.push({ ...entry, exclusionReason })
       return
     }
     if (!phoneMap.has(phone)) phoneMap.set(phone, [])
@@ -131,15 +164,15 @@ function buildProcessedDbRows(responses, forms) {
     })
   })
 
-  noPhoneRows.forEach(entry => {
+  excludedRows.forEach(entry => {
     processed.push({
-      status: '번호없음',
-      representative: '확인필요',
+      status: '제외대상',
+      representative: '제외',
       orderLabel: '',
-      duplicateType: '번호없음',
+      duplicateType: entry.exclusionReason,
       name: getNameGuess(entry.response.answers),
-      phone: '',
-      formattedPhone: '',
+      phone: entry.phone || '',
+      formattedPhone: entry.phone ? formatPhone(entry.phone) : '',
       formTitle: entry.formTitle,
       group: entry.group,
       submittedAt: entry.submittedAt,
@@ -184,7 +217,10 @@ function buildDuplicateAnalysis(responses, forms) {
   const phoneMap = new Map()
   const phoneFormMap = new Map()
   const infoByResponse = new Map()
+  let excludedCount = 0
   let noPhoneCount = 0
+  let testInputCount = 0
+  let badPhoneCount = 0
 
   const perFormRaw = new Map(forms.map(f => [f.id, {
     phoneSet: new Set(), noPhoneCount: 0,
@@ -200,8 +236,13 @@ function buildDuplicateAnalysis(responses, forms) {
     const stats = perFormRaw.get(r.form_id)
     if (stats) stats.totalResponses += 1
 
-    if (!phones.length) {
-      noPhoneCount += 1
+    const primaryPhone = phones[0] || ''
+    const reason = getExclusionReason({ answers: r.answers, phone: primaryPhone, formTitle: form?.title || '' })
+    if (reason) {
+      excludedCount += 1
+      if (reason === '전화번호 없음') noPhoneCount += 1
+      else if (reason === '비정상 전화번호') badPhoneCount += 1
+      else testInputCount += 1
       if (stats) stats.noPhoneCount += 1
       return
     }
@@ -334,13 +375,16 @@ function buildDuplicateAnalysis(responses, forms) {
     crossFormDuplicatePhoneCount: stats.crossFormDuplicatePhones.size,
   })).sort((a, b) => b.duplicateResponses - a.duplicateResponses || b.totalResponses - a.totalResponses)
 
-  const uniqueApplicants = phoneMap.size + noPhoneCount
+  const uniqueApplicants = phoneMap.size
   return {
     summary: {
       totalResponses: responses.length,
       uniqueApplicants,
       uniquePhoneCount: phoneMap.size,
+      excludedCount,
       noPhoneCount,
+      testInputCount,
+      badPhoneCount,
       duplicateRemovalCount: Math.max(0, responses.length - uniqueApplicants),
       duplicatePhoneCount: groups.length,
       duplicateGroupCount: groups.length,
@@ -366,6 +410,8 @@ function fallbackSummary(analysis, periodLabel) {
     `- 전체 응답: ${s.totalResponses}개`,
     `- 중복 제외 DB: ${s.uniqueApplicants}개`,
     `- 중복으로 빠지는 건수: ${s.duplicateRemovalCount}개`,
+    `- 제외/검수 대상: ${s.excludedCount || 0}개`,
+    `  · 번호 없음: ${s.noPhoneCount || 0}개 / 비정상 번호: ${s.badPhoneCount || 0}개 / 테스트 입력: ${s.testInputCount || 0}개`,
     '',
     '2) 같은 폼 같은 번호 중복',
     `- 중복 그룹 수: ${s.sameFormDuplicateGroupCount}개`,
@@ -394,8 +440,6 @@ export default function AiCalc() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [loading, setLoading] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiText, setAiText] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -413,7 +457,7 @@ export default function AiCalc() {
   async function runCalculation() {
     setLoading(true)
     setError('')
-    setAiText('')
+    
     try {
       const options = {}
       if (from) options.from = dateStartIso(from)
@@ -428,38 +472,6 @@ export default function AiCalc() {
       return null
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function runAiSummary() {
-    const current = analysis ? { responses, analysis } : await runCalculation()
-    if (!current) return
-    setAiLoading(true)
-    setError('')
-    try {
-      const baseText = fallbackSummary(current.analysis, periodLabel)
-      setAiText(baseText + '\n\nGemini 3.5가 위 계산값을 운영자용으로 정리 중입니다...')
-      const res = await fetch('/.netlify/functions/gemini-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          periodLabel,
-          totalForms: forms.length,
-          totalResponses: current.responses.length,
-          duplicateSummary: current.analysis.summary,
-          duplicateGroups: current.analysis.groups.slice(0, 80),
-          rows: current.analysis.perFormStats,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'AI 분석 실패')
-      const modelLine = data.model ? `사용 모델: ${data.model}\n\n` : ''
-      setAiText(modelLine + (data.text || baseText))
-    } catch (e) {
-      setAiText(fallbackSummary(current.analysis, periodLabel))
-      setError(`AI 분석 실패: ${e.message}. 정확한 계산 결과는 아래에 표시했습니다.`)
-    } finally {
-      setAiLoading(false)
     }
   }
 
@@ -495,6 +507,14 @@ export default function AiCalc() {
     downloadCsv(`AI중복계산_중복후보_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
   }
 
+  function downloadExcludedRowsCsv() {
+    if (!analysis) return
+    const allKeys = getAllAnswerKeys()
+    const processedRows = getProcessedRows().filter(row => row.status === '제외대상')
+    const fileRange = from || to ? `${from || 'start'}_${to || 'end'}` : 'all'
+    downloadCsv(`AI중복계산_제외검수_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
+  }
+
   function downloadGroupsCsv() {
     if (!analysis) return
     const header = ['전화번호', '중복구분', '전체응답수', '중복으로빠지는건수', '참여폼수', '걸린폼']
@@ -515,16 +535,15 @@ export default function AiCalc() {
       <header className={s.header}>
         <div>
           <h1>AI 중복 계산 탭</h1>
-          <p>정확한 숫자와 CSV는 코드가 먼저 만들고, Gemini 3.5는 그 결과를 운영자용으로 정리만 합니다.</p>
+          <p>번호 기준으로 중복 제외 DB를 계산하고, 대표 DB / 중복 후보 / 전체 처리 CSV를 바로 다운로드합니다.</p>
         </div>
         <button onClick={() => navigate('/dashboard')}>대시보드로 돌아가기</button>
       </header>
 
       <section className={s.controls}>
-        <label><span>시작일</span><input type="date" value={from} onChange={e => { setFrom(e.target.value); setAnalysis(null); setAiText('') }} /></label>
-        <label><span>종료일</span><input type="date" value={to} onChange={e => { setTo(e.target.value); setAnalysis(null); setAiText('') }} /></label>
+        <label><span>시작일</span><input type="date" value={from} onChange={e => { setFrom(e.target.value); setAnalysis(null);  }} /></label>
+        <label><span>종료일</span><input type="date" value={to} onChange={e => { setTo(e.target.value); setAnalysis(null);  }} /></label>
         <button className={s.primary} onClick={runCalculation} disabled={loading || !forms.length}>{loading ? '계산 중...' : '중복 제외 DB 계산'}</button>
-        <button className={s.aiBtn} onClick={runAiSummary} disabled={loading || aiLoading || !forms.length}>{aiLoading ? 'Gemini 3.5 분석 중...' : 'Gemini 3.5로 정리'}</button>
       </section>
 
       {error && <div className={s.error}>{error}</div>}
@@ -537,19 +556,20 @@ export default function AiCalc() {
             <div><b>{analysis.summary.uniqueApplicants}</b><span>중복 제외 DB</span></div>
             <div><b>{analysis.summary.duplicateRemovalCount}</b><span>중복으로 빠짐</span></div>
             <div><b>{analysis.summary.sameFormDuplicateOnlyCount}</b><span>같은폼 2번째부터</span></div>
-            <div><b>{analysis.summary.crossFormDuplicatePhoneCount}</b><span>다른폼 중복 번호</span></div>
+            <div><b>{analysis.summary.excludedCount || 0}</b><span>제외/검수 대상</span></div>
           </section>
 
           <section className={s.actions}>
             <button className={s.representativeBtn} onClick={downloadRepresentativeCsv}>중복 제외 대표 DB CSV</button>
             <button onClick={downloadDuplicateRowsCsv}>중복 후보 CSV</button>
+            <button onClick={downloadExcludedRowsCsv}>제외/검수 CSV</button>
             <button onClick={downloadAllCsv}>중복처리 전체 CSV</button>
             <button onClick={downloadGroupsCsv}>중복 그룹 CSV</button>
           </section>
 
           <section className={s.resultBox}>
             <h2>정확한 계산 결과</h2>
-            <pre>{aiText || fallbackSummary(analysis, periodLabel)}</pre>
+            <pre>{fallbackSummary(analysis, periodLabel)}</pre>
           </section>
 
           <section className={s.listBox}>
