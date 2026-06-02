@@ -161,20 +161,29 @@ export default function Responses() {
     return infos.find(i => i.total > 1) || null
   }
   function hasSameFormDuplicate(r) { return (localDupeInfoById[r.id] || []).some(i => i.isDuplicate) }
-  function hasCrossFormDuplicate(r) { return getPhonesFromAnswers(r.answers).some(n => dupePhoneSet.has(n)) }
+
+  // 다른 폼 중복도 번호 기준 첫 신청은 정상, 이후 신청부터만 중복으로 표시
+  function getEarlierCrossEntries(r, phone) {
+    const currentTime = new Date(r.submitted_at).getTime()
+    return (crossDupeMap[phone] || []).filter(o => new Date(o.date).getTime() < currentTime)
+  }
+
+  function hasCrossFormDuplicate(r) {
+    return getPhonesFromAnswers(r.answers).some(n => getEarlierCrossEntries(r, n).length > 0)
+  }
   function isDupe(r) { return hasSameFormDuplicate(r) || hasCrossFormDuplicate(r) }
 
   function getDupeInfo(r) {
     const results = []
     ;(localDupeInfoById[r.id] || []).forEach(i => {
-      if (i.total <= 1) return
+      if (i.total <= 1 || !i.isDuplicate) return
       results.push({ type: 'same', phone: i.displayPhone, order: i.order, total: i.total, isDuplicate: i.isDuplicate })
     })
     getPhonesFromAnswers(r.answers).forEach(n => {
-      const others = crossDupeMap[n]
-      if (others?.length) {
-        const formNames = [...new Set(others.map(o => o.formTitle))].slice(0,3).join(', ')
-        results.push({ type: 'cross', phone: formatPhone(n), formNames, count: others.length })
+      const earlier = getEarlierCrossEntries(r, n)
+      if (earlier.length) {
+        const formNames = [...new Set(earlier.map(o => o.formTitle))].slice(0,3).join(', ')
+        results.push({ type: 'cross', phone: formatPhone(n), formNames, count: earlier.length })
       }
     })
     return results
@@ -397,7 +406,7 @@ export default function Responses() {
                           {allKeys.map(k=>(
                             <div key={k} className={s.answerRow}>
                               <div className={s.answerQ}>{k}</div>
-                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&(dupePhoneSet.has(normalizePhone(r.answers?.[k])) || (sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).length > 1)?s.answerADupe:''}`}>
+                              <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&(getEarlierCrossEntries(r, normalizePhone(r.answers?.[k])).length > 0 || ((sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).findIndex(e => e.responseId === r.id) > 0))?s.answerADupe:''}`}>
                                 {r.answers?.[k]
                                   ? String(r.answers[k]).startsWith('data:image')
                                     ? <img src={r.answers[k]} style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
@@ -459,7 +468,7 @@ export default function Responses() {
                         )}
                       </td>
                       {allKeys.map(k=>(
-                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&(dupePhoneSet.has(normalizePhone(r.answers?.[k])) || (sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).length > 1)?s.tdDupeCell:''}`}>
+                        <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&(getEarlierCrossEntries(r, normalizePhone(r.answers?.[k])).length > 0 || ((sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).findIndex(e => e.responseId === r.id) > 0))?s.tdDupeCell:''}`}>
                           {r.answers?.[k]
                             ? String(r.answers[k]).startsWith('data:image')
                               ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>

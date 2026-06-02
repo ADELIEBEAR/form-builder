@@ -298,7 +298,7 @@ function buildDuplicateAnalysis(responses, forms) {
     }
     if (isCrossFormDuplicate) {
       crossFormDuplicatePhoneCount += 1
-      crossFormDuplicateResponseCount += entries.length
+      crossFormDuplicateResponseCount += Math.max(0, entries.length - 1)
     }
 
     let kind = '같은폼 중복'
@@ -326,7 +326,7 @@ function buildDuplicateAnalysis(responses, forms) {
       const sameEntries = phoneFormMap.get(`${phone}::${entry.formId}`) || []
       const sameIndex = sameEntries.findIndex(e => e.id === entry.id)
       const sameFormDuplicate = sameIndex > 0
-      const crossFormDuplicate = isCrossFormDuplicate
+      const crossFormDuplicate = isCrossFormDuplicate && entries.findIndex(e => e.id === entry.id) > 0
       if (!sameFormDuplicate && !crossFormDuplicate) return
 
       let rowKind = ''
@@ -419,7 +419,7 @@ function fallbackSummary(analysis, periodLabel) {
     '',
     '3) 다른 폼까지 걸친 중복',
     `- 중복 번호 수: ${s.crossFormDuplicatePhoneCount}개`,
-    `- 해당 응답 건수: ${s.crossFormDuplicateResponseCount}개`,
+    `- 첫 신청 제외 중복 후보 건수: ${s.crossFormDuplicateResponseCount}개`,
     '',
     '4) 먼저 확인할 중복 TOP 10',
     ...(top.length ? top.map(group => `- ${group.formattedPhone} / ${group.kind} / 총 ${group.count}건 / ${group.forms.map(f => `${f.title} ${f.count}건`).join(' · ')}`) : ['- 중복 그룹 없음']),
