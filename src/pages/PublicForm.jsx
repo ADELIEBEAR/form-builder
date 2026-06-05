@@ -35,22 +35,6 @@ function isBadPhoneValue(value) {
   return ['12345678', '23456789', '34567890', '87654321', '98765432'].some(seq => n.includes(seq));
 }
 
-const BAD_NAME_KEYWORDS = ['샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', '확인용', '삭제', '연습'];
-
-function isBadNameValue(value) {
-  const v = String(value || '').trim();
-  if (!v) return false;
-  const compact = v.replace(/[\s._\-·•・,，。!@#$%^&*+=~`|\\/?:;\[\]{}()<>"']/g, '');
-  const lower = compact.toLowerCase();
-  if (!compact) return true;
-  if (compact.length < 2) return true;
-  if (/^[0-9]+$/.test(compact)) return true;
-  if (/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(compact)) return true;
-  if (/^(.)\1+$/.test(compact) && compact.length <= 4) return true;
-  if (BAD_NAME_KEYWORDS.some(k => lower.includes(k.toLowerCase()))) return true;
-  return false;
-}
-
 function answerForQuestion(answers, question, fallback) {
   const label = question?.label || fallback;
   return answers?.[label] ?? answers?.[fallback] ?? '';
@@ -64,10 +48,7 @@ function validateSubmissionAnswers(answers, questions) {
     }
     if (question.type === 'short' || question.type === 'long') {
       const label = String(question.label || '').toLowerCase();
-      const isNameField = ['이름', '성함', '성명', '닉네임', 'name'].some(word => label.includes(word.toLowerCase()));
       const isPhoneField = ['전화', '연락처', '휴대폰', '핸드폰', '번호', 'phone', 'mobile', 'tel'].some(word => label.includes(word.toLowerCase()));
-      // 이름은 오타/닉네임/짧은 값이 들어와도 전화번호가 정상이면 정상 접수한다.
-      // DB 품질 판단은 이름보다 전화번호 검증을 우선한다.
       if (isPhoneField) {
         const value = answerForQuestion(answers, question, question.label || '');
         if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
@@ -77,6 +58,46 @@ function validateSubmissionAnswers(answers, questions) {
   return '';
 }
 
+function phoneClientValidationPatch() {
+  return `<script>
+(function(){
+  try {
+    var oldVld = typeof vld === 'function' ? vld : null;
+    if (!oldVld) return;
+    var bad = new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);
+    function cleanPhone(value){
+      var n = String(value || '').replace(/[^0-9]/g, '');
+      if (n.indexOf('8210') === 0 && n.length === 12) n = '0' + n.slice(2);
+      if (n.indexOf('82') === 0 && n.length === 12) n = '0' + n.slice(2);
+      return n;
+    }
+    function goodPhone(value){
+      var n = cleanPhone(value);
+      if (!/^010\\d{8}$/.test(n)) return false;
+      if (bad.has(n)) return false;
+      var tail = n.slice(3);
+      if (/^(\\d)\\1+$/.test(tail)) return false;
+      return !['12345678','23456789','34567890','87654321','98765432'].some(function(seq){ return n.indexOf(seq) >= 0; });
+    }
+    vld = function(s){
+      var ok = oldVld(s);
+      if (ok) return true;
+      var slide = document.getElementById('sl' + s);
+      if (!slide) return false;
+      var input = slide.querySelector('input,textarea');
+      if (!input) return false;
+      var label = (slide.querySelector('.ct') && slide.querySelector('.ct').textContent) || '';
+      var isPhoneField = input.type === 'tel' || ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(function(w){ return label.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
+      var value = input.value || '';
+      if (!isPhoneField || !value || !goodPhone(value)) return false;
+      if (typeof ce === 'function') ce();
+      if (typeof ans !== 'undefined') ans[label || '전화번호'] = value.trim();
+      return true;
+    };
+  } catch(e) {}
+})();
+<\/script>`;
+}
 
 const PublicForm = () => {
   const { slug } = useParams();
@@ -102,7 +123,6 @@ const PublicForm = () => {
     link.remove();
   };
 
-  // 조회수 증가 함수 (로직 유지)
   const incrementViewCount = async (targetSlug) => {
     try {
       await supabase.rpc('increment_views', { target_slug: targetSlug });
@@ -137,7 +157,6 @@ const PublicForm = () => {
     if (slug) fetchForm();
   }, [slug]);
 
-  // 응답 제출 처리 (postMessage 방식 유지)
   useEffect(() => {
     if (!form) return;
     const handler = async (event) => {
@@ -164,14 +183,12 @@ const PublicForm = () => {
   if (loading) return <div className={styles.center}><div className={styles.spinner}></div></div>;
   if (error || !form) return <div className={styles.center}><h2>폼을 찾을 수 없습니다</h2></div>;
 
-  // ── [핵심 Fix] 다른 건 안 건드리고, 이미지 데이터만 assets로 묶어서 전달 ──
   const assets = {
-    coverImgData: form.cover_url,     // DB에서 가져온 커버 이미지
-    bgImgData: form.background_url,   // DB에서 가져온 배경 이미지
-    qImgData: form.q_images || {}     // 질문별 이미지들
+    coverImgData: form.cover_url,
+    bgImgData: form.background_url,
+    qImgData: form.q_images || {}
   };
 
-  // settings에 scriptUrl 없으면 기본 백업 URL 사용
   const settings = {
     ...(form.settings || {}),
     scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec'
@@ -185,7 +202,7 @@ const PublicForm = () => {
     assets
   );
 
-  // iframe 임베드 플래그 주입 — finishForm에서 postMessage로 전송
+  html = html.replace('</body></html>', `${phoneClientValidationPatch()}</body></html>`);
 
   return (
     <div className={styles.wrap}>
