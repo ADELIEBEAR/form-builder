@@ -60,10 +60,8 @@ function validateSubmissionAnswers(answers, questions) {
       const label = String(question.label || '').toLowerCase();
       const isNameField = ['이름', '성함', '성명', '닉네임', 'name'].some(word => label.includes(word.toLowerCase()));
       const isPhoneField = ['전화', '연락처', '휴대폰', '핸드폰', '번호', 'phone', 'mobile', 'tel'].some(word => label.includes(word.toLowerCase()));
-      if (isNameField) {
-        const value = answerForQuestion(answers, question, question.label || '');
-        if (isBadNameValue(value)) return '정확한 이름을 입력해주세요.';
-      }
+      // 이름은 오타/닉네임/짧은 값이 들어와도 전화번호가 정상이면 정상 접수한다.
+      // DB 품질 판단은 이름보다 전화번호 검증을 우선한다.
       if (isPhoneField) {
         const value = answerForQuestion(answers, question, question.label || '');
         if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
