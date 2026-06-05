@@ -5,11 +5,17 @@ import { generateFormHTML } from '../lib/generateHTML';
 import styles from './PublicForm.module.css';
 
 function normalizePhoneValue(value) {
-  return String(value || '').replace(/[-\s()]/g, '').trim();
+  let n = String(value || '').replace(/[^0-9]/g, '').trim();
+  // iframe 전화번호 입력 UI가 국가번호(+82)를 붙여 보내는 경우 보정
+  // +82 10-1234-5678 / 821012345678 -> 01012345678
+  if (n.startsWith('8210') && n.length === 12) n = '0' + n.slice(2);
+  if (n.startsWith('82') && n.length === 12) n = '0' + n.slice(2);
+  return n;
 }
 
 function looksLikeValidPhone(value) {
   const n = normalizePhoneValue(value);
+  // 국내 휴대폰 DB 기준: 010 + 8자리, 총 11자리만 정상
   return /^010\d{8}$/.test(n);
 }
 
