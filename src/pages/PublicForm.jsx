@@ -29,12 +29,19 @@ function isBadPhoneValue(value) {
   return ['12345678', '23456789', '34567890', '87654321', '98765432'].some(seq => n.includes(seq));
 }
 
+const BAD_NAME_KEYWORDS = ['샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', '확인용', '삭제', '연습'];
+
 function isBadNameValue(value) {
   const v = String(value || '').trim();
   if (!v) return false;
-  const compact = v.replace(/[\s._\-·•・,，。]+/g, '');
+  const compact = v.replace(/[\s._\-·•・,，。!@#$%^&*+=~`|\\/?:;\[\]{}()<>"']/g, '');
+  const lower = compact.toLowerCase();
   if (!compact) return true;
-  if (/^[0]+$/.test(compact)) return true;
+  if (compact.length < 2) return true;
+  if (/^[0-9]+$/.test(compact)) return true;
+  if (/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(compact)) return true;
+  if (/^(.)\1+$/.test(compact) && compact.length <= 4) return true;
+  if (BAD_NAME_KEYWORDS.some(k => lower.includes(k.toLowerCase()))) return true;
   return false;
 }
 
@@ -52,9 +59,14 @@ function validateSubmissionAnswers(answers, questions) {
     if (question.type === 'short' || question.type === 'long') {
       const label = String(question.label || '').toLowerCase();
       const isNameField = ['이름', '성함', '성명', '닉네임', 'name'].some(word => label.includes(word.toLowerCase()));
+      const isPhoneField = ['전화', '연락처', '휴대폰', '핸드폰', '번호', 'phone', 'mobile', 'tel'].some(word => label.includes(word.toLowerCase()));
       if (isNameField) {
         const value = answerForQuestion(answers, question, question.label || '');
         if (isBadNameValue(value)) return '정확한 이름을 입력해주세요.';
+      }
+      if (isPhoneField) {
+        const value = answerForQuestion(answers, question, question.label || '');
+        if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
       }
     }
   }

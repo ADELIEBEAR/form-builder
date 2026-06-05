@@ -65,13 +65,18 @@ function getRawPhoneGuess(answers) {
 function isBadName(value) {
   const s = String(value || '').trim()
   if (!s) return false
-  const compact = s.replace(/[\s._\-·•・,，。]+/g, '')
+  const compact = s.replace(/[\s._\-·•・,，。!@#$%^&*+=~`|\\/?:;\[\]{}()<>"']/g, '')
+  const lower = compact.toLowerCase()
   if (!compact) return true
-  if (/^[0]+$/.test(compact)) return true
+  if (compact.length < 2) return true
+  if (/^[0-9]+$/.test(compact)) return true
+  if (/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(compact)) return true
+  if (/^(.)\1+$/.test(compact) && compact.length <= 4) return true
+  if (['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'].some(k => lower.includes(k.toLowerCase()))) return true
   return false
 }
 
-const TEST_KEYWORDS = ['테스트', 'test', 'TEST', 'Test', '샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', 'ㅁㄴㅇ', '확인용', '삭제', '연습']
+const TEST_KEYWORDS = ['샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', 'ㅁㄴㅇ', '확인용', '삭제', '연습']
 const BAD_PHONE_SET = new Set([
   '01000000000', '01011111111', '01022222222', '01033333333', '01044444444',
   '01055555555', '01066666666', '01077777777', '01088888888', '01099999999',
@@ -99,7 +104,7 @@ function hasTestKeyword(answers, formTitle = '') {
 function getExclusionReason({ answers, phone, formTitle }) {
   const rawPhone = getRawPhoneGuess(answers)
   const name = getNameGuess(answers)
-  if (hasTestKeyword(answers, formTitle)) return '테스트/샘플 입력'
+  if (hasTestKeyword(answers, formTitle)) return '샘플/더미 입력'
   if (isBadName(name)) return '비정상 이름'
   if (!phone) return rawPhone ? '비정상 전화번호' : '전화번호 없음'
   if (isBadPhone(phone)) return '비정상 전화번호'
@@ -431,7 +436,7 @@ function fallbackSummary(analysis, periodLabel) {
     `- 중복 제외 DB: ${s.uniqueApplicants}개`,
     `- 중복으로 빠지는 건수: ${s.duplicateRemovalCount}개`,
     `- 제외/검수 대상: ${s.excludedCount || 0}개`,
-    `  · 번호 없음: ${s.noPhoneCount || 0}개 / 비정상 번호: ${s.badPhoneCount || 0}개 / 비정상 이름: ${s.badNameCount || 0}개 / 테스트 입력: ${s.testInputCount || 0}개`,
+    `  · 번호 없음: ${s.noPhoneCount || 0}개 / 비정상 번호: ${s.badPhoneCount || 0}개 / 비정상 이름: ${s.badNameCount || 0}개 / 샘플/더미 입력: ${s.testInputCount || 0}개`,
     '',
     '2) 같은 폼 같은 번호 중복',
     `- 중복 그룹 수: ${s.sameFormDuplicateGroupCount}개`,

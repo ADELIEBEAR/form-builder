@@ -43,9 +43,14 @@ function getRawPhoneGuess(answers) {
 function isBadName(value) {
   const s = String(value || '').trim()
   if (!s) return false
-  const compact = s.replace(/[\s._\-·•・,，。]+/g, '')
+  const compact = s.replace(/[\s._\-·•・,，。!@#$%^&*+=~`|\\/?:;\[\]{}()<>"']/g, '')
+  const lower = compact.toLowerCase()
   if (!compact) return true
-  if (/^[0]+$/.test(compact)) return true
+  if (compact.length < 2) return true
+  if (/^[0-9]+$/.test(compact)) return true
+  if (/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(compact)) return true
+  if (/^(.)\1+$/.test(compact) && compact.length <= 4) return true
+  if (['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'].some(k => lower.includes(k.toLowerCase()))) return true
   return false
 }
 function isBadPhoneValue(value) {
