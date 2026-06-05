@@ -64,10 +64,18 @@ function isBadPhoneValue(value) {
   return ['12345678','23456789','34567890','87654321','98765432'].some(seq => n.includes(seq))
 }
 function getBadDbReason(answers) {
-  if (isBadName(getNameGuess(answers))) return '비정상 이름'
+  // 최종 DB 품질 판정은 이름이 아니라 전화번호 기준으로만 처리한다.
+  // 이름이 한 글자거나 닉네임처럼 보여도, 정상 전화번호가 있으면 정상 DB다.
+  const phones = getPhonesFromAnswers(answers)
+  if (phones.length > 0) {
+    const validPhone = phones.find(phone => !isBadPhoneValue(phone))
+    if (validPhone) return ''
+    return '비정상 전화번호'
+  }
+
   const rawPhone = getRawPhoneGuess(answers)
-  if (isBadPhoneValue(rawPhone)) return '비정상 전화번호'
-  return ''
+  if (rawPhone) return '비정상 전화번호'
+  return '전화번호 없음'
 }
 
 export default function Responses() {
