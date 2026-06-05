@@ -31,6 +31,40 @@ function getPhonesFromAnswers(answers) {
   return [...phones]
 }
 
+const BAD_PHONE_SET = new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432'])
+function getNameGuess(answers) {
+  const entry = Object.entries(answers || {}).find(([key]) => ['이름','성함','성명','닉네임','name'].some(word => String(key).toLowerCase().includes(word.toLowerCase())))
+  return entry?.[1] || ''
+}
+function getRawPhoneGuess(answers) {
+  const entry = Object.entries(answers || {}).find(([key]) => ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(word => String(key).toLowerCase().includes(word.toLowerCase())))
+  return entry?.[1] || ''
+}
+function isBadName(value) {
+  const s = String(value || '').trim()
+  if (!s) return false
+  const compact = s.replace(/[\s._\-·•・,，。]+/g, '')
+  if (!compact) return true
+  if (/^[0]+$/.test(compact)) return true
+  return false
+}
+function isBadPhoneValue(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  const n = normalizePhone(raw)
+  if (!looksLikePhone(n)) return true
+  if (BAD_PHONE_SET.has(n)) return true
+  const tail = n.slice(3)
+  if (/^(\d)\1+$/.test(tail)) return true
+  return ['12345678','23456789','34567890','87654321','98765432'].some(seq => n.includes(seq))
+}
+function getBadDbReason(answers) {
+  if (isBadName(getNameGuess(answers))) return '비정상 이름'
+  const rawPhone = getRawPhoneGuess(answers)
+  if (isBadPhoneValue(rawPhone)) return '비정상 전화번호'
+  return ''
+}
+
 export default function Responses() {
   const { formId } = useParams()
   const { user } = useAuth()
@@ -342,6 +376,7 @@ export default function Responses() {
               <div className={s.cardGrid}>
                 {items.map(r => {
                   const dupe = isDupe(r)
+                  const badReason = getBadDbReason(r.answers)
                   const dupeInfo = getDupeInfo(r)
                   const localApply = getLocalApplyInfo(r)
                   const sameFormSecondOrMore = localApply?.order > 1
@@ -357,6 +392,9 @@ export default function Responses() {
                             onChange={()=>toggleSelect(r.id)} onClick={e=>e.stopPropagation()} />
                           <span className={s.respNum}>#{responses.length-responses.findIndex(x=>x.id===r.id)}</span>
                           <span className={s.respDate}>{formatDate(r.submitted_at)}</span>
+                          {badReason && (
+                            <span className={s.badDbTag} title={badReason}>불량DB</span>
+                          )}
                           {sameFormSecondOrMore && (
                             <span className={s.applyOrderTag}
                               onMouseEnter={e=>{e.stopPropagation();showDupeTooltip(e,r)}}
@@ -390,6 +428,9 @@ export default function Responses() {
 
                       {expandedId===r.id && (
                         <div className={s.respFull}>
+                          {badReason && (
+                            <div className={s.badDbBox}>⚠ 불량DB 검수 대상: {badReason}</div>
+                          )}
                           {dupeInfo.some(i => i.type === 'cross' || i.isDuplicate) && (
                             <div className={s.dupeWarningBox}>
                               {dupeInfo.filter(i => i.type === 'cross' || i.isDuplicate).map((i, idx)=> i.type === 'same' ? (
@@ -441,6 +482,7 @@ export default function Responses() {
               <tbody>
                 {filtered.map((r,i)=>{
                   const dupe = isDupe(r)
+                  const badReason = getBadDbReason(r.answers)
                   const localApply = getLocalApplyInfo(r)
                   const crossDuplicate = hasCrossFormDuplicate(r)
                   return (
@@ -450,6 +492,7 @@ export default function Responses() {
                       <td className={s.tdNum}>{filtered.length-i}</td>
                       <td className={s.tdDate}>{formatDate(r.submitted_at)}</td>
                       <td className={s.tdDupe}>
+                        {badReason && <span className={s.badDbTableTag} title={badReason}>불량</span>}
                         {localApply?.order > 1 && (
                           <span className={s.dupeTagTable}
                             onMouseEnter={e=>{e.stopPropagation(); showDupeTooltip(e,r)}}

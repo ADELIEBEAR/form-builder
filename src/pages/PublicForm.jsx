@@ -4,6 +4,64 @@ import { supabase } from '../lib/supabase';
 import { generateFormHTML } from '../lib/generateHTML';
 import styles from './PublicForm.module.css';
 
+function normalizePhoneValue(value) {
+  return String(value || '').replace(/[-\s()]/g, '').trim();
+}
+
+function looksLikeValidPhone(value) {
+  const n = normalizePhoneValue(value);
+  return /^01[0-9]\d{7,8}$/.test(n);
+}
+
+const BAD_PHONE_VALUES = new Set([
+  '01000000000', '01011111111', '01022222222', '01033333333', '01044444444',
+  '01055555555', '01066666666', '01077777777', '01088888888', '01099999999',
+  '01012345678', '01012341234', '01012121212', '01010101010', '01098765432'
+]);
+
+function isBadPhoneValue(value) {
+  const n = normalizePhoneValue(value);
+  if (!n) return false;
+  if (!looksLikeValidPhone(n)) return true;
+  if (BAD_PHONE_VALUES.has(n)) return true;
+  const tail = n.slice(3);
+  if (/^(\d)\1+$/.test(tail)) return true;
+  return ['12345678', '23456789', '34567890', '87654321', '98765432'].some(seq => n.includes(seq));
+}
+
+function isBadNameValue(value) {
+  const v = String(value || '').trim();
+  if (!v) return false;
+  const compact = v.replace(/[\s._\-·•・,，。]+/g, '');
+  if (!compact) return true;
+  if (/^[0]+$/.test(compact)) return true;
+  return false;
+}
+
+function answerForQuestion(answers, question, fallback) {
+  const label = question?.label || fallback;
+  return answers?.[label] ?? answers?.[fallback] ?? '';
+}
+
+function validateSubmissionAnswers(answers, questions) {
+  for (const question of questions || []) {
+    if (question.type === 'phone') {
+      const value = answerForQuestion(answers, question, '전화번호');
+      if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
+    }
+    if (question.type === 'short' || question.type === 'long') {
+      const label = String(question.label || '').toLowerCase();
+      const isNameField = ['이름', '성함', '성명', '닉네임', 'name'].some(word => label.includes(word.toLowerCase()));
+      if (isNameField) {
+        const value = answerForQuestion(answers, question, question.label || '');
+        if (isBadNameValue(value)) return '정확한 이름을 입력해주세요.';
+      }
+    }
+  }
+  return '';
+}
+
+
 const PublicForm = () => {
   const { slug } = useParams();
   const [form, setForm] = useState(null);
@@ -69,6 +127,12 @@ const PublicForm = () => {
     const handler = async (event) => {
       if (event.data?.type === 'FORM_SUBMIT') {
         try {
+          const validationMessage = validateSubmissionAnswers(event.data.answers, form.questions || []);
+          if (validationMessage) {
+            iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR', message: validationMessage }, '*');
+            alert(validationMessage);
+            return;
+          }
           openPdfFile(event.data?.pdfUrl);
           await supabase.from('responses').insert([{ form_id: form.id, answers: event.data.answers }]);
           console.log("✅ 저장 완료");

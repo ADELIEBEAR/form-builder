@@ -57,6 +57,20 @@ function getPrimaryPhone(answers) {
   return phones[0] || ''
 }
 
+function getRawPhoneGuess(answers) {
+  const entry = Object.entries(answers || {}).find(([key]) => ['전화', '연락처', '휴대폰', '핸드폰', '번호', 'phone', 'mobile', 'tel'].some(word => String(key).toLowerCase().includes(word.toLowerCase())))
+  return entry?.[1] || ''
+}
+
+function isBadName(value) {
+  const s = String(value || '').trim()
+  if (!s) return false
+  const compact = s.replace(/[\s._\-·•・,，。]+/g, '')
+  if (!compact) return true
+  if (/^[0]+$/.test(compact)) return true
+  return false
+}
+
 const TEST_KEYWORDS = ['테스트', 'test', 'TEST', 'Test', '샘플', 'sample', 'demo', 'dummy', 'asdf', 'qwer', 'ㅁㄴㅇ', '확인용', '삭제', '연습']
 const BAD_PHONE_SET = new Set([
   '01000000000', '01011111111', '01022222222', '01033333333', '01044444444',
@@ -83,8 +97,11 @@ function hasTestKeyword(answers, formTitle = '') {
 }
 
 function getExclusionReason({ answers, phone, formTitle }) {
+  const rawPhone = getRawPhoneGuess(answers)
+  const name = getNameGuess(answers)
   if (hasTestKeyword(answers, formTitle)) return '테스트/샘플 입력'
-  if (!phone) return '전화번호 없음'
+  if (isBadName(name)) return '비정상 이름'
+  if (!phone) return rawPhone ? '비정상 전화번호' : '전화번호 없음'
   if (isBadPhone(phone)) return '비정상 전화번호'
   return ''
 }
@@ -166,7 +183,7 @@ function buildProcessedDbRows(responses, forms) {
 
   excludedRows.forEach(entry => {
     processed.push({
-      status: '제외대상',
+      status: '불량DB',
       representative: '제외',
       orderLabel: '',
       duplicateType: entry.exclusionReason,
@@ -221,6 +238,7 @@ function buildDuplicateAnalysis(responses, forms) {
   let noPhoneCount = 0
   let testInputCount = 0
   let badPhoneCount = 0
+  let badNameCount = 0
 
   const perFormRaw = new Map(forms.map(f => [f.id, {
     phoneSet: new Set(), noPhoneCount: 0,
@@ -242,6 +260,7 @@ function buildDuplicateAnalysis(responses, forms) {
       excludedCount += 1
       if (reason === '전화번호 없음') noPhoneCount += 1
       else if (reason === '비정상 전화번호') badPhoneCount += 1
+      else if (reason === '비정상 이름') badNameCount += 1
       else testInputCount += 1
       if (stats) stats.noPhoneCount += 1
       return
@@ -385,6 +404,7 @@ function buildDuplicateAnalysis(responses, forms) {
       noPhoneCount,
       testInputCount,
       badPhoneCount,
+      badNameCount,
       duplicateRemovalCount: Math.max(0, responses.length - uniqueApplicants),
       duplicatePhoneCount: groups.length,
       duplicateGroupCount: groups.length,
@@ -411,7 +431,7 @@ function fallbackSummary(analysis, periodLabel) {
     `- 중복 제외 DB: ${s.uniqueApplicants}개`,
     `- 중복으로 빠지는 건수: ${s.duplicateRemovalCount}개`,
     `- 제외/검수 대상: ${s.excludedCount || 0}개`,
-    `  · 번호 없음: ${s.noPhoneCount || 0}개 / 비정상 번호: ${s.badPhoneCount || 0}개 / 테스트 입력: ${s.testInputCount || 0}개`,
+    `  · 번호 없음: ${s.noPhoneCount || 0}개 / 비정상 번호: ${s.badPhoneCount || 0}개 / 비정상 이름: ${s.badNameCount || 0}개 / 테스트 입력: ${s.testInputCount || 0}개`,
     '',
     '2) 같은 폼 같은 번호 중복',
     `- 중복 그룹 수: ${s.sameFormDuplicateGroupCount}개`,
@@ -510,7 +530,7 @@ export default function AiCalc() {
   function downloadExcludedRowsCsv() {
     if (!analysis) return
     const allKeys = getAllAnswerKeys()
-    const processedRows = getProcessedRows().filter(row => row.status === '제외대상')
+    const processedRows = getProcessedRows().filter(row => row.status === '불량DB' || row.status === '제외대상')
     const fileRange = from || to ? `${from || 'start'}_${to || 'end'}` : 'all'
     downloadCsv(`AI중복계산_제외검수_${fileRange}.csv`, buildProcessedCsvRows(processedRows, allKeys))
   }
@@ -556,13 +576,13 @@ export default function AiCalc() {
             <div><b>{analysis.summary.uniqueApplicants}</b><span>중복 제외 DB</span></div>
             <div><b>{analysis.summary.duplicateRemovalCount}</b><span>중복으로 빠짐</span></div>
             <div><b>{analysis.summary.sameFormDuplicateOnlyCount}</b><span>같은폼 2번째부터</span></div>
-            <div><b>{analysis.summary.excludedCount || 0}</b><span>제외/검수 대상</span></div>
+            <div><b>{analysis.summary.excludedCount || 0}</b><span>불량/검수 대상</span></div>
           </section>
 
           <section className={s.actions}>
             <button className={s.representativeBtn} onClick={downloadRepresentativeCsv}>중복 제외 대표 DB CSV</button>
             <button onClick={downloadDuplicateRowsCsv}>중복 후보 CSV</button>
-            <button onClick={downloadExcludedRowsCsv}>제외/검수 CSV</button>
+            <button onClick={downloadExcludedRowsCsv}>불량/검수 CSV</button>
             <button onClick={downloadAllCsv}>중복처리 전체 CSV</button>
             <button onClick={downloadGroupsCsv}>중복 그룹 CSV</button>
           </section>
