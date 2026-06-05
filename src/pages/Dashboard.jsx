@@ -10,7 +10,7 @@ import { useTheme } from '../lib/themeContext'
 const RESULTS_PATH = '/responses'
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
-function looksLikePhone(v) { return /^01[0-9]\d{7,8}$/.test(normalizePhone(v)) }
+function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 function formatPhone(v) {
   const n = normalizePhone(v)
   if (n.length === 10) return n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6)
@@ -276,7 +276,7 @@ export default function Dashboard() {
       const responses = await getResponsesForForms([form.id], 'id, form_id, answers, submitted_at')
       // 전화번호만 기준으로 중복 감지
       function normPhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
-      function isPhone(v) { return /^01[0-9]\d{7,8}$/.test(normPhone(v)) }
+      function isPhone(v) { return /^010\d{8}$/.test(normPhone(v)) }
 
       const phoneMap = {}
       responses.forEach(r => {

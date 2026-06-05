@@ -5,7 +5,7 @@ import { supabase, getResponsesForForms } from '../lib/supabase'
 import s from './Duplicates.module.css'
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
-function looksLikePhone(v) { return /^0\d{8,10}$/.test(normalizePhone(v)) }
+function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 
 export default function Duplicates() {
   const { user } = useAuth()

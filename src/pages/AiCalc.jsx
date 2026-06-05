@@ -5,7 +5,7 @@ import { getForms, getResponsesForForms } from '../lib/supabase'
 import s from './AiCalc.module.css'
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
-function looksLikePhone(v) { return /^01[0-9]\d{7,8}$/.test(normalizePhone(v)) }
+function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 function formatPhone(v) {
   const n = normalizePhone(v)
   if (n.length === 10) return n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6)

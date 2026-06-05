@@ -10,12 +10,12 @@ function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() 
 // 한국 전화번호 패턴만 인식 (010/011/016/017/018/019 + 7~8자리)
 function looksLikePhone(v) {
   const n = normalizePhone(v)
-  return /^01[0-9]\d{7,8}$/.test(n)
+  return /^010\d{8}$/.test(n)
 }
 // 전화번호 포맷 — 010-1234-5678
 function formatPhone(v) {
   const n = normalizePhone(v)
-  if (/^01[0-9]\d{7,8}$/.test(n)) {
+  if (/^010\d{8}$/.test(n)) {
     if (n.length === 10) return n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6)
     if (n.length === 11) return n.slice(0,3)+'-'+n.slice(3,7)+'-'+n.slice(7)
   }

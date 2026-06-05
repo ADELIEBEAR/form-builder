@@ -10,7 +10,7 @@ function normalizePhoneValue(value) {
 
 function looksLikeValidPhone(value) {
   const n = normalizePhoneValue(value);
-  return /^01[0-9]\d{7,8}$/.test(n);
+  return /^010\d{8}$/.test(n);
 }
 
 const BAD_PHONE_VALUES = new Set([
