@@ -112,20 +112,49 @@ function clientFormPatch() {
       }
     }, true);
 
-    function makePoliteText(){
-      var dd = document.querySelector('.dd');
-      if (dd) {
-        dd.innerHTML = dd.innerHTML
-          .replace(/안내드릴게요/g, '안내드리겠습니다')
-          .replace(/드릴게요/g, '드리겠습니다')
-          .replace(/할게요/g, '하겠습니다')
-          .replace(/최프로,/g, '최프로님,');
-      }
-      var dt = document.querySelector('.dt');
-      if (dt && dt.textContent.trim() === '신청 완료!') dt.textContent = '신청이 완료되었습니다!';
+    function politeSentence(text){
+      return String(text || '')
+        .replace(/안내드릴게요/g, '안내드리겠습니다')
+        .replace(/드릴게요/g, '드리겠습니다')
+        .replace(/해드릴게요/g, '해드리겠습니다')
+        .replace(/할게요/g, '하겠습니다')
+        .replace(/보내드릴게요/g, '보내드리겠습니다')
+        .replace(/전송할게요/g, '전송하겠습니다')
+        .replace(/공유할게요/g, '공유하겠습니다');
     }
+
+    function makePoliteText(){
+      var dt = document.querySelector('.dt');
+      if (dt && /신청\s*완료/.test(dt.textContent || '')) dt.textContent = '신청이 완료되었습니다!';
+
+      var dn = document.getElementById('dn');
+      if (dn) {
+        var raw = (dn.textContent || '').trim();
+        if (raw) {
+          var name = raw.replace(/[,，]\s*$/, '').replace(/님\s*$/, '').trim();
+          if (name) dn.textContent = name + '님, ';
+        }
+      }
+
+      var dd = document.querySelector('.dd');
+      if (dd) dd.innerHTML = politeSentence(dd.innerHTML);
+    }
+
+    var oldFinish = typeof finishForm === 'function' ? finishForm : null;
+    if (oldFinish) {
+      finishForm = function(){
+        var result = oldFinish.apply(this, arguments);
+        setTimeout(makePoliteText, 0);
+        setTimeout(makePoliteText, 80);
+        setTimeout(makePoliteText, 250);
+        setTimeout(makePoliteText, 700);
+        return result;
+      };
+    }
+
     makePoliteText();
     setTimeout(makePoliteText, 300);
+    setTimeout(makePoliteText, 1000);
   } catch(e) {}
 })();
 <\/script>`;
