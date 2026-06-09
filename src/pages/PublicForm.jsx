@@ -6,8 +6,6 @@ import styles from './PublicForm.module.css';
 
 function normalizePhoneValue(value) {
   let n = String(value || '').replace(/[^0-9]/g, '').trim();
-  // iframe 전화번호 입력 UI가 국가번호(+82)를 붙여 보내는 경우 보정
-  // +82 10-1234-5678 / 821012345678 -> 01012345678
   if (n.startsWith('8210') && n.length === 12) n = '0' + n.slice(2);
   if (n.startsWith('82') && n.length === 12) n = '0' + n.slice(2);
   return n;
@@ -15,7 +13,6 @@ function normalizePhoneValue(value) {
 
 function looksLikeValidPhone(value) {
   const n = normalizePhoneValue(value);
-  // 국내 휴대폰 DB 기준: 010 + 8자리, 총 11자리만 정상
   return /^010\d{8}$/.test(n);
 }
 
@@ -58,12 +55,10 @@ function validateSubmissionAnswers(answers, questions) {
   return '';
 }
 
-function phoneClientValidationPatch() {
+function clientFormPatch() {
   return `<script>
 (function(){
   try {
-    var oldVld = typeof vld === 'function' ? vld : null;
-    if (!oldVld) return;
     var bad = new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);
     function cleanPhone(value){
       var n = String(value || '').replace(/[^0-9]/g, '');
@@ -79,21 +74,58 @@ function phoneClientValidationPatch() {
       if (/^(\\d)\\1+$/.test(tail)) return false;
       return !['12345678','23456789','34567890','87654321','98765432'].some(function(seq){ return n.indexOf(seq) >= 0; });
     }
-    vld = function(s){
-      var ok = oldVld(s);
-      if (ok) return true;
-      var slide = document.getElementById('sl' + s);
-      if (!slide) return false;
-      var input = slide.querySelector('input,textarea');
-      if (!input) return false;
-      var label = (slide.querySelector('.ct') && slide.querySelector('.ct').textContent) || '';
-      var isPhoneField = input.type === 'tel' || ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(function(w){ return label.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
-      var value = input.value || '';
-      if (!isPhoneField || !value || !goodPhone(value)) return false;
-      if (typeof ce === 'function') ce();
-      if (typeof ans !== 'undefined') ans[label || '전화번호'] = value.trim();
-      return true;
-    };
+
+    var oldVld = typeof vld === 'function' ? vld : null;
+    if (oldVld) {
+      vld = function(s){
+        var ok = oldVld(s);
+        if (ok) return true;
+        var slide = document.getElementById('sl' + s);
+        if (!slide) return false;
+        var input = slide.querySelector('input,textarea');
+        if (!input) return false;
+        var label = (slide.querySelector('.ct') && slide.querySelector('.ct').textContent) || '';
+        var isPhoneField = input.type === 'tel' || ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(function(w){ return label.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
+        var value = input.value || '';
+        if (!isPhoneField || !value || !goodPhone(value)) return false;
+        if (typeof ce === 'function') ce();
+        if (typeof ans !== 'undefined') ans[label || '전화번호'] = value.trim();
+        return true;
+      };
+    }
+
+    document.addEventListener('keydown', function(e){
+      var tag = e.target && e.target.tagName;
+      if ((e.key === 'Enter' || e.key === 'ArrowRight') && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON')) {
+        if (tag === 'TEXTAREA') return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation && e.stopImmediatePropagation();
+        if (e.key === 'Enter') {
+          if (typeof cur !== 'undefined' && cur < 0 && typeof sf === 'function') sf();
+          else if (typeof cur !== 'undefined' && typeof TOTAL !== 'undefined' && cur < TOTAL && typeof gn === 'function') {
+            var q = (typeof QS !== 'undefined') ? QS[cur] : null;
+            if (q && q.type === 'quiz' && typeof quizCheck === 'function') quizCheck(cur);
+            else gn(cur);
+          }
+        }
+      }
+    }, true);
+
+    function makePoliteText(){
+      var dd = document.querySelector('.dd');
+      if (dd) {
+        dd.innerHTML = dd.innerHTML
+          .replace(/안내드릴게요/g, '안내드리겠습니다')
+          .replace(/드릴게요/g, '드리겠습니다')
+          .replace(/할게요/g, '하겠습니다')
+          .replace(/최프로,/g, '최프로님,');
+      }
+      var dt = document.querySelector('.dt');
+      if (dt && dt.textContent.trim() === '신청 완료!') dt.textContent = '신청이 완료되었습니다!';
+    }
+    makePoliteText();
+    setTimeout(makePoliteText, 300);
   } catch(e) {}
 })();
 <\/script>`;
@@ -191,6 +223,8 @@ const PublicForm = () => {
 
   const settings = {
     ...(form.settings || {}),
+    doneTitle: (form.settings?.doneTitle || '신청이 완료되었습니다!'),
+    doneDesc: (form.settings?.doneDesc || '신청해주셔서 감사합니다. 확인 후 안내드리겠습니다.'),
     scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec'
   };
 
@@ -202,7 +236,7 @@ const PublicForm = () => {
     assets
   );
 
-  html = html.replace('</body></html>', `${phoneClientValidationPatch()}</body></html>`);
+  html = html.replace('</body></html>', `${clientFormPatch()}</body></html>`);
 
   return (
     <div className={styles.wrap}>
