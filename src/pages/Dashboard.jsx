@@ -298,9 +298,10 @@ export default function Dashboard() {
   }
 
   // ── 전체 응답 불러오기
-  async function fetchAllResp() {
+  async function fetchAllResp(searchValue = '') {
     setPanelMode('all')
     setPanelForm(null)
+    if (searchValue) setAllRespSearch(searchValue)
     setAllRespLoading(true)
     setAllRespData(null)
     try {
@@ -476,11 +477,34 @@ export default function Dashboard() {
     fetchStatsReport()
   }
 
+  function handleDashboardSearchChange(value) {
+    setSearch(value)
+    const phoneQuery = normalizePhone(value)
+    if (phoneQuery.length < 4) {
+      if (!phoneQuery) setAllRespSearch('')
+      return
+    }
+    setAllRespSearch(value)
+    if (!isUnlocked) {
+      setPendingAction('all')
+      setInputPw('')
+      setPwError('')
+      setShowPwModal(true)
+      return
+    }
+    if (allRespData) {
+      setPanelMode('all')
+      setPanelForm(null)
+      return
+    }
+    fetchAllResp(value)
+  }
+
   function runAfterUnlock() {
     const action = pendingAction
     setPendingAction(null)
     if (action === 'stats') return fetchStatsReport()
-    if (action === 'all') return fetchAllResp()
+    if (action === 'all') return fetchAllResp(allRespSearch || search)
     if (targetFormId) {
       navigate(`${RESULTS_PATH}/${targetFormId}`)
       setTargetFormId(null)
@@ -724,7 +748,7 @@ export default function Dashboard() {
             <div className={s.topRight}>
               <div className={s.searchWrap}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input className={s.searchInp} value={search} onChange={e => setSearch(e.target.value)} placeholder="제목, 메모, 그룹 검색..." />
+                <input className={s.searchInp} value={search} onChange={e => handleDashboardSearchChange(e.target.value)} placeholder="제목, 메모, 그룹, 번호 검색..." />
               </div>
               <button className="btn btn-primary" onClick={() => navigate('/builder')}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
