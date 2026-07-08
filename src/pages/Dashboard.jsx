@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { getForms, deleteForm, publishForm, unpublishForm, signOut, getResponsesForForms } from '../lib/supabase'
@@ -214,6 +214,7 @@ export default function Dashboard() {
   const [panelForm, setPanelForm] = useState(null)   // 열린 폼 (form 모드)
   const [panelData, setPanelData] = useState(null)   // { responses, dupes }
   const [allRespData, setAllRespData] = useState(null) // 전체 응답
+  const [allRespSearch, setAllRespSearch] = useState('')
   const [allRespLoading, setAllRespLoading] = useState(false)
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes'
@@ -607,6 +608,10 @@ export default function Dashboard() {
     if (!d) return ''
     return new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
+  function formatDateFull(d) {
+    if (!d) return ''
+    return new Date(d).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  }
 
   // ── 암호 관련
   function handleAdminAction() {
@@ -653,6 +658,26 @@ export default function Dashboard() {
     const entries = Object.entries(r.answers || {}).filter(([k]) => !k.startsWith('_'))
     return entries.slice(0, 3)
   }
+
+  const allResponseSearchResults = useMemo(() => {
+    const query = normalizePhone(allRespSearch)
+    if (!query || !allRespData) return []
+    return allRespData
+      .map(r => {
+        const phones = extractPhonesFromAnswers(r.answers)
+        const values = Object.values(r.answers || {}).map(v => String(v || ''))
+        const haystack = values.join(' ').toLowerCase()
+        const matchPhone = phones.some(phone => phone.includes(query))
+        const matchText = allRespSearch.length >= 2 && haystack.includes(allRespSearch.toLowerCase())
+        if (!matchPhone && !matchText) return null
+        const form = forms.find(f => f.id === r.form_id) || {}
+        return { response: r, form, phones }
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.response.submitted_at) - new Date(a.response.submitted_at))
+  }, [allRespData, allRespSearch, forms])
+
+  const visibleAllResponses = allRespSearch ? allResponseSearchResults.map(item => item.response) : (allRespData || [])
 
   return (
     <div className={`${s.wrap} ${panelMode ? s.wrapPanelOpen : ''}`}>
@@ -994,7 +1019,51 @@ export default function Dashboard() {
                   <div className={s.panelLoading}><div className={s.spinner}></div></div>
                 ) : !allRespData ? null : allRespData.length === 0 ? (
                   <div className={s.panelEmpty}>응답이 없습니다</div>
-                ) : allRespData.map((r, i) => {
+                ) : (<>
+                  <div className={s.phoneSearchBox}>
+                    <div className={s.phoneSearchLabel}>번호 검색</div>
+                    <div className={s.phoneSearchInputWrap}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                      <input
+                        value={allRespSearch}
+                        onChange={e => setAllRespSearch(e.target.value)}
+                        placeholder="010 번호 일부만 입력"
+                      />
+                      {allRespSearch && <button onClick={() => setAllRespSearch('')}>✕</button>}
+                    </div>
+                    <div className={s.phoneSearchHint}>
+                      {allRespSearch
+                        ? `${allResponseSearchResults.length}건 찾음`
+                        : '하이픈 없이 일부 번호만 입력해도 찾습니다.'}
+                    </div>
+                  </div>
+
+                  {allRespSearch && (
+                    <div className={s.phoneResultList}>
+                      {allResponseSearchResults.length === 0 ? (
+                        <div className={s.panelEmpty}>검색된 신청이 없습니다</div>
+                      ) : allResponseSearchResults.map(item => (
+                        <div key={item.response.id} className={s.phoneResultCard}>
+                          <div className={s.phoneResultTop}>
+                            <strong>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
+                            <span>{formatDateFull(item.response.submitted_at)}</span>
+                          </div>
+                          <div className={s.phoneResultGrid}>
+                            <span>어디에 신청</span>
+                            <b>{item.form.title || '제목 없음'}</b>
+                            <span>누구 DB</span>
+                            <b>{item.form.group_tag || item.form.memo || '미지정'}</b>
+                            <span>들어온 시간</span>
+                            <b>{formatDateFull(item.response.submitted_at)}</b>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {visibleAllResponses.length === 0 ? (
+                    <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
+                  ) : visibleAllResponses.map((r, i) => {
                   const form = forms.find(f => f.id === r.form_id)
                   return (
                     <div key={r.id} className={s.respItem}>
@@ -1020,6 +1089,7 @@ export default function Dashboard() {
                     </div>
                   )
                 })}
+                </>)}
               </div>
             </>)}
 
