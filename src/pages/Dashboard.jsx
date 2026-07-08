@@ -1150,7 +1150,7 @@ export default function Dashboard() {
                       ) : displayedPhoneSearchResults.map(item => (
                         <div
                           key={item.response.id}
-                          className={s.phoneResultCard}
+                          className={`${s.phoneResultCard} ${s.panelResponseCard}`}
                           style={{ '--form-c1': item.form.theme_c1 || '#7c6cfc', '--form-c2': item.form.theme_c2 || '#c084fc' }}
                         >
                           <div className={s.phoneResultAccent} />

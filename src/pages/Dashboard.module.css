@@ -210,6 +210,9 @@
 .phoneResultCard { position: relative; overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 12px 12px 15px; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 10px 24px rgba(0,0,0,.08); }
 .phoneResultCard:hover { border-color: rgba(124,108,252,.35); }
 .panelResponseCard { gap: 8px; padding-right: 10px; }
+.panelResponseCard .phoneResultHead { align-items: flex-start; flex-direction: column; gap: 6px; }
+.panelResponseCard .phoneResultForm { max-width: 100%; width: 100%; border-radius: 9px; padding: 7px 10px; font-size: 13px; line-height: 1.35; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.panelResponseCard .phoneResultTime { align-self: flex-end; }
 .panelResponseCard .phoneResultNumber { font-size: 15px; }
 .panelResponseCard .phoneAnswerPreview { padding-top: 7px; }
 .phoneResultAccent { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(180deg, var(--form-c1), var(--form-c2)); }
