@@ -1087,25 +1087,35 @@ export default function Dashboard() {
                       ) : allResponseSearchResults.length === 0 ? (
                         <div className={s.panelEmpty}>검색된 신청이 없습니다</div>
                       ) : displayedPhoneSearchResults.map(item => (
-                        <div key={item.response.id} className={s.phoneResultCard}>
-                          <div className={s.phoneResultTop}>
-                            <strong>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
-                            <span>{formatDateFull(item.response.submitted_at)}</span>
+                        <div
+                          key={item.response.id}
+                          className={s.phoneResultCard}
+                          style={{ '--form-c1': item.form.theme_c1 || '#7c6cfc', '--form-c2': item.form.theme_c2 || '#c084fc' }}
+                        >
+                          <div className={s.phoneResultAccent} />
+                          <div className={s.phoneResultHead}>
+                            <span className={s.phoneResultForm}>{item.form.title || '제목 없음'}</span>
+                            <span className={s.phoneResultTime}>{formatDateFull(item.response.submitted_at)}</span>
                           </div>
-                          <div className={s.phoneResultGrid}>
-                            <span>어디에 신청</span>
-                            <b>{item.form.title || '제목 없음'}</b>
-                            <span>누구 DB</span>
-                            <b>{item.form.group_tag || item.form.memo || '미지정'}</b>
-                            <span>들어온 시간</span>
-                            <b>{formatDateFull(item.response.submitted_at)}</b>
+                          <strong className={s.phoneResultNumber}>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
+                          <div className={s.phoneResultMeta}>
+                            <span>DB: {item.form.group_tag || item.form.memo || '미지정'}</span>
+                            <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
+                          </div>
+                          <div className={s.phoneAnswerPreview}>
+                            {getFirstAnswers(item.response).map(([k, v]) => (
+                              <div key={k}>
+                                <span>{k}</span>
+                                <b>{formatVal(String(v)).slice(0, 42)}</b>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {isAllRespSearchTooShort ? null : visibleAllResponses.length === 0 ? (
+                  {allRespSearch ? null : visibleAllResponses.length === 0 ? (
                     <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
                   ) : visibleAllResponses.map((r, i) => {
                   const form = forms.find(f => f.id === r.form_id)
