@@ -313,9 +313,11 @@ export default function Dashboard() {
   }
 
   // ── 전체 응답 불러오기
-  async function fetchAllResp(searchValue = '') {
-    setPanelMode('all')
-    setPanelForm(null)
+  async function fetchAllResp(searchValue = '', { openPanel = true } = {}) {
+    if (openPanel) {
+      setPanelMode('all')
+      setPanelForm(null)
+    }
     if (searchValue) setAllRespSearch(searchValue)
     setAllRespLoading(true)
     setAllRespData(null)
@@ -495,24 +497,26 @@ export default function Dashboard() {
   function handleDashboardSearchChange(value) {
     setSearch(value)
     const phoneQuery = normalizePhone(value)
+    const isPhoneLikeSearch = /^\d+$/.test(phoneQuery) && phoneQuery.length > 0
+    if (!isPhoneLikeSearch) setAllRespSearch('')
+    if (isPhoneLikeSearch) {
+      setAllRespSearch(value)
+      setPanelMode(null)
+      setPanelForm(null)
+    }
     if (!canSearchPhoneQuery(phoneQuery)) {
       if (!phoneQuery) setAllRespSearch('')
       return
     }
-    setAllRespSearch(value)
     if (!isUnlocked) {
-      setPendingAction('all')
+      setPendingAction('phoneSearch')
       setInputPw('')
       setPwError('')
       setShowPwModal(true)
       return
     }
-    if (allRespData) {
-      setPanelMode('all')
-      setPanelForm(null)
-      return
-    }
-    fetchAllResp(value)
+    if (allRespData) return
+    fetchAllResp(value, { openPanel: false })
   }
 
   function runAfterUnlock() {
@@ -520,6 +524,7 @@ export default function Dashboard() {
     setPendingAction(null)
     if (action === 'stats') return fetchStatsReport()
     if (action === 'all') return fetchAllResp(allRespSearch || search)
+    if (action === 'phoneSearch') return fetchAllResp(allRespSearch || search, { openPanel: false })
     if (targetFormId) {
       navigate(`${RESULTS_PATH}/${targetFormId}`)
       setTargetFormId(null)
@@ -715,6 +720,8 @@ export default function Dashboard() {
 
   const displayedPhoneSearchResults = allResponseSearchResults.slice(0, MAX_PHONE_SEARCH_RESULTS)
   const isAllRespSearchTooShort = allRespSearch && !canSearchPhoneQuery(normalizePhone(allRespSearch))
+  const dashboardPhoneQuery = normalizePhone(search)
+  const isDashboardPhoneSearch = /^\d+$/.test(dashboardPhoneQuery) && dashboardPhoneQuery.length > 0
   const visibleAllResponses = allRespSearch
     ? displayedPhoneSearchResults.map(item => item.response)
     : (allRespData || []).slice(0, MAX_ALL_RESPONSE_PREVIEW)
@@ -774,7 +781,7 @@ export default function Dashboard() {
           </div>
 
           {/* 그룹 필터 탭 */}
-          {allGroups.length > 1 && (
+          {allGroups.length > 1 && !isDashboardPhoneSearch && (
             <div className={s.groupTabs}>
               {allGroups.map(g => (
                 <button key={g} className={`${s.groupTab} ${groupFilter === g ? s.groupTabOn : ''}`} onClick={() => { setGroupFilter(g); sessionStorage.setItem('groupFilter', g) }}>
@@ -785,7 +792,61 @@ export default function Dashboard() {
             </div>
           )}
 
-          {loading ? (
+          {isDashboardPhoneSearch ? (
+            <section className={s.mainSearchResults}>
+              <div className={s.mainSearchHeader}>
+                <div>
+                  <span className={s.mainSearchKicker}>번호 검색</span>
+                  <h2>{search}</h2>
+                  <p>
+                    {isAllRespSearchTooShort
+                      ? '010만 입력하면 너무 많아서, 010 뒤 앞자리 4개부터 찾습니다.'
+                      : allRespLoading
+                        ? '응답을 불러오는 중입니다.'
+                        : `${allResponseSearchResults.length}건 찾음 · 최대 ${MAX_PHONE_SEARCH_RESULTS}건 표시`}
+                  </p>
+                </div>
+                <button className={s.mainSearchClear} onClick={() => { setSearch(''); setAllRespSearch('') }}>검색 지우기</button>
+              </div>
+
+              {isAllRespSearchTooShort ? (
+                <div className={s.mainSearchEmpty}>예: 1234 또는 0101234처럼 입력해 주세요.</div>
+              ) : allRespLoading ? (
+                <div className={s.loadWrap}><div className={s.spinner}></div></div>
+              ) : allResponseSearchResults.length === 0 ? (
+                <div className={s.mainSearchEmpty}>검색된 신청이 없습니다.</div>
+              ) : (
+                <div className={s.mainResultGrid}>
+                  {displayedPhoneSearchResults.map(item => (
+                    <div
+                      key={item.response.id}
+                      className={s.phoneResultCard}
+                      style={{ '--form-c1': item.form.theme_c1 || '#7c6cfc', '--form-c2': item.form.theme_c2 || '#c084fc' }}
+                    >
+                      <div className={s.phoneResultAccent} />
+                      <div className={s.phoneResultHead}>
+                        <span className={s.phoneResultForm}>{item.form.title || '제목 없음'}</span>
+                        <span className={s.phoneResultTime}>{formatDateFull(item.response.submitted_at)}</span>
+                      </div>
+                      <strong className={s.phoneResultNumber}>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
+                      <div className={s.phoneResultMeta}>
+                        <span>DB: {item.form.group_tag || item.form.memo || '미지정'}</span>
+                        <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
+                      </div>
+                      <div className={s.phoneAnswerPreview}>
+                        {getFirstAnswers(item.response).map(([k, v]) => (
+                          <div key={k}>
+                            <span>{k}</span>
+                            <b>{formatVal(String(v)).slice(0, 42)}</b>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : loading ? (
             <div className={s.loadWrap}><div className={s.spinner}></div></div>
           ) : forms.length === 0 ? (
             <div className={s.emptyWrap}>
@@ -1087,25 +1148,35 @@ export default function Dashboard() {
                       ) : allResponseSearchResults.length === 0 ? (
                         <div className={s.panelEmpty}>검색된 신청이 없습니다</div>
                       ) : displayedPhoneSearchResults.map(item => (
-                        <div key={item.response.id} className={s.phoneResultCard}>
-                          <div className={s.phoneResultTop}>
-                            <strong>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
-                            <span>{formatDateFull(item.response.submitted_at)}</span>
+                        <div
+                          key={item.response.id}
+                          className={s.phoneResultCard}
+                          style={{ '--form-c1': item.form.theme_c1 || '#7c6cfc', '--form-c2': item.form.theme_c2 || '#c084fc' }}
+                        >
+                          <div className={s.phoneResultAccent} />
+                          <div className={s.phoneResultHead}>
+                            <span className={s.phoneResultForm}>{item.form.title || '제목 없음'}</span>
+                            <span className={s.phoneResultTime}>{formatDateFull(item.response.submitted_at)}</span>
                           </div>
-                          <div className={s.phoneResultGrid}>
-                            <span>어디에 신청</span>
-                            <b>{item.form.title || '제목 없음'}</b>
-                            <span>누구 DB</span>
-                            <b>{item.form.group_tag || item.form.memo || '미지정'}</b>
-                            <span>들어온 시간</span>
-                            <b>{formatDateFull(item.response.submitted_at)}</b>
+                          <strong className={s.phoneResultNumber}>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
+                          <div className={s.phoneResultMeta}>
+                            <span>DB: {item.form.group_tag || item.form.memo || '미지정'}</span>
+                            <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
+                          </div>
+                          <div className={s.phoneAnswerPreview}>
+                            {getFirstAnswers(item.response).map(([k, v]) => (
+                              <div key={k}>
+                                <span>{k}</span>
+                                <b>{formatVal(String(v)).slice(0, 42)}</b>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {isAllRespSearchTooShort ? null : visibleAllResponses.length === 0 ? (
+                  {allRespSearch ? null : visibleAllResponses.length === 0 ? (
                     <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
                   ) : visibleAllResponses.map((r, i) => {
                   const form = forms.find(f => f.id === r.form_id)
