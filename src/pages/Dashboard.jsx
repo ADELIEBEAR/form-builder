@@ -8,6 +8,9 @@ import s from './Dashboard.module.css'
 import { useTheme } from '../lib/themeContext'
 
 const RESULTS_PATH = '/responses'
+const MIN_PHONE_SEARCH_DIGITS = 7
+const MAX_PHONE_SEARCH_RESULTS = 50
+const MAX_ALL_RESPONSE_PREVIEW = 100
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
 function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
@@ -480,7 +483,7 @@ export default function Dashboard() {
   function handleDashboardSearchChange(value) {
     setSearch(value)
     const phoneQuery = normalizePhone(value)
-    if (phoneQuery.length < 4) {
+    if (phoneQuery.length < MIN_PHONE_SEARCH_DIGITS) {
       if (!phoneQuery) setAllRespSearch('')
       return
     }
@@ -685,15 +688,12 @@ export default function Dashboard() {
 
   const allResponseSearchResults = useMemo(() => {
     const query = normalizePhone(allRespSearch)
-    if (!query || !allRespData) return []
+    if (query.length < MIN_PHONE_SEARCH_DIGITS || !allRespData) return []
     return allRespData
       .map(r => {
         const phones = extractPhonesFromAnswers(r.answers)
-        const values = Object.values(r.answers || {}).map(v => String(v || ''))
-        const haystack = values.join(' ').toLowerCase()
         const matchPhone = phones.some(phone => phone.includes(query))
-        const matchText = allRespSearch.length >= 2 && haystack.includes(allRespSearch.toLowerCase())
-        if (!matchPhone && !matchText) return null
+        if (!matchPhone) return null
         const form = forms.find(f => f.id === r.form_id) || {}
         return { response: r, form, phones }
       })
@@ -701,7 +701,11 @@ export default function Dashboard() {
       .sort((a, b) => new Date(b.response.submitted_at) - new Date(a.response.submitted_at))
   }, [allRespData, allRespSearch, forms])
 
-  const visibleAllResponses = allRespSearch ? allResponseSearchResults.map(item => item.response) : (allRespData || [])
+  const displayedPhoneSearchResults = allResponseSearchResults.slice(0, MAX_PHONE_SEARCH_RESULTS)
+  const isAllRespSearchTooShort = allRespSearch && normalizePhone(allRespSearch).length < MIN_PHONE_SEARCH_DIGITS
+  const visibleAllResponses = allRespSearch
+    ? displayedPhoneSearchResults.map(item => item.response)
+    : (allRespData || []).slice(0, MAX_ALL_RESPONSE_PREVIEW)
 
   return (
     <div className={`${s.wrap} ${panelMode ? s.wrapPanelOpen : ''}`}>
@@ -748,7 +752,7 @@ export default function Dashboard() {
             <div className={s.topRight}>
               <div className={s.searchWrap}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input className={s.searchInp} value={search} onChange={e => handleDashboardSearchChange(e.target.value)} placeholder="제목, 메모, 그룹, 번호 검색..." />
+                <input className={s.searchInp} value={search} onChange={e => handleDashboardSearchChange(e.target.value)} placeholder="제목, 메모, 그룹, 번호 7자리 검색..." />
               </div>
               <button className="btn btn-primary" onClick={() => navigate('/builder')}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -1051,22 +1055,26 @@ export default function Dashboard() {
                       <input
                         value={allRespSearch}
                         onChange={e => setAllRespSearch(e.target.value)}
-                        placeholder="010 번호 일부만 입력"
+                        placeholder="번호 7자리 이상 입력"
                       />
                       {allRespSearch && <button onClick={() => setAllRespSearch('')}>✕</button>}
                     </div>
                     <div className={s.phoneSearchHint}>
-                      {allRespSearch
-                        ? `${allResponseSearchResults.length}건 찾음`
-                        : '하이픈 없이 일부 번호만 입력해도 찾습니다.'}
+                      {isAllRespSearchTooShort
+                        ? '너무 짧으면 검색량이 커서 7자리 이상부터 찾습니다.'
+                        : allRespSearch
+                          ? `${allResponseSearchResults.length}건 찾음 · 최대 ${MAX_PHONE_SEARCH_RESULTS}건 표시`
+                          : '하이픈 없이 번호 7자리 이상 입력하면 찾습니다.'}
                     </div>
                   </div>
 
                   {allRespSearch && (
                     <div className={s.phoneResultList}>
-                      {allResponseSearchResults.length === 0 ? (
+                      {isAllRespSearchTooShort ? (
+                        <div className={s.panelEmpty}>번호를 조금 더 입력해 주세요</div>
+                      ) : allResponseSearchResults.length === 0 ? (
                         <div className={s.panelEmpty}>검색된 신청이 없습니다</div>
-                      ) : allResponseSearchResults.map(item => (
+                      ) : displayedPhoneSearchResults.map(item => (
                         <div key={item.response.id} className={s.phoneResultCard}>
                           <div className={s.phoneResultTop}>
                             <strong>{item.phones.map(formatPhone).join(', ') || '번호 없음'}</strong>
@@ -1085,7 +1093,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {visibleAllResponses.length === 0 ? (
+                  {isAllRespSearchTooShort ? null : visibleAllResponses.length === 0 ? (
                     <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
                   ) : visibleAllResponses.map((r, i) => {
                   const form = forms.find(f => f.id === r.form_id)
