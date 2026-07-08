@@ -1178,29 +1178,35 @@ export default function Dashboard() {
 
                   {allRespSearch ? null : visibleAllResponses.length === 0 ? (
                     <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
-                  ) : visibleAllResponses.map((r, i) => {
+                  ) : visibleAllResponses.map((r) => {
                   const form = forms.find(f => f.id === r.form_id)
+                  const phones = extractPhonesFromAnswers(r.answers)
                   return (
-                    <div key={r.id} className={s.respItem}>
-                      <div className={s.respItemHead}>
-                        <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
+                    <div
+                      key={r.id}
+                      className={`${s.phoneResultCard} ${s.panelResponseCard}`}
+                      style={{ '--form-c1': form?.theme_c1 || '#7c6cfc', '--form-c2': form?.theme_c2 || '#c084fc' }}
+                    >
+                      <div className={s.phoneResultAccent} />
+                      <div className={s.phoneResultHead}>
+                        <span className={s.phoneResultForm}>{form?.title || '제목 없음'}</span>
+                        <span className={s.phoneResultTime}>{formatDateShort(r.submitted_at)}</span>
                       </div>
-                      {/* 폼명 + 그룹 */}
-                      <div className={s.respFormBadgeRow}>
-                        {form?.group_tag && (
-                          <span className={s.respGroupTag}>{form.group_tag}</span>
-                        )}
-                        <span className={s.respFormName}
-                          style={{background: `linear-gradient(135deg,${form?.theme_c1||'#7c6cfc'},${form?.theme_c2||'#c084fc'})`}}>
-                          {form?.title?.slice(0, 16)}{form?.title?.length > 16 ? '…' : ''}
-                        </span>
+                      <strong className={s.phoneResultNumber}>
+                        {phones.length ? phones.map(formatPhone).join(', ') : '번호 없음'}
+                      </strong>
+                      <div className={s.phoneResultMeta}>
+                        <span>DB: {form?.group_tag || form?.memo || '미지정'}</span>
+                        <span>응답 ID: {String(r.id).slice(0, 8)}</span>
                       </div>
-                      {getFirstAnswers(r).map(([k, v]) => (
-                        <div key={k} className={s.respRow}>
-                          <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
-                        </div>
-                      ))}
+                      <div className={s.phoneAnswerPreview}>
+                        {getFirstAnswers(r).map(([k, v]) => (
+                          <div key={k}>
+                            <span>{k}</span>
+                            <b>{formatVal(String(v)).slice(0, 42)}</b>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )
                 })}
