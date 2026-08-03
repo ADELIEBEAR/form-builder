@@ -177,6 +177,13 @@
 .modal p { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
 .pwInp { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 16px; color: var(--text); text-align: center; margin-bottom: 8px; outline: none; letter-spacing: 2px; }
 .pwInp:focus { border-color: var(--a1); }
+.pinDots { display: flex; justify-content: center; gap: 10px; margin: 4px 0 18px; }
+.pinDots span { width: 12px; height: 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); transition: .15s ease; }
+.pinDots .pinDotOn { border-color: var(--a1); background: var(--a1); box-shadow: 0 0 0 4px color-mix(in srgb, var(--a1) 16%, transparent); }
+.pinPad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.pinKey { min-height: 46px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 17px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
+.pinKey:hover { border-color: var(--a1); background: color-mix(in srgb, var(--a1) 10%, var(--bg)); }
+.pinKey:active { transform: translateY(1px); }
 .err { color: var(--danger); font-size: 12px; margin-bottom: 12px; }
 .mFoot { display: flex; gap: 8px; margin-top: 4px; }
 .btnGhostModal { flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 10px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }

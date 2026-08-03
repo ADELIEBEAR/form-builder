@@ -12,6 +12,10 @@ const MIN_LOCAL_PHONE_SEARCH_DIGITS = 4
 const MIN_FULL_PHONE_SEARCH_DIGITS = 7
 const MAX_PHONE_SEARCH_RESULTS = 50
 const MAX_ALL_RESPONSE_PREVIEW = 100
+const AUTH_RESET_VERSION = '2026-08-03-force-logout-0415'
+const ADMIN_UNLOCK_VERSION = '2026-08-03-admin-pin-keypad'
+const ADMIN_UNLOCK_STORAGE_KEY = 'admin_unlocked_version'
+const PIN_KEYS = ['1','2','3','4','5','6','7','8','9','clear','0','back']
 
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
 function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
@@ -216,15 +220,13 @@ export default function Dashboard() {
 
   // ── 관리자 잠금
   const currentAdminPw = String(user?.user_metadata?.admin_pw || '0415').trim()
-  const [isUnlocked, setIsUnlocked] = useState(sessionStorage.getItem('admin_unlocked') === 'true')
+  const [isUnlocked, setIsUnlocked] = useState(() => sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === ADMIN_UNLOCK_VERSION)
   const [showPwModal, setShowPwModal] = useState(false)
   const [showSetPwModal, setShowSetPwModal] = useState(false)
   const [inputPw, setInputPw] = useState('')
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [pwError, setPwError] = useState('')
-  const [pwInputReady, setPwInputReady] = useState(false)
-  const unlockPwInputName = useMemo(() => `admin-unlock-${Math.random().toString(36).slice(2)}`, [])
 
   // ── 응답 패널
   const [panelMode, setPanelMode] = useState(null)   // null | 'form' | 'all'
@@ -247,17 +249,20 @@ export default function Dashboard() {
   const [statsAiText, setStatsAiText] = useState('')
 
   useEffect(() => {
-    if (user) { loadForms(); saveGoogleToken() }
-    else setLoading(false)
-  }, [user])
+    sessionStorage.removeItem('admin_unlocked')
+    if (!user) { setLoading(false); return }
 
-  useEffect(() => {
-    if (!showPwModal) return
-    setPwInputReady(false)
-    setInputPw('')
-    const clearSoon = window.setTimeout(() => setInputPw(''), 80)
-    return () => window.clearTimeout(clearSoon)
-  }, [showPwModal])
+    if (localStorage.getItem('auth_reset_version') !== AUTH_RESET_VERSION) {
+      localStorage.setItem('auth_reset_version', AUTH_RESET_VERSION)
+      sessionStorage.removeItem(ADMIN_UNLOCK_STORAGE_KEY)
+      setIsUnlocked(false)
+      setLoading(false)
+      supabase.auth.signOut({ scope: 'global' }).finally(() => navigate('/', { replace: true }))
+      return
+    }
+
+    loadForms(); saveGoogleToken()
+  }, [user, navigate])
 
   async function saveGoogleToken() {
     try {
@@ -680,7 +685,7 @@ export default function Dashboard() {
     }
     if (inputPw === currentAdminPw) {
       setIsUnlocked(true)
-      sessionStorage.setItem('admin_unlocked', 'true')
+      sessionStorage.setItem(ADMIN_UNLOCK_STORAGE_KEY, ADMIN_UNLOCK_VERSION)
       setShowPwModal(false)
       setPwError('')
       if (afterUnlock) afterUnlock()
@@ -1239,10 +1244,21 @@ export default function Dashboard() {
             <div className={s.mIcon}>🔒</div>
             <h3>관리자 잠금 해제</h3>
             <p>비밀번호를 입력하면 응답을 확인할 수 있습니다.</p>
-            <input type="password" className={s.pwInp} value={inputPw} onChange={e => { setInputPw(e.target.value); setPwError('') }}
-              placeholder="비밀번호" autoComplete="one-time-code" name={unlockPwInputName}
-              readOnly={!pwInputReady} onPointerDown={() => setPwInputReady(true)} onFocus={() => { setPwInputReady(true); setInputPw('') }}
-              onKeyDown={e => e.key === 'Enter' && submitPassword(runAfterUnlock)} />
+            <div className={s.pinDots} aria-label="비밀번호 입력 상태">
+              {[0,1,2,3].map(i => <span key={i} className={i < inputPw.length ? s.pinDotOn : ''} />)}
+            </div>
+            <div className={s.pinPad}>
+              {PIN_KEYS.map(key => (
+                <button key={key} type="button" className={s.pinKey} onClick={() => {
+                  setPwError('')
+                  if (key === 'clear') return setInputPw('')
+                  if (key === 'back') return setInputPw(prev => prev.slice(0, -1))
+                  setInputPw(prev => (prev + key).slice(0, 8))
+                }}>
+                  {key === 'clear' ? '지움' : key === 'back' ? '←' : key}
+                </button>
+              ))}
+            </div>
             {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowPwModal(false)}>취소</button>
