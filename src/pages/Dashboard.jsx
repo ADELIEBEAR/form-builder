@@ -215,7 +215,7 @@ export default function Dashboard() {
   const groupRef = useRef(null)
 
   // ── 관리자 잠금
-  const currentAdminPw = user?.user_metadata?.admin_pw || '0000'
+  const currentAdminPw = String(user?.user_metadata?.admin_pw || '0415').trim()
   const [isUnlocked, setIsUnlocked] = useState(sessionStorage.getItem('admin_unlocked') === 'true')
   const [showPwModal, setShowPwModal] = useState(false)
   const [showSetPwModal, setShowSetPwModal] = useState(false)
@@ -223,6 +223,8 @@ export default function Dashboard() {
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [pwError, setPwError] = useState('')
+  const [pwInputReady, setPwInputReady] = useState(false)
+  const unlockPwInputName = useMemo(() => `admin-unlock-${Math.random().toString(36).slice(2)}`, [])
 
   // ── 응답 패널
   const [panelMode, setPanelMode] = useState(null)   // null | 'form' | 'all'
@@ -248,6 +250,14 @@ export default function Dashboard() {
     if (user) { loadForms(); saveGoogleToken() }
     else setLoading(false)
   }, [user])
+
+  useEffect(() => {
+    if (!showPwModal) return
+    setPwInputReady(false)
+    setInputPw('')
+    const clearSoon = window.setTimeout(() => setInputPw(''), 80)
+    return () => window.clearTimeout(clearSoon)
+  }, [showPwModal])
 
   async function saveGoogleToken() {
     try {
@@ -664,6 +674,10 @@ export default function Dashboard() {
   }
 
   function submitPassword(afterUnlock) {
+    if (!inputPw) {
+      setPwError('비밀번호를 입력해주세요.')
+      return
+    }
     if (inputPw === currentAdminPw) {
       setIsUnlocked(true)
       sessionStorage.setItem('admin_unlocked', 'true')
@@ -1224,9 +1238,10 @@ export default function Dashboard() {
           <div className={s.modal} onClick={e => e.stopPropagation()}>
             <div className={s.mIcon}>🔒</div>
             <h3>관리자 잠금 해제</h3>
-            <p>비밀번호를 입력하면 응답을 확인할 수 있습니다.<br/><span style={{fontSize:11,opacity:.6}}>(기본: 0000)</span></p>
+            <p>비밀번호를 입력하면 응답을 확인할 수 있습니다.</p>
             <input type="password" className={s.pwInp} value={inputPw} onChange={e => { setInputPw(e.target.value); setPwError('') }}
-              placeholder="비밀번호" autoFocus
+              placeholder="비밀번호" autoComplete="one-time-code" name={unlockPwInputName}
+              readOnly={!pwInputReady} onPointerDown={() => setPwInputReady(true)} onFocus={() => { setPwInputReady(true); setInputPw('') }}
               onKeyDown={e => e.key === 'Enter' && submitPassword(runAfterUnlock)} />
             {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
@@ -1244,8 +1259,8 @@ export default function Dashboard() {
             <div className={s.mIcon}>⚙️</div>
             <h3>관리자 암호 변경</h3>
             <p>기존 암호와 새 암호를 입력하세요.</p>
-            <input type="password" className={s.pwInp} value={oldPw} onChange={e => { setOldPw(e.target.value); setPwError('') }} placeholder="기존 암호" autoFocus style={{marginBottom:'8px'}} />
-            <input type="password" className={s.pwInp} value={newPw} onChange={e => { setNewPw(e.target.value); setPwError('') }} placeholder="새 암호 (4자리 이상)" onKeyDown={e => e.key === 'Enter' && saveNewPassword()} />
+            <input type="password" className={s.pwInp} value={oldPw} onChange={e => { setOldPw(e.target.value); setPwError('') }} placeholder="기존 암호" autoComplete="one-time-code" name="admin-current-passcode" style={{marginBottom:'8px'}} />
+            <input type="password" className={s.pwInp} value={newPw} onChange={e => { setNewPw(e.target.value); setPwError('') }} placeholder="새 암호 (4자리 이상)" autoComplete="one-time-code" name="admin-new-passcode" onKeyDown={e => e.key === 'Enter' && saveNewPassword()} />
             {pwError && <div className={s.err}>{pwError}</div>}
             <div className={s.mFoot}>
               <button className={s.btnGhostModal} onClick={() => setShowSetPwModal(false)}>취소</button>
