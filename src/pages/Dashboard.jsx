@@ -12,7 +12,6 @@ const MIN_LOCAL_PHONE_SEARCH_DIGITS = 4
 const MIN_FULL_PHONE_SEARCH_DIGITS = 7
 const MAX_PHONE_SEARCH_RESULTS = 50
 const MAX_ALL_RESPONSE_PREVIEW = 100
-const AUTH_RESET_VERSION = '2026-08-03-force-logout-0415'
 const ADMIN_UNLOCK_VERSION = '2026-08-03-admin-pin-keypad'
 const ADMIN_UNLOCK_STORAGE_KEY = 'admin_unlocked_version'
 const PIN_KEYS = ['1','2','3','4','5','6','7','8','9','clear','0','back']
@@ -252,17 +251,8 @@ export default function Dashboard() {
     sessionStorage.removeItem('admin_unlocked')
     if (!user) { setLoading(false); return }
 
-    if (localStorage.getItem('auth_reset_version') !== AUTH_RESET_VERSION) {
-      localStorage.setItem('auth_reset_version', AUTH_RESET_VERSION)
-      sessionStorage.removeItem(ADMIN_UNLOCK_STORAGE_KEY)
-      setIsUnlocked(false)
-      setLoading(false)
-      supabase.auth.signOut({ scope: 'global' }).finally(() => navigate('/', { replace: true }))
-      return
-    }
-
     loadForms(); saveGoogleToken()
-  }, [user, navigate])
+  }, [user])
 
   async function saveGoogleToken() {
     try {
