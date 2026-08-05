@@ -165,9 +165,9 @@
 .respNum { font-size: 10px; font-weight: 700; color: var(--a1); background: rgba(124,108,252,.1); border-radius: 4px; padding: 1px 6px; }
 .respDate { font-size: 10px; color: var(--muted); margin-left: auto; }
 .dupeTag { font-size: 10px; color: var(--danger); background: rgba(248,113,113,.12); border-radius: 4px; padding: 1px 6px; }
-.respRow { display: grid; grid-template-columns: 80px 1fr; gap: 6px; align-items: baseline; }
-.respKey { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.respVal { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.respRow { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: baseline; }
+.respKey { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; line-height: 1.45; }
+.respVal { font-size: 12px; color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.5; }
 
 /* ── 모달 ── */
 .modalBg { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 999; }
@@ -231,9 +231,9 @@
 .phoneResultMeta { display: flex; flex-wrap: wrap; gap: 5px; }
 .phoneResultMeta span { max-width: 100%; min-width: 0; font-size: 10px; color: var(--muted2); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 3px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .phoneAnswerPreview { display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 8px; }
-.phoneAnswerPreview div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: baseline; }
-.phoneAnswerPreview span { min-width: 0; font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.phoneAnswerPreview b { min-width: 0; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phoneAnswerPreview div { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: start; }
+.phoneAnswerPreview span { min-width: 0; font-size: 10px; color: var(--muted); overflow-wrap: anywhere; line-height: 1.45; }
+.phoneAnswerPreview b { min-width: 0; font-size: 12px; color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.5; }
 
 /* 시트 연결 표시 */
 .sheetConnected { font-size: 11px; color: #22c55e; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; }

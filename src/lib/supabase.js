@@ -77,11 +77,7 @@ export async function getForms(userId) {
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
   if (error) throw error
-  // questions는 문항 수만 필요하므로 개수만 남기고 내용은 제거
-  return (data || []).map(f => ({
-    ...f,
-    questions: f.questions ? Array(f.questions.length) : []
-  }))
+  return data || []
 }
 
 // 폼 하나 가져오기

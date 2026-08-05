@@ -39,6 +39,29 @@ function formatVal(v) {
   const s = String(v||'')
   return looksLikePhone(s) ? formatPhone(s) : s
 }
+function formatAnswerValue(value) {
+  if (Array.isArray(value)) return value.map(formatAnswerValue).filter(Boolean).join(', ')
+  if (value && typeof value === 'object') return Object.values(value).map(formatAnswerValue).filter(Boolean).join(', ')
+  return formatVal(String(value ?? ''))
+}
+function normalizeAnswerLabel(key, form) {
+  if (!/^q\d+$/i.test(key)) return key
+  const idx = Number(key.slice(1))
+  const question = form?.questions?.[idx] || form?.questions?.[idx - 1]
+  const label = question?.label?.trim()
+  if (label) return label
+  if (question?.type === 'multiple') return '선택 항목'
+  if (question?.type === 'phone') return '연락처'
+  return key
+}
+function answerPriority(label) {
+  const text = String(label || '').toLowerCase()
+  if (/성함|성명|이름|별칭|name/.test(text)) return 0
+  if (/전화|연락처|휴대폰|입장링크/.test(text)) return 1
+  if (/필요|받고|링크|자료|선택|정보|보고싶/.test(text)) return 2
+  if (/개인정보|동의/.test(text)) return 9
+  return 5
+}
 function csvCell(value) {
   const s = value == null ? '' : String(value)
   return `"${s.replace(/"/g, '""')}"`
@@ -706,10 +729,12 @@ export default function Dashboard() {
     return matchSearch && matchGroup
   })
 
-  // ── 패널 응답 첫 번째 값 추출
-  function getFirstAnswers(r) {
-    const entries = Object.entries(r.answers || {}).filter(([k]) => !k.startsWith('_'))
-    return entries.slice(0, 3)
+  // ── 응답 전체 값 정리
+  function getFirstAnswers(r, form) {
+    return Object.entries(r.answers || {})
+      .filter(([k, v]) => !k.startsWith('_') && v != null && String(formatAnswerValue(v)).trim())
+      .map(([k, v]) => [normalizeAnswerLabel(k, form), formatAnswerValue(v), k])
+      .sort((a, b) => answerPriority(a[0]) - answerPriority(b[0]) || a[0].localeCompare(b[0], 'ko'))
   }
 
   const allResponseSearchResults = useMemo(() => {
@@ -843,10 +868,10 @@ export default function Dashboard() {
                         <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
                       </div>
                       <div className={s.phoneAnswerPreview}>
-                        {getFirstAnswers(item.response).map(([k, v]) => (
-                          <div key={k}>
+                        {getFirstAnswers(item.response, item.form).map(([k, v, rawKey]) => (
+                          <div key={rawKey || k}>
                             <span>{k}</span>
-                            <b>{formatVal(String(v)).slice(0, 42)}</b>
+                            <b>{v}</b>
                           </div>
                         ))}
                       </div>
@@ -1011,10 +1036,10 @@ export default function Dashboard() {
                         <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
                         {panelData.dupes.find(d => d.id === r.id) && <span className={s.dupeTag}>중복</span>}
                       </div>
-                      {getFirstAnswers(r).map(([k, v]) => (
-                        <div key={k} className={s.respRow}>
+                      {getFirstAnswers(r, panelForm).map(([k, v, rawKey]) => (
+                        <div key={rawKey || k} className={s.respRow}>
                           <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
+                          <span className={s.respVal}>{v}</span>
                         </div>
                       ))}
                     </div>
@@ -1028,10 +1053,10 @@ export default function Dashboard() {
                         <span className={s.dupeTag}>중복</span>
                         <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
                       </div>
-                      {getFirstAnswers(r).map(([k, v]) => (
-                        <div key={k} className={s.respRow}>
+                      {getFirstAnswers(r, panelForm).map(([k, v, rawKey]) => (
+                        <div key={rawKey || k} className={s.respRow}>
                           <span className={s.respKey}>{k}</span>
-                          <span className={s.respVal}>{formatVal(String(v)).slice(0, 60)}</span>
+                          <span className={s.respVal}>{v}</span>
                         </div>
                       ))}
                     </div>
@@ -1173,10 +1198,10 @@ export default function Dashboard() {
                             <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
                           </div>
                           <div className={s.phoneAnswerPreview}>
-                            {getFirstAnswers(item.response).map(([k, v]) => (
-                              <div key={k}>
+                            {getFirstAnswers(item.response, item.form).map(([k, v, rawKey]) => (
+                              <div key={rawKey || k}>
                                 <span>{k}</span>
-                                <b>{formatVal(String(v)).slice(0, 42)}</b>
+                                <b>{v}</b>
                               </div>
                             ))}
                           </div>
@@ -1209,10 +1234,10 @@ export default function Dashboard() {
                         <span>응답 ID: {String(r.id).slice(0, 8)}</span>
                       </div>
                       <div className={s.phoneAnswerPreview}>
-                        {getFirstAnswers(r).map(([k, v]) => (
-                          <div key={k}>
+                        {getFirstAnswers(r, form).map(([k, v, rawKey]) => (
+                          <div key={rawKey || k}>
                             <span>{k}</span>
-                            <b>{formatVal(String(v)).slice(0, 42)}</b>
+                            <b>{v}</b>
                           </div>
                         ))}
                       </div>
