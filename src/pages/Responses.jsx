@@ -97,6 +97,7 @@ export default function Responses() {
   const [notifEnabled, setNotifEnabled] = useState(false)
   const [newCount, setNewCount] = useState(0)
   const [showDupesOnly, setShowDupesOnly] = useState(false)
+  const [showUniqueOnly, setShowUniqueOnly] = useState(false)
   const [tooltip, setTooltip] = useState(null) // {x,y,content}
   const prevCountRef = useRef(0)
   const pollRef = useRef(null)
@@ -219,6 +220,23 @@ export default function Responses() {
     return getPhonesFromAnswers(r.answers).some(n => getEarlierCrossEntries(r, n).length > 0)
   }
   function isDupe(r) { return hasSameFormDuplicate(r) || hasCrossFormDuplicate(r) }
+  function isUniqueRepresentative(r) { return !isDupe(r) }
+
+  function toggleDupesOnly() {
+    setShowDupesOnly(prev => {
+      const next = !prev
+      if (next) setShowUniqueOnly(false)
+      return next
+    })
+  }
+
+  function toggleUniqueOnly() {
+    setShowUniqueOnly(prev => {
+      const next = !prev
+      if (next) setShowDupesOnly(false)
+      return next
+    })
+  }
 
   function getDupeInfo(r) {
     const results = []
@@ -237,6 +255,7 @@ export default function Responses() {
   }
 
   const dupeCount = useMemo(() => responses.filter(isDupe).length, [responses, localDupeInfoById, crossDupeMap])
+  const uniqueCount = useMemo(() => responses.filter(isUniqueRepresentative).length, [responses, localDupeInfoById, crossDupeMap])
 
   // 필터링
   const filtered = responses
@@ -253,6 +272,7 @@ export default function Responses() {
       return Object.values(r.answers||{}).join(' ').toLowerCase().includes(search.toLowerCase())
     })
     .filter(r => showDupesOnly ? isDupe(r) : true)
+    .filter(r => showUniqueOnly ? isUniqueRepresentative(r) : true)
     .sort((a,b) => sortOrder==='desc'
       ? new Date(b.submitted_at)-new Date(a.submitted_at)
       : new Date(a.submitted_at)-new Date(b.submitted_at)
@@ -322,8 +342,14 @@ export default function Responses() {
               {filtered.length!==responses.length && <span className={s.filterBadge}>필터: {filtered.length}개</span>}
               {dupeCount > 0 && (
                 <span className={`${s.dupeBadgeHeader} ${showDupesOnly ? s.dupeBadgeOn : ''}`}
-                  onClick={() => setShowDupesOnly(p=>!p)} title="클릭해서 중복만 보기">
+                  onClick={toggleDupesOnly} title="클릭해서 중복만 보기">
                   📵 중복의심 {dupeCount}명
+                </span>
+              )}
+              {responses.length > 0 && (
+                <span className={`${s.uniqueBadgeHeader} ${showUniqueOnly ? s.uniqueBadgeOn : ''}`}
+                  onClick={toggleUniqueOnly} title="클릭해서 중복 제외 보기">
+                  중복제외 {uniqueCount}명
                 </span>
               )}
               {newCount>0 && <span className={s.newBadge} onClick={()=>setNewCount(0)}>🔴 새 응답 {newCount}개</span>}
@@ -356,10 +382,13 @@ export default function Responses() {
         </div>
         <div className={s.filterRight}>
           {dupeCount > 0 && (
-            <button className={`${s.dupeFilterBtn} ${showDupesOnly?s.dupeFilterBtnOn:''}`} onClick={()=>setShowDupesOnly(p=>!p)}>
+            <button className={`${s.dupeFilterBtn} ${showDupesOnly?s.dupeFilterBtnOn:''}`} onClick={toggleDupesOnly}>
               📵 중복만 보기 {showDupesOnly ? '✕' : ''}
             </button>
           )}
+          <button className={`${s.uniqueFilterBtn} ${showUniqueOnly?s.uniqueFilterBtnOn:''}`} onClick={toggleUniqueOnly}>
+            중복 제외 {showUniqueOnly ? '✕' : ''}
+          </button>
           <button className={s.sortBtn} onClick={()=>setSortOrder(o=>o==='desc'?'asc':'desc')}>
             {sortOrder==='desc'?'최신순 ↓':'오래된순 ↑'}
           </button>
