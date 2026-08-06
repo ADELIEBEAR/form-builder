@@ -100,6 +100,17 @@ function extractPhonesFromAnswers(answers) {
   return [...phones]
 }
 
+function buildDedupedResponses(responses) {
+  const seenPhones = new Set()
+  return (responses || []).filter(r => {
+    const phones = extractPhonesFromAnswers(r.answers)
+    if (!phones.length) return true
+    if (phones.some(phone => seenPhones.has(phone))) return false
+    phones.forEach(phone => seenPhones.add(phone))
+    return true
+  })
+}
+
 function buildDuplicateAnalysis(responses, forms) {
   const formMap = new Map(forms.map(f => [f.id, f]))
   const phoneMap = new Map()
@@ -253,12 +264,12 @@ export default function Dashboard() {
   // ── 응답 패널
   const [panelMode, setPanelMode] = useState(null)   // null | 'form' | 'all'
   const [panelForm, setPanelForm] = useState(null)   // 열린 폼 (form 모드)
-  const [panelData, setPanelData] = useState(null)   // { responses, dupes }
+  const [panelData, setPanelData] = useState(null)   // { responses, dupes, deduped }
   const [allRespData, setAllRespData] = useState(null) // 전체 응답
   const [allRespSearch, setAllRespSearch] = useState('')
   const [allRespLoading, setAllRespLoading] = useState(false)
   const [panelLoading, setPanelLoading] = useState(false)
-  const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes'
+  const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes' | 'deduped'
 
   // ── 전체 폼 통계 / 기간 CSV / Gemini 요약
   const [statsFrom, setStatsFrom] = useState('')
@@ -335,7 +346,8 @@ export default function Dashboard() {
       const dupeIds = new Set()
       Object.values(phoneMap).forEach(ids => { if (ids.length > 1) ids.forEach(id => dupeIds.add(id)) })
       const dupes = responses.filter(r => dupeIds.has(r.id))
-      setPanelData({ responses, dupes })
+      const deduped = buildDedupedResponses(responses)
+      setPanelData({ responses, dupes, deduped })
     } catch { showToast('응답을 불러오지 못했습니다.', 'fail') }
     finally { setPanelLoading(false) }
   }
@@ -1022,6 +1034,10 @@ export default function Dashboard() {
                   중복 의심
                   {panelData?.dupes.length > 0 && <span className={s.dupeBadge}>{panelData.dupes.length}</span>}
                 </button>
+                <button className={`${s.panelTab} ${panelTab === 'deduped' ? s.panelTabOn : ''}`} onClick={() => setPanelTab('deduped')}>
+                  중복 제외
+                  {panelData?.deduped && <span className={s.dupeBadge}>{panelData.deduped.length}</span>}
+                </button>
               </div>
               <div className={s.panelBody}>
                 {panelLoading ? (
@@ -1035,6 +1051,23 @@ export default function Dashboard() {
                         <span className={s.respNum}>#{panelData.responses.length - i}</span>
                         <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
                         {panelData.dupes.find(d => d.id === r.id) && <span className={s.dupeTag}>중복</span>}
+                      </div>
+                      {getFirstAnswers(r, panelForm).map(([k, v, rawKey]) => (
+                        <div key={rawKey || k} className={s.respRow}>
+                          <span className={s.respKey}>{k}</span>
+                          <span className={s.respVal}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                ) : panelTab === 'deduped' ? (
+                  panelData.deduped.length === 0 ? (
+                    <div className={s.panelEmpty}>표시할 응답이 없습니다</div>
+                  ) : panelData.deduped.map((r, i) => (
+                    <div key={r.id} className={s.respItem}>
+                      <div className={s.respItemHead}>
+                        <span className={s.respNum}>#{panelData.deduped.length - i}</span>
+                        <span className={s.respDate}>{formatDateShort(r.submitted_at)}</span>
                       </div>
                       {getFirstAnswers(r, panelForm).map(([k, v, rawKey]) => (
                         <div key={rawKey || k} className={s.respRow}>
