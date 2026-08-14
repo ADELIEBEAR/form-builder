@@ -55,6 +55,16 @@ function validateSubmissionAnswers(answers, questions) {
   return '';
 }
 
+async function saveResponse(formId, answers) {
+  const response = await fetch('/.netlify/functions/submit-response', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ formId, answers }),
+  });
+
+  if (!response.ok) throw new Error('응답을 저장하지 못했습니다.');
+}
+
 function clientFormPatch() {
   return `<script>
 (function(){
@@ -230,7 +240,7 @@ const PublicForm = () => {
             return;
           }
           openPdfFile(event.data?.pdfUrl);
-          await supabase.from('responses').insert([{ form_id: form.id, answers: event.data.answers }]);
+          await saveResponse(form.id, event.data.answers);
           console.log("✅ 저장 완료");
         } catch (err) {
           iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR' }, '*');
