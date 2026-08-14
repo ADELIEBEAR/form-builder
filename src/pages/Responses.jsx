@@ -269,7 +269,8 @@ export default function Responses() {
     })
     .filter(r => {
       if (!search) return true
-      return Object.values(r.answers||{}).join(' ').toLowerCase().includes(search.toLowerCase())
+      const haystack = [r.ip_address, ...Object.values(r.answers||{})].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(search.toLowerCase())
     })
     .filter(r => showDupesOnly ? isDupe(r) : true)
     .filter(r => showUniqueOnly ? isUniqueRepresentative(r) : true)
@@ -296,10 +297,10 @@ export default function Responses() {
   })
 
   function downloadCSV(data=filtered) {
-    const headers=['제출 시간','중복구분',...allKeys]
+    const headers=['제출 시간','IP 주소','중복구분',...allKeys]
     const rows=data.map(r=>{
       const tags = getDupeInfo(r).filter(i => i.type === 'cross' || i.isDuplicate).map(i => i.type === 'same' ? `같은폼 ${i.order}번째 신청!` : `다른폼 ${i.count}건`).join(' / ')
-      return [new Date(r.submitted_at).toLocaleString('ko-KR'), tags, ...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')]
+      return [new Date(r.submitted_at).toLocaleString('ko-KR'), r.ip_address || '', tags, ...allKeys.map(k=>r.answers?.[k]?formatVal(r.answers[k]):'')]
     })
     const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
     const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'})
@@ -486,6 +487,10 @@ export default function Responses() {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                             {formatDateFull(r.submitted_at)}
                           </div>
+                          <div className={s.ipRow}>
+                            <span className={s.ipLabel}>IP 주소</span>
+                            <span className={s.ipValue}>{r.ip_address || '기록 없음'}</span>
+                          </div>
                           {allKeys.map(k=>(
                             <div key={k} className={s.answerRow}>
                               <div className={s.answerQ}>{k}</div>
@@ -517,6 +522,7 @@ export default function Responses() {
                   <th className={s.thCheck}><input type="checkbox" className={s.checkbox} checked={selected.size===filtered.length&&filtered.length>0} onChange={toggleSelectAll}/></th>
                   <th className={s.thNum}>#</th>
                   <th className={s.thDate}>제출 시간</th>
+                  <th className={s.thIp}>IP 주소</th>
                   <th className={s.thDupe}>중복</th>
                   {allKeys.map(k=><th key={k} className={s.th}>{k}</th>)}
                 </tr>
@@ -533,6 +539,7 @@ export default function Responses() {
                       <td className={s.tdCheck}><input type="checkbox" className={s.checkbox} checked={selected.has(r.id)} onChange={()=>toggleSelect(r.id)} onClick={e=>e.stopPropagation()}/></td>
                       <td className={s.tdNum}>{filtered.length-i}</td>
                       <td className={s.tdDate}>{formatDate(r.submitted_at)}</td>
+                      <td className={s.tdIp}>{r.ip_address || '-'}</td>
                       <td className={s.tdDupe}>
                         {badReason && <span className={s.badDbTableTag} title={badReason}>불량</span>}
                         {localApply?.order > 1 && (
