@@ -230,6 +230,7 @@
 .phoneResultNumber { font-size: 17px; line-height: 1.2; color: var(--text); letter-spacing: .2px; }
 .phoneResultMeta { display: flex; flex-wrap: wrap; gap: 5px; }
 .phoneResultMeta span { max-width: 100%; min-width: 0; font-size: 10px; color: var(--muted2); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 3px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phoneResultMeta .phoneResultIp { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text); }
 .phoneAnswerPreview { display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 8px; }
 .phoneAnswerPreview div { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: start; }
 .phoneAnswerPreview span { min-width: 0; font-size: 10px; color: var(--muted); overflow-wrap: anywhere; line-height: 1.45; }
