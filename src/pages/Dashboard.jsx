@@ -365,7 +365,7 @@ export default function Dashboard() {
       // 폼 목록 (그룹 태그 포함)
       const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
 
-      const data = await getResponsesForForms(forms.map(f => f.id), 'id, form_id, answers, submitted_at')
+      const data = await getResponsesForForms(forms.map(f => f.id), 'id, form_id, answers, submitted_at, ip_address')
 
       setAllRespData(data || [])
     } catch { showToast('전체 응답을 불러오지 못했습니다.', 'fail') }
@@ -878,6 +878,7 @@ export default function Dashboard() {
                       <div className={s.phoneResultMeta}>
                         <span>DB: {item.form.group_tag || item.form.memo || '미지정'}</span>
                         <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
+                        <span className={s.phoneResultIp}>IP: {item.response.ip_address || '기록 없음'}</span>
                       </div>
                       <div className={s.phoneAnswerPreview}>
                         {getFirstAnswers(item.response, item.form).map(([k, v, rawKey]) => (
@@ -1229,6 +1230,7 @@ export default function Dashboard() {
                           <div className={s.phoneResultMeta}>
                             <span>DB: {item.form.group_tag || item.form.memo || '미지정'}</span>
                             <span>응답 ID: {String(item.response.id).slice(0, 8)}</span>
+                            <span className={s.phoneResultIp}>IP: {item.response.ip_address || '기록 없음'}</span>
                           </div>
                           <div className={s.phoneAnswerPreview}>
                             {getFirstAnswers(item.response, item.form).map(([k, v, rawKey]) => (
@@ -1265,6 +1267,7 @@ export default function Dashboard() {
                       <div className={s.phoneResultMeta}>
                         <span>DB: {form?.group_tag || form?.memo || '미지정'}</span>
                         <span>응답 ID: {String(r.id).slice(0, 8)}</span>
+                        <span className={s.phoneResultIp}>IP: {r.ip_address || '기록 없음'}</span>
                       </div>
                       <div className={s.phoneAnswerPreview}>
                         {getFirstAnswers(r, form).map(([k, v, rawKey]) => (
