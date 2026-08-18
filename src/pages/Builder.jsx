@@ -13,6 +13,63 @@ const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식',
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
 let UID = 0
 const nid = () => ++UID
+const IMAGE_PRESETS = {
+  cover: { maxWidth: 1400, maxHeight: 900, quality: 0.78 },
+  background: { maxWidth: 1600, maxHeight: 1000, quality: 0.72 },
+  question: { maxWidth: 1200, maxHeight: 760, quality: 0.76 },
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = ev => resolve(ev.target.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+function estimateDataUrlBytes(dataUrl) {
+  const payload = String(dataUrl || '').split(',')[1] || ''
+  return Math.round(payload.length * 0.75)
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0KB'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+}
+
+async function optimizeImageFile(file, preset) {
+  const original = await fileToDataUrl(file)
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return { dataUrl: original, originalBytes: file.size, optimizedBytes: estimateDataUrlBytes(original) }
+
+  const img = await loadImage(original)
+  const scale = Math.min(1, preset.maxWidth / img.width, preset.maxHeight / img.height)
+  const width = Math.max(1, Math.round(img.width * scale))
+  const height = Math.max(1, Math.round(img.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d', { alpha: true })
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, 0, 0, width, height)
+
+  const optimized = canvas.toDataURL('image/webp', preset.quality)
+  const optimizedBytes = estimateDataUrlBytes(optimized)
+  if (optimizedBytes >= estimateDataUrlBytes(original)) return { dataUrl: original, originalBytes: file.size, optimizedBytes: estimateDataUrlBytes(original) }
+  return { dataUrl: optimized, originalBytes: file.size, optimizedBytes }
+}
 
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
@@ -203,8 +260,24 @@ export default function Builder() {
     setDragSrc(null)
   }
 
-  function onCoverImg(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setCoverImgData(ev.target.result); r.readAsDataURL(f) }
-  function onQImg(e, id) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setQImgData(prev => ({ ...prev, [id]: ev.target.result })); r.readAsDataURL(f) }
+  async function handleImageUpload(e, presetKey, onReady) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    try {
+      const result = await optimizeImageFile(f, IMAGE_PRESETS[presetKey])
+      onReady(result.dataUrl)
+      if (result.optimizedBytes < result.originalBytes) {
+        showToast(`이미지 최적화 완료 (${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)})`, 'ok')
+      }
+    } catch {
+      showToast('이미지를 처리하지 못했습니다.', 'fail')
+    } finally {
+      e.target.value = ''
+    }
+  }
+  function onCoverImg(e) { handleImageUpload(e, 'cover', setCoverImgData) }
+  function onBgImg(e) { handleImageUpload(e, 'background', setBgImgData) }
+  function onQImg(e, id) { handleImageUpload(e, 'question', dataUrl => setQImgData(prev => ({ ...prev, [id]: dataUrl }))) }
   function setSetting(key, val) { setSettings(prev => ({ ...prev, [key]: val })) }
   function showToast(msg, type) { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
   const genHTML = () => generateFormHTML(title, questions, theme, settings, { coverImgData, qImgData, bgImgData })
@@ -327,10 +400,7 @@ export default function Builder() {
                         </div>
                       : <label className={s.bgUpload}>
                           🖼️ 배경 이미지 업로드
-                          <input type="file" accept="image/*" style={{display:'none'}} onChange={e => {
-                            const f = e.target.files[0]; if (!f) return
-                            const r = new FileReader(); r.onload = ev => setBgImgData(ev.target.result); r.readAsDataURL(f)
-                          }} />
+                          <input type="file" accept="image/*" style={{display:'none'}} onChange={onBgImg} />
                         </label>
                     }
                     {bgImgData && <>

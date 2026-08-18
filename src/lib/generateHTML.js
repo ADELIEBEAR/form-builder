@@ -68,7 +68,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const slides = questions.map((q, i) => {
     const imgH = qImgData[q.id]
-      ? `<img src="${qImgData[q.id]}" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:180px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`
+      ? `<img src="${qImgData[q.id]}" loading="lazy" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:180px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`
       : ''
     let field = ''
     if (q.type === 'short') {
@@ -134,7 +134,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const firstShortLabel = questions.find(q=>q.type==='short')?.label||''
 
   const startHTML = useStart ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
-    ${coverImgData?`<img src="${coverImgData}" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:200px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`:'' }
+    ${coverImgData?`<img src="${coverImgData}" loading="eager" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:200px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`:'' }
     <div class="stag">${esc(startTag)}</div>
     <div class="stit">${esc(title).replace(/\n/g,'<br>')}</div>
     ${startDesc?`<div class="sdesc">${esc(startDesc)}</div>`:''}

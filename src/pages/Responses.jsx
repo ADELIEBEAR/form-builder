@@ -497,7 +497,7 @@ export default function Responses() {
                               <div className={`${s.answerA} ${looksLikePhone(r.answers?.[k])&&(getEarlierCrossEntries(r, normalizePhone(r.answers?.[k])).length > 0 || ((sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).findIndex(e => e.responseId === r.id) > 0))?s.answerADupe:''}`}>
                                 {r.answers?.[k]
                                   ? String(r.answers[k]).startsWith('data:image')
-                                    ? <img src={r.answers[k]} style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
+                                    ? <img src={r.answers[k]} loading="lazy" decoding="async" style={{maxWidth:120,maxHeight:80,borderRadius:6,objectFit:'cover'}} alt="이미지" />
                                     : r.answers[k]
                                   : <span style={{color:'var(--muted)'}}>-</span>
                                 }
@@ -563,7 +563,7 @@ export default function Responses() {
                         <td key={k} className={`${s.td} ${looksLikePhone(r.answers?.[k])&&(getEarlierCrossEntries(r, normalizePhone(r.answers?.[k])).length > 0 || ((sameFormPhoneMap[normalizePhone(r.answers?.[k])] || []).findIndex(e => e.responseId === r.id) > 0))?s.tdDupeCell:''}`}>
                           {r.answers?.[k]
                             ? String(r.answers[k]).startsWith('data:image')
-                              ? <img src={r.answers[k]} style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>
+                              ? <img src={r.answers[k]} loading="lazy" decoding="async" style={{maxWidth:60,maxHeight:40,borderRadius:4,objectFit:'cover'}} alt="이미지"/>
                               : formatVal(r.answers[k])
                             : '-'}
                         </td>

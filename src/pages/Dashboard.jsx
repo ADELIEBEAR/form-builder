@@ -309,6 +309,13 @@ export default function Dashboard() {
     } finally { setLoading(false) }
   }
 
+  function goDuplicates(e) {
+    e?.preventDefault()
+    e?.stopPropagation()
+    setPanelMode(null)
+    navigate('/duplicates')
+  }
+
   // ── 응답 패널 열기
   async function openPanel(form, e) {
     e?.stopPropagation()
@@ -784,8 +791,8 @@ export default function Dashboard() {
           <button className={`${s.adminBtn} ${isUnlocked ? s.unlocked : ''}`} onClick={handleAdminAction}>
             {isUnlocked ? '🔓 암호 변경' : '🔒 잠금 해제'}
           </button>
-          <button className={s.aiCalcBtn || s.statsBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산</button>
-          <button className={s.dupeBtn} onClick={() => navigate('/duplicates')}>📵 중복 체크</button>
+          <button type="button" className={s.aiCalcBtn || s.statsBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산</button>
+          <button type="button" className={s.dupeBtn} onClick={goDuplicates}>📵 중복 체크</button>
           <button className={`${s.allRespBtn} ${panelMode === 'all' ? s.allRespBtnOn : ''}`}
             onClick={() => {
               if (panelMode === 'all') { setPanelMode(null); return }

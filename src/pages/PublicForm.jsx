@@ -255,9 +255,9 @@ const PublicForm = () => {
   if (error || !form) return <div className={styles.center}><h2>폼을 찾을 수 없습니다</h2></div>;
 
   const assets = {
-    coverImgData: form.cover_url,
-    bgImgData: form.background_url,
-    qImgData: form.q_images || {}
+    coverImgData: form.cover_url || form.settings?.coverImgData || null,
+    bgImgData: form.background_url || form.settings?.bgImgData || null,
+    qImgData: form.q_images || form.settings?.qImgData || {}
   };
 
   const settings = {
