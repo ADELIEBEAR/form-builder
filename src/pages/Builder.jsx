@@ -473,10 +473,6 @@ export default function Builder() {
                     <SetRow label="시작 버튼 텍스트" light={isLight}>
                       <input className={s.inp} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
                     </SetRow>
-                    <SetRow label="커버 이미지" light={isLight}>
-                      <label className={s.fileBtn}>📷 이미지 선택<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
-                      {coverImgData && <button className={s.fileDelBtn} onClick={()=>setCoverImgData(null)}>✕ 제거</button>}
-                    </SetRow>
                   </>
                 )}
 
@@ -541,7 +537,14 @@ export default function Builder() {
                     rows={1}
                     onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
                   />
-                  <input className={s.startDescEdit} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="소개 문구 입력 (선택)..." />
+                  <textarea
+                    className={s.startDescEdit}
+                    value={settings.startDesc}
+                    onChange={e => setSetting('startDesc', e.target.value)}
+                    placeholder="소개 문구 입력"
+                    rows={1}
+                    onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
+                  />
                   <div className={s.startBtnWrap}>
                     <input className={s.startBtnEdit} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
