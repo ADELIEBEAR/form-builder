@@ -130,14 +130,22 @@
 /* 시작 카드 */
 .startCard { width: 100%; background: var(--b-card); border: 1px solid var(--b-border); border-radius: 16px; overflow: hidden; }
 .startCoverWrap { position: relative; }
+.startCoverChange { position: relative; display: block; cursor: pointer; overflow: hidden; }
 .startCoverImg { width: 100%; height: 130px; object-fit: cover; display: block; }
-.startCoverDel { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.6); border: none; color: #fff; font-size: 11px; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
-.startCoverPlaceholder { width: 100%; height: 72px; background: rgba(124,108,252,.06); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--b-muted); gap: 8px; cursor: pointer; transition: background .15s; }
-.startCoverPlaceholder:hover { background: rgba(124,108,252,.12); }
+.startCoverOverlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(7,7,14,.46); color: #fff; font-size: 13px; font-weight: 800; opacity: 0; transition: opacity .18s, backdrop-filter .18s; backdrop-filter: blur(0); }
+.startCoverChange:hover .startCoverOverlay { opacity: 1; backdrop-filter: blur(2px); }
+.startCoverDel { position: absolute; top: 8px; right: 8px; z-index: 2; background: rgba(0,0,0,.62); border: 1px solid rgba(255,255,255,.14); color: #fff; font-size: 11px; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+.startCoverDel:hover { background: rgba(248,113,113,.82); }
+.startCoverPlaceholder { width: 100%; height: 96px; background: rgba(124,108,252,.06); border-bottom: 1px dashed rgba(124,108,252,.22); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--b-muted2); gap: 8px; cursor: pointer; transition: background .15s, color .15s; }
+.startCoverPlaceholder:hover { background: rgba(124,108,252,.12); color: var(--a1); }
 .startBody { padding: 14px 18px 16px; }
 .startTagEdit { background: transparent; border: none; outline: none; font-size: 10px; font-weight: 700; color: var(--a1); letter-spacing: .1em; margin-bottom: 4px; width: 100%; border-bottom: 1px dashed rgba(124,108,252,.3); padding: 2px 0; }
 .startTagEdit:focus { border-bottom-color: var(--a1); }
 .startTitlePreview { font-family: 'Gmarket Sans', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--b-text); pointer-events: none; }
+.startTitleEdit { width: 100%; min-height: 30px; max-height: 150px; background: transparent; border: 0; border-bottom: 1px dashed transparent; outline: none; resize: none; overflow: hidden; font-family: 'Gmarket Sans', sans-serif; font-size: 18px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; color: var(--b-text); padding: 1px 0 4px; white-space: pre-wrap; }
+.startTitleEdit::placeholder { color: var(--b-muted); opacity: .55; }
+.startTitleEdit:hover { border-bottom-color: var(--b-border2); }
+.startTitleEdit:focus { border-bottom-color: rgba(124,108,252,.45); }
 .startDescEdit { background: transparent; border: none; outline: none; font-size: 12px; color: var(--b-muted2); width: 100%; border-bottom: 1px dashed var(--b-border2); padding: 2px 0; margin-bottom: 12px; font-family: 'Noto Sans KR', sans-serif; }
 .startDescEdit::placeholder { color: var(--b-muted); opacity: .5; }
 .startDescEdit:focus { border-bottom-color: rgba(124,108,252,.4); }

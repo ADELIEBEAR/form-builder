@@ -521,12 +521,26 @@ export default function Builder() {
             {settings.useStart && (
               <div className={s.startCard}>
                 {coverImgData
-                  ? <div className={s.startCoverWrap}><img src={coverImgData} className={s.startCoverImg} alt="" /><button className={s.startCoverDel} onClick={() => setCoverImgData(null)}>✕ 제거</button></div>
-                  : <label className={s.startCoverPlaceholder}>🖼️ 커버 이미지 업로드 (선택)<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
+                  ? <div className={s.startCoverWrap}>
+                      <label className={s.startCoverChange}>
+                        <img src={coverImgData} className={s.startCoverImg} alt="" />
+                        <span className={s.startCoverOverlay}>📷 표지 변경</span>
+                        <input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/>
+                      </label>
+                      <button className={s.startCoverDel} onClick={() => setCoverImgData(null)}>✕ 제거</button>
+                    </div>
+                  : <label className={s.startCoverPlaceholder}>📷 표지 이미지 업로드<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
                 }
                 <div className={s.startBody}>
                   <input className={s.startTagEdit} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
-                  <div className={s.startTitlePreview} style={{whiteSpace:'pre-line'}}>{title || '폼 제목'}</div>
+                  <textarea
+                    className={s.startTitleEdit}
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder="폼 제목"
+                    rows={1}
+                    onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
+                  />
                   <input className={s.startDescEdit} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="소개 문구 입력 (선택)..." />
                   <div className={s.startBtnWrap}>
                     <input className={s.startBtnEdit} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
