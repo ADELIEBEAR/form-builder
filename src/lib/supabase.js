@@ -123,6 +123,36 @@ export async function saveForm(userId, form) {
   }
 }
 
+// 폼 복제 (응답/공개 링크/시트 연결은 새 폼에서 다시 설정)
+export async function duplicateForm(userId, formId) {
+  const original = await getForm(formId)
+  if (original.user_id !== userId) throw new Error('복제 권한이 없습니다')
+
+  const now = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('forms')
+    .insert({
+      user_id: userId,
+      title: `${original.title || '제목 없음'} 복사본`,
+      theme_c1: original.theme_c1,
+      theme_c2: original.theme_c2,
+      questions: original.questions || [],
+      settings: original.settings || {},
+      memo: original.memo || null,
+      group_tag: original.group_tag || null,
+      is_published: false,
+      slug: null,
+      sheet_id: null,
+      sheet_url: null,
+      created_at: now,
+      updated_at: now,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // 폼 삭제
 export async function deleteForm(formId) {
   const { error } = await supabase
