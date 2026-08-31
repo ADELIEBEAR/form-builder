@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, publishForm, unpublishForm, signOut, getResponsesForForms } from '../lib/supabase'
+import { getForms, deleteForm, duplicateForm, publishForm, unpublishForm, signOut, getResponsesForForms } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
@@ -237,6 +237,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState(null)
   const [publishing, setPublishing] = useState({})
+  const [duplicating, setDuplicating] = useState({})
   const [editingMemo, setEditingMemo] = useState(null)
   const [memoVal, setMemoVal] = useState('')
   const [editingTitle, setEditingTitle] = useState(null)
@@ -605,6 +606,22 @@ export default function Dashboard() {
       if (panelForm?.id === formId) setPanelForm(null)
       showToast('폼이 삭제되었습니다.', 'ok')
     } catch { showToast('삭제 중 오류가 발생했습니다.', 'fail') }
+  }
+
+  async function handleDuplicate(form, e) {
+    e.stopPropagation()
+    if (!confirm('이 폼의 질문지를 복제할까요?')) return
+    setDuplicating(prev => ({ ...prev, [form.id]: true }))
+    try {
+      const copied = await duplicateForm(user.id, form.id)
+      setForms(prev => [{ ...copied, questions: copied.questions ? Array(copied.questions.length) : [] }, ...prev])
+      showToast('폼 질문지가 복제되었습니다.', 'ok')
+      navigate(`/builder/${copied.id}`)
+    } catch {
+      showToast('복제 중 오류가 발생했습니다.', 'fail')
+    } finally {
+      setDuplicating(prev => ({ ...prev, [form.id]: false }))
+    }
   }
 
   async function handlePublish(form, e) {
@@ -1007,6 +1024,9 @@ export default function Dashboard() {
                       {form.is_published && (
                         <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>🔗 링크 복사</button>
                       )}
+                      <button className={s.actionBtn} onClick={e => handleDuplicate(form, e)} disabled={duplicating[form.id]}>
+                        {duplicating[form.id] ? '복제중...' : '⧉ 복제'}
+                      </button>
                       <span className={s.sheetConnected}>✅ 시트 백업 연결됨</span>
                       <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>🗑️</button>
                     </div>
