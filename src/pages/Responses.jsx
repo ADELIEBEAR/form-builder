@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getForm, getResponses, getResponsesForForms } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import s from './Responses.module.css'
 import { orderAnswerKeys } from '../lib/answerOrder'
+import { mergeResponseUpdates, responseSyncStart } from '../lib/responseSync'
 
 // 전화번호 정규화 — 하이픈/공백 제거
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
@@ -100,38 +101,62 @@ export default function Responses() {
   const [showDupesOnly, setShowDupesOnly] = useState(false)
   const [showUniqueOnly, setShowUniqueOnly] = useState(false)
   const [tooltip, setTooltip] = useState(null) // {x,y,content}
-  const prevCountRef = useRef(0)
-  const pollRef = useRef(null)
-
   useEffect(() => {
-    loadData(); checkNotifPermission(); startPolling()
-    return () => clearInterval(pollRef.current)
-  }, [formId])
+    let disposed = false
+    let inFlight = false
+    let loaded = false
+    let currentResponses = []
+    let timer
+    setLoading(true)
+    setForm(null)
+    setResponses([])
+    setNewCount(0)
+    checkNotifPermission()
 
-  async function loadData() {
-    try {
-      const [f, r] = await Promise.all([getForm(formId), getResponses(formId)])
-      setForm(f); setResponses(r || []); prevCountRef.current = (r||[]).length
-    } catch { navigate('/dashboard') }
-    finally { setLoading(false) }
-  }
-
-  function startPolling() {
-    pollRef.current = setInterval(async () => {
+    async function refresh() {
+      const notify = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+      if (disposed || !loaded || inFlight || !navigator.onLine || (document.hidden && !notify)) return
+      inFlight = true
       try {
-        const r = await getResponses(formId)
-        const diff = (r||[]).length - prevCountRef.current
-        if (diff > 0) {
-          setNewCount(diff); setResponses(r||[]); prevCountRef.current = (r||[]).length
-          if (Notification.permission === 'granted') new Notification('새 응답이 도착했어요! 🎉', { body:`${diff}개의 새 응답이 있어요.` })
-          showToast(`🎉 새 응답 ${diff}개 도착!`, 'ok')
+        const incoming = await getResponses(formId, { from: responseSyncStart(currentResponses) })
+        if (disposed || !incoming.length) return
+        const merged = mergeResponseUpdates(currentResponses, incoming)
+        currentResponses = merged.responses
+        setResponses(currentResponses)
+        if (merged.added > 0) {
+          setNewCount(count => count + merged.added)
+          showToast(`새 응답 ${merged.added}개 도착!`, 'ok')
+          if (notify) new Notification('새 응답이 도착했어요!', { body: `${merged.added}개의 새 응답이 있어요.` })
         }
-      } catch {}
-    }, 30000)
-  }
+      } catch {} finally { inFlight = false }
+    }
 
-  function checkNotifPermission() { if (Notification.permission==='granted') setNotifEnabled(true) }
+    async function initialize() {
+      try {
+        const [f, rows] = await Promise.all([getForm(formId, 'id, title, sheet_url'), getResponses(formId)])
+        if (disposed) return
+        currentResponses = rows
+        setForm(f)
+        setResponses(rows)
+        loaded = true
+        timer = setInterval(refresh, 30000)
+      } catch { if (!disposed) navigate('/dashboard') }
+      finally { if (!disposed) setLoading(false) }
+    }
+    function onVisibilityChange() { if (!document.hidden) refresh() }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('online', refresh)
+    initialize()
+    return () => {
+      disposed = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('online', refresh)
+    }
+  }, [formId])
+  function checkNotifPermission() { if (typeof Notification !== 'undefined' && Notification.permission==='granted') setNotifEnabled(true) }
   async function requestNotif() {
+    if (typeof Notification === 'undefined') { showToast('이 브라우저는 알림을 지원하지 않습니다.', 'fail'); return }
     const p = await Notification.requestPermission()
     if (p==='granted') { setNotifEnabled(true); showToast('✅ 알림이 활성화되었습니다!','ok') }
     else showToast('알림 권한이 거부되었습니다.','fail')

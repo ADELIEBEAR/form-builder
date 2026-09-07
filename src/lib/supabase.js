@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { getFormImageSettings, storeInlineImages } from './imageAssets.js'
+import { fetchAllResponsePages, orderResponsePage } from './responseSync.js'
+export { RESPONSE_PAGE_SIZE } from './responseSync.js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -12,38 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     lockAcquireTimeout: 15000,  // 5초 → 15초로 늘려서 lock 경합 방지
   }
 })
-
-// Supabase REST API는 기본 조회가 1,000건까지만 내려올 수 있어서
-// 응답 데이터는 submitted_at 커서 기준으로 1,000건씩 끝까지 가져온다.
-// range(offset) 방식이 배포 환경/설정에 따라 1,000개에서 멈추는 경우가 있어
-// 마지막 응답 시간보다 오래된 데이터로 계속 넘기는 keyset pagination 방식을 사용한다.
-export const RESPONSE_PAGE_SIZE = 1000
-
-async function fetchAllResponsePages(makeQuery, pageSize = RESPONSE_PAGE_SIZE) {
-  const rows = []
-  let beforeSubmittedAt = null
-  let guard = 0
-
-  while (true) {
-    const query = makeQuery(beforeSubmittedAt)
-    const { data, error } = await query.limit(pageSize)
-    if (error) throw error
-
-    const chunk = data || []
-    rows.push(...chunk)
-
-    if (chunk.length < pageSize) break
-
-    const lastSubmittedAt = chunk[chunk.length - 1]?.submitted_at
-    if (!lastSubmittedAt || lastSubmittedAt === beforeSubmittedAt) break
-
-    beforeSubmittedAt = lastSubmittedAt
-    guard += 1
-    if (guard > 500) throw new Error('응답이 너무 많아 한 번에 불러오지 못했습니다.')
-  }
-
-  return rows
-}
 
 // 구글 로그인
 export async function signInWithGoogle() {
@@ -82,10 +52,10 @@ export async function getForms(userId) {
 }
 
 // 폼 하나 가져오기
-export async function getForm(formId) {
+export async function getForm(formId, columns = '*') {
   const { data, error } = await supabase
     .from('forms')
-    .select('*')
+    .select(columns)
     .eq('id', formId)
     .single()
   if (error) throw error
@@ -254,14 +224,12 @@ export async function getResponses(formId, options = {}) {
   return fetchAllResponsePages((before) => {
     let q = supabase
       .from('responses')
-      .select('*')
+      .select('id, form_id, answers, submitted_at, ip_address')
       .eq('form_id', formId)
 
     if (options.from) q = q.gte('submitted_at', options.from)
     if (options.to) q = q.lt('submitted_at', options.to)
-    if (before) q = q.lt('submitted_at', before)
-
-    return q.order('submitted_at', { ascending: false })
+    return orderResponsePage(q, before)
   })
 }
 
@@ -277,9 +245,7 @@ export async function getResponsesForForms(formIds, columns = 'id, form_id, answ
 
     if (options.from) q = q.gte('submitted_at', options.from)
     if (options.to) q = q.lt('submitted_at', options.to)
-    if (before) q = q.lt('submitted_at', before)
-
-    return q.order('submitted_at', { ascending: false })
+    return orderResponsePage(q, before)
   })
 }
 

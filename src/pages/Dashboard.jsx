@@ -273,6 +273,7 @@ export default function Dashboard() {
   const [allRespData, setAllRespData] = useState(null) // 전체 응답
   const [allRespSearch, setAllRespSearch] = useState('')
   const [allRespLoading, setAllRespLoading] = useState(false)
+  const allRespRequest = useRef(false)
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelTab, setPanelTab] = useState('recent') // 'recent' | 'dupes' | 'deduped'
 
@@ -385,6 +386,8 @@ export default function Dashboard() {
       setPanelForm(null)
     }
     if (searchValue) setAllRespSearch(searchValue)
+    if (allRespRequest.current) return
+    allRespRequest.current = true
     setAllRespLoading(true)
     setAllRespData(null)
     try {
@@ -395,7 +398,7 @@ export default function Dashboard() {
 
       setAllRespData(data || [])
     } catch { showToast('전체 응답을 불러오지 못했습니다.', 'fail') }
-    finally { setAllRespLoading(false) }
+    finally { allRespRequest.current = false; setAllRespLoading(false) }
   }
 
 
