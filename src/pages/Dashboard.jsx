@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getForms, deleteForm, duplicateForm, publishForm, unpublishForm, signOut, getResponsesForForms } from '../lib/supabase'
+import { getForms, deleteForm, duplicateForm, publishForm, unpublishForm, signOut, getResponsesForForms, optimizeExistingFormImages } from '../lib/supabase'
+import { formatBytes } from '../lib/imageAssets'
 import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
@@ -239,6 +240,8 @@ export default function Dashboard() {
   const [toast, setToast] = useState(null)
   const [publishing, setPublishing] = useState({})
   const [duplicating, setDuplicating] = useState({})
+  const [imageCleanup, setImageCleanup] = useState(null)
+  const cleanupRunning = useRef(false)
   const [editingMemo, setEditingMemo] = useState(null)
   const [memoVal, setMemoVal] = useState('')
   const [editingTitle, setEditingTitle] = useState(null)
@@ -309,6 +312,20 @@ export default function Dashboard() {
     } catch (e) {
       showToast(e.message === 'timeout' ? '연결이 느립니다. 새로고침해주세요.' : '폼을 불러오는 데 실패했습니다.', 'fail')
     } finally { setLoading(false) }
+  }
+
+  async function handleImageCleanup() {
+    if (cleanupRunning.current) return
+    cleanupRunning.current = true
+    setImageCleanup({ running: true, completed: 0, total: 0, failures: [] })
+    try {
+      const result = await optimizeExistingFormImages(user.id, progress => setImageCleanup({ ...progress, running: true }))
+      setImageCleanup({ ...result, running: false })
+    } catch (err) {
+      setImageCleanup({ running: false, failures: [{ title: '이미지 정리', message: err.message || '다시 시도해주세요.' }] })
+    } finally {
+      cleanupRunning.current = false
+    }
   }
 
   function goDuplicates(e) {
@@ -842,6 +859,7 @@ export default function Dashboard() {
               <span className={s.formCount}>{forms.length}개</span>
             </div>
             <div className={s.topRight}>
+              <button className="btn btn-ghost" onClick={handleImageCleanup} disabled={imageCleanup?.running}>이미지 정리</button>
               <div className={s.searchWrap}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.searchIco}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input className={s.searchInp} value={search} onChange={e => handleDashboardSearchChange(e.target.value)} placeholder="제목, 메모, 그룹, 번호 앞 4자리 검색..." />
@@ -1317,6 +1335,31 @@ export default function Dashboard() {
           </aside>
         )}
       </div>
+
+      {imageCleanup && (
+        <div className={s.modalBg}>
+          <div className={`${s.modal} ${s.imageCleanupModal}`} role="dialog" aria-modal="true" aria-labelledby="image-cleanup-title">
+            <h3 id="image-cleanup-title">{imageCleanup.running ? '이미지 정리 중' : '이미지 정리 결과'}</h3>
+            <div role="status" aria-live="polite">
+              {imageCleanup.running ? <>
+                <p>{imageCleanup.completed} / {imageCleanup.total || '...'}개 폼</p>
+                <progress max={imageCleanup.total || 1} value={imageCleanup.completed} aria-label="이미지 정리 진행률" />
+              </> : <>
+                <p>{imageCleanup.changed || 0}개 폼 정리 완료</p>
+                <strong>폼 데이터 {formatBytes(imageCleanup.savedBytes || 0)} 감소</strong>
+                {imageCleanup.total === 0 && <p>정리할 이미지가 없습니다.</p>}
+              </>}
+            </div>
+            {imageCleanup.failures.length > 0 && <ul className={s.imageCleanupFailures}>
+              {imageCleanup.failures.map((failure, index) => <li key={index}><b>{failure.title}</b><br />{failure.message}</li>)}
+            </ul>}
+            {!imageCleanup.running && <div className={s.mFoot}>
+              {imageCleanup.failures.length > 0 && <button className={s.btnGhostModal} onClick={handleImageCleanup}>다시 시도</button>}
+              <button className={s.btnPrimaryModal} onClick={() => setImageCleanup(null)}>닫기</button>
+            </div>}
+          </div>
+        </div>
+      )}
 
       {/* ── 잠금 해제 모달 */}
       {showPwModal && (

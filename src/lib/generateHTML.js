@@ -20,9 +20,9 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     scriptUrl='https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec',
   } = settings
   const submitPdfUrl = donePdfUrl || (/\.pdf(\?|#|$)/i.test(doneUrl) ? doneUrl : '')
-  const coverImgData = assets.coverImgData ?? settings.coverImgData ?? null
+  const coverImgData = Object.hasOwn(assets, 'coverImgData') ? assets.coverImgData : settings.coverImgData ?? null
   const qImgData = assets.qImgData ?? settings.qImgData ?? {}
-  const bgImgData = assets.bgImgData ?? settings.bgImgData ?? null
+  const bgImgData = Object.hasOwn(assets, 'bgImgData') ? assets.bgImgData : settings.bgImgData ?? null
   const TOTAL = questions.length
 
   if (!TOTAL) return `<html><body style="background:#0e0e14;color:var(--tx3);font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px">질문을 추가해주세요.</body></html>`
@@ -72,9 +72,9 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
       : ''
     let field = ''
     if (q.type === 'short') {
-      field = `<input type="text" class="fi" id="f${q.id}" placeholder="${esc(q.hint||'답변을 입력하세요...')}" onkeydown="if(event.key==='Enter')gn(${i})">`
+      field = `<input type="text" class="fi" id="f${q.id}" placeholder="${esc(q.placeholder||'답변을 입력하세요...')}" onkeydown="if(event.key==='Enter')gn(${i})">`
     } else if (q.type === 'long') {
-      field = `<textarea class="fi" id="f${q.id}" style="height:110px;resize:none;padding-top:13px;line-height:1.6" placeholder="${esc(q.hint||'답변을 입력하세요...')}"></textarea>`
+      field = `<textarea class="fi" id="f${q.id}" style="height:110px;resize:none;padding-top:13px;line-height:1.6" placeholder="${esc(q.placeholder||'답변을 입력하세요...')}"></textarea>`
     } else if (q.type === 'phone') {
       field = `<div style="position:relative"><div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--tx3);pointer-events:none">🇰🇷 +82</div><input type="tel" class="fi" id="f${q.id}" style="padding-left:72px" placeholder="010-0000-0000" inputmode="tel" onkeydown="if(event.key==='Enter')gn(${i})"></div>`
     } else if (q.type === 'email') {

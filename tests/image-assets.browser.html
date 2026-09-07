@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Form image regression checks</title>
+<style>body{margin:0;background:#f3f5f6;font:14px sans-serif;color:#142a24}header{padding:12px}pre{white-space:pre-wrap}iframe{width:100%;height:calc(100vh - 180px);min-height:600px;border:0}button{padding:8px}</style>
+<header><button id="run">Run image checks</button><pre id="result">Ready</pre></header>
+<iframe title="Form preview"></iframe>
+<script type="module">
+import { optimizeImageFile, IMAGE_PRESETS } from '../src/lib/imageAssets.js'
+import { generateFormHTML } from '../src/lib/generateHTML.js'
+const frame = document.querySelector('iframe')
+const question = { id: 1, type: 'short', label: '신청자 성함(중복 신청 방지)', hint: '임상 · 허가 · 기술수출 · 특허 · 마일스톤 발표 전부터 결과 이후까지 핵심 변화만 알려드립니다.', required: true }
+frame.srcdoc = generateFormHTML('검증용 폼', [question, { id: 2, type: 'long', label: '추가 답변', hint: '설명은 입력값이 아닙니다.', required: false }], { c1: '#8062ff', c2: '#b784ec' }, { useStart: false, scriptUrl: '', conceptTheme: 'default' })
+document.getElementById('run').onclick = async () => {
+  const report = document.getElementById('result')
+  report.textContent = 'Running'
+  try {
+    const source = document.createElement('canvas')
+    source.width = 2400; source.height = 1600
+    const ctx = source.getContext('2d')
+    const pixels = ctx.createImageData(source.width, source.height)
+    let seed = 42
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      pixels.data[i] = seed & 255; pixels.data[i + 1] = seed >>> 8 & 255; pixels.data[i + 2] = seed >>> 16 & 255; pixels.data[i + 3] = 255
+    }
+    ctx.putImageData(pixels, 0, 0)
+    const png = await new Promise(resolve => source.toBlob(resolve, 'image/png'))
+    const lines = []
+    for (const key of Object.keys(IMAGE_PRESETS)) {
+      const result = await optimizeImageFile(png, key)
+      const bitmap = await createImageBitmap(result.blob)
+      const preset = IMAGE_PRESETS[key]
+      if (result.blob.size > preset.maxBytes || bitmap.width > preset.maxWidth || bitmap.height > preset.maxHeight) throw new Error(key + ' exceeds limits')
+      lines.push(`${key}: ${png.size} -> ${result.blob.size} bytes, ${bitmap.width}x${bitmap.height}`)
+      bitmap.close()
+    }
+    const transparent = document.createElement('canvas'); transparent.width = 50; transparent.height = 50
+    transparent.getContext('2d').fillRect(10, 10, 20, 20)
+    const alphaPng = await new Promise(resolve => transparent.toBlob(resolve, 'image/png'))
+    const alpha = await optimizeImageFile(alphaPng, 'question')
+    const bitmap = await createImageBitmap(alpha.blob)
+    const check = transparent.getContext('2d'); check.clearRect(0, 0, 50, 50); check.drawImage(bitmap, 0, 0)
+    if (check.getImageData(0, 0, 1, 1).data[3] !== 0) throw new Error('Transparency lost')
+    bitmap.close()
+    report.textContent = 'PASS\n' + lines.join('\n') + '\nTransparency preserved'
+  } catch (err) { report.textContent = 'FAIL: ' + err.message }
+}
+</script>
+</html>
