@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getFormImageSettings, storeInlineImages } from './imageAssets.js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -93,13 +94,16 @@ export async function getForm(formId) {
 
 // 폼 저장 (생성 or 업데이트)
 export async function saveForm(userId, form) {
+  const settings = await storeInlineImages(supabase, userId, form.settings || {}, form.questions)
   const payload = {
     user_id: userId,
     title: form.title,
     theme_c1: form.theme.c1,
     theme_c2: form.theme.c2,
     questions: form.questions,
-    settings: form.settings || {},
+    settings,
+    cover_url: null,
+    background_url: null,
     updated_at: new Date().toISOString(),
   }
 
@@ -108,18 +112,19 @@ export async function saveForm(userId, form) {
       .from('forms')
       .update(payload)
       .eq('id', form.id)
-      .select()
+      .eq('user_id', userId)
+      .select('id, slug, is_published')
       .single()
     if (error) throw error
-    return data
+    return { ...payload, ...data }
   } else {
     const { data, error } = await supabase
       .from('forms')
       .insert({ ...payload, created_at: new Date().toISOString() })
-      .select()
+      .select('id, slug, is_published')
       .single()
     if (error) throw error
-    return data
+    return { ...payload, ...data }
   }
 }
 
@@ -127,6 +132,7 @@ export async function saveForm(userId, form) {
 export async function duplicateForm(userId, formId) {
   const original = await getForm(formId)
   if (original.user_id !== userId) throw new Error('복제 권한이 없습니다')
+  const settings = await storeInlineImages(supabase, userId, getFormImageSettings(original), original.questions)
 
   const now = new Date().toISOString()
   const { data, error } = await supabase
@@ -137,7 +143,7 @@ export async function duplicateForm(userId, formId) {
       theme_c1: original.theme_c1,
       theme_c2: original.theme_c2,
       questions: original.questions || [],
-      settings: original.settings || {},
+      settings,
       memo: original.memo || null,
       group_tag: original.group_tag || null,
       is_published: false,
@@ -147,7 +153,7 @@ export async function duplicateForm(userId, formId) {
       created_at: now,
       updated_at: now,
     })
-    .select()
+    .select('id, title, theme_c1, theme_c2, questions, group_tag, memo, is_published, slug, created_at, updated_at')
     .single()
   if (error) throw error
   return data
@@ -177,7 +183,7 @@ export async function publishForm(formId, title) {
     .from('forms')
     .update({ is_published: true, slug, updated_at: new Date().toISOString() })
     .eq('id', formId)
-    .select()
+    .select('id, slug, is_published')
     .single()
   if (error) throw error
   return data
@@ -196,12 +202,43 @@ export async function unpublishForm(formId) {
 export async function getFormBySlug(slug) {
   const { data, error } = await supabase
     .from('forms')
-    .select('*')
+    .select('id, title, questions, settings, theme_c1, theme_c2, cover_url, background_url')
     .eq('slug', slug)
     .eq('is_published', true)
     .single()
   if (error) throw error
   return data
+}
+
+export async function optimizeExistingFormImages(userId, onProgress) {
+  const { data: candidates, error } = await supabase.from('forms')
+    .select('id, title').eq('user_id', userId)
+    .or('settings->>coverImgData.like.data:image/*,settings->>bgImgData.like.data:image/*,settings->>qImgData.like.*data:image/*')
+    .order('id')
+  if (error) throw error
+  const result = { total: candidates.length, completed: 0, changed: 0, savedBytes: 0, failures: [] }
+  onProgress({ ...result })
+  for (const candidate of candidates) {
+    try {
+      const form = await getForm(candidate.id)
+      if (form.user_id !== userId) throw new Error('폼 소유자가 변경되었습니다.')
+      const settings = await storeInlineImages(supabase, userId, getFormImageSettings(form), form.questions)
+      const { data, error: updateError } = await supabase.from('forms')
+        .update({ settings, cover_url: null, background_url: null, updated_at: new Date().toISOString() })
+        .eq('id', form.id).eq('user_id', userId).eq('updated_at', form.updated_at)
+        .select('id').maybeSingle()
+      if (updateError) throw updateError
+      if (!data) throw new Error('다른 곳에서 수정 중인 폼입니다. 다시 시도해주세요.')
+      result.changed++
+      result.savedBytes += Math.max(0, new Blob([JSON.stringify(form.settings)]).size - new Blob([JSON.stringify(settings)]).size)
+      try { sessionStorage.removeItem('form_' + form.id) } catch {}
+    } catch (err) {
+      result.failures.push({ title: candidate.title, message: err.message || '이미지 정리 실패' })
+    }
+    result.completed++
+    onProgress({ ...result, failures: [...result.failures] })
+  }
+  return result
 }
 
 // 응답 제출 (로그인 없이)

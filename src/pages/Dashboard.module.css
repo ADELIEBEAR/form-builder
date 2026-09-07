@@ -276,3 +276,13 @@
 
 .aiCalcBtn { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid rgba(34,197,94,.35); background: linear-gradient(135deg, rgba(124,108,252,.16), rgba(34,197,94,.12)); color: #22c55e; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
 .aiCalcBtn:hover { background: linear-gradient(135deg, rgba(124,108,252,.24), rgba(34,197,94,.18)); }
+.imageCleanupModal { max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); overflow-y: auto; }
+.imageCleanupModal progress { width: 100%; height: 8px; accent-color: #22a06b; }
+.imageCleanupFailures { padding-left: 20px; text-align: left; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.imageCleanupFailures li { margin-top: 12px; }
+@media (max-width: 700px) {
+  .topRow { flex-wrap: wrap; gap: 14px; }
+  .topRight { flex-wrap: wrap; width: 100%; }
+  .topRight .searchWrap { order: -1; flex: 1 0 100%; min-width: 0; }
+  .topRight .searchInp { width: 100%; box-sizing: border-box; }
+}

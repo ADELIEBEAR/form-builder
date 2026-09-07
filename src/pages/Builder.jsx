@@ -8,69 +8,12 @@ import { CONCEPT_THEMES, COLOR_THEMES, FONTS } from '../lib/themes'
 import { useTheme } from '../lib/themeContext'
 import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
+import { formatBytes, getFormImageSettings, uploadFormImage } from '../lib/imageAssets'
 
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', quiz:'퀴즈', phone:'전화번호', email:'이메일', legal:'동의' }
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
 let UID = 0
 const nid = () => ++UID
-const IMAGE_PRESETS = {
-  cover: { maxWidth: 1400, maxHeight: 900, quality: 0.78 },
-  background: { maxWidth: 1600, maxHeight: 1000, quality: 0.72 },
-  question: { maxWidth: 1200, maxHeight: 760, quality: 0.76 },
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = ev => resolve(ev.target.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = src
-  })
-}
-
-function estimateDataUrlBytes(dataUrl) {
-  const payload = String(dataUrl || '').split(',')[1] || ''
-  return Math.round(payload.length * 0.75)
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return '0KB'
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
-}
-
-async function optimizeImageFile(file, preset) {
-  const original = await fileToDataUrl(file)
-  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return { dataUrl: original, originalBytes: file.size, optimizedBytes: estimateDataUrlBytes(original) }
-
-  const img = await loadImage(original)
-  const scale = Math.min(1, preset.maxWidth / img.width, preset.maxHeight / img.height)
-  const width = Math.max(1, Math.round(img.width * scale))
-  const height = Math.max(1, Math.round(img.height * scale))
-
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d', { alpha: true })
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(img, 0, 0, width, height)
-
-  const optimized = canvas.toDataURL('image/webp', preset.quality)
-  const optimizedBytes = estimateDataUrlBytes(optimized)
-  if (optimizedBytes >= estimateDataUrlBytes(original)) return { dataUrl: original, originalBytes: file.size, optimizedBytes: estimateDataUrlBytes(original) }
-  return { dataUrl: optimized, originalBytes: file.size, optimizedBytes }
-}
-
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
@@ -97,6 +40,7 @@ export default function Builder() {
   const [qImgData, setQImgData] = useState({})
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState(0)
   const [currentFormId, setCurrentFormId] = useState(null)
   const [currentSlug, setCurrentSlug] = useState(null)
   const [isPublished, setIsPublished] = useState(false)
@@ -113,17 +57,22 @@ export default function Builder() {
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
   const autoSaveTimer = useRef(null)
+  const saveInFlight = useRef(false)
+  const pendingImages = useRef(0)
+  const lastSaved = useRef('')
 
   useEffect(() => {
     if (!formId) return
     function applyForm(form) {
+      const imageSettings = getFormImageSettings(form)
+      UID = Math.max(UID, ...(form.questions || []).map(q => Number(q.id) || 0))
       setTitle(form.title)
       setTheme({ c1: form.theme_c1, c2: form.theme_c2 })
       setQuestions(form.questions || [])
-      setSettings(prev => ({ ...DEFAULT_SETTINGS, ...(form.settings || {}) }))
-      if (form.settings?.bgImgData) setBgImgData(form.settings.bgImgData)
-      if (form.settings?.coverImgData) setCoverImgData(form.settings.coverImgData)
-      if (form.settings?.qImgData) setQImgData(form.settings.qImgData)
+      setSettings({ ...DEFAULT_SETTINGS, ...imageSettings })
+      setBgImgData(imageSettings.bgImgData)
+      setCoverImgData(imageSettings.coverImgData)
+      setQImgData(imageSettings.qImgData)
       setCurrentFormId(form.id)
       setCurrentSlug(form.slug)
       setIsPublished(form.is_published)
@@ -163,15 +112,34 @@ export default function Builder() {
       if (title && questions.length > 0) handleSave(true)
     }, 180000)
     return () => clearInterval(autoSaveTimer.current)
-  }, [title, questions, theme, settings])
+  }, [title, questions, theme, settings, bgImgData, coverImgData, qImgData, currentFormId])
+
+  function formSnapshot() {
+    return { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData, coverImgData, qImgData } }
+  }
+
+  function applySavedImages(saved, snapshot) {
+    // Preserve edits made while the upload/save request was in flight.
+    setBgImgData(value => value === snapshot.settings.bgImgData ? saved.settings.bgImgData : value)
+    setCoverImgData(value => value === snapshot.settings.coverImgData ? saved.settings.coverImgData : value)
+    setQImgData(value => value === snapshot.settings.qImgData ? saved.settings.qImgData : value)
+    setSettings(value => ({ ...value, bgImgData: null, coverImgData: null, qImgData: {} }))
+    try { sessionStorage.setItem('form_' + saved.id, JSON.stringify(saved)) } catch {}
+  }
 
   async function handleSave(silent = false) {
     if (!title.trim()) { if (!silent) showToast('폼 제목을 입력해주세요.', 'fail'); return }
+    if (saveInFlight.current || pendingImages.current) return
+    const snapshot = formSnapshot()
+    const fingerprint = JSON.stringify(snapshot)
+    if (silent && fingerprint === lastSaved.current) return
+    saveInFlight.current = true
     setSaving(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null, qImgData: qImgData || {} } })
+      const saved = await saveForm(user.id, snapshot)
       setCurrentFormId(saved.id)
-      try { sessionStorage.setItem('form_' + saved.id, JSON.stringify(saved)) } catch {}
+      applySavedImages(saved, snapshot)
+      lastSaved.current = JSON.stringify({ ...snapshot, id: saved.id, settings: saved.settings })
       if (!silent) showToast('✅ 저장되었습니다!', 'ok')
       if (!formId) {
         navigate(`/builder/${saved.id}`, { replace: true })
@@ -181,6 +149,7 @@ export default function Builder() {
     } catch {
       if (!silent) showToast('저장 중 오류가 발생했습니다.', 'fail')
     } finally {
+      saveInFlight.current = false
       setSaving(false)
     }
   }
@@ -209,10 +178,15 @@ export default function Builder() {
 
   async function handlePublish() {
     if (!title.trim()) { showToast('폼 제목을 입력해주세요.', 'fail'); return }
+    if (saveInFlight.current || pendingImages.current) return
+    saveInFlight.current = true
+    const snapshot = formSnapshot()
     setPublishing(true)
     try {
-      const saved = await saveForm(user.id, { id: currentFormId, title, theme, questions, settings: { ...settings, bgImgData: bgImgData || null, coverImgData: coverImgData || null, qImgData: qImgData || {} } })
+      const saved = await saveForm(user.id, snapshot)
       setCurrentFormId(saved.id)
+      applySavedImages(saved, snapshot)
+      lastSaved.current = JSON.stringify({ ...snapshot, id: saved.id, settings: saved.settings })
       const published = await publishForm(saved.id, title)
       setCurrentSlug(published.slug)
       setIsPublished(true)
@@ -220,13 +194,14 @@ export default function Builder() {
     } catch {
       showToast('발행 중 오류가 발생했습니다.', 'fail')
     } finally {
+      saveInFlight.current = false
       setPublishing(false)
     }
   }
 
   function addQ(type) {
     const q = {
-      id: nid(), type, label: '', hint: '', required: true, other: false,
+      id: nid(), type, label: '', hint: '', placeholder: '', required: true, other: false,
       options: (type === 'multiple' || type === 'single') ? ['옵션 1', '옵션 2'] : type === 'quiz' ? ['옵션 1', '옵션 2', '옵션 3', '옵션 4'] : [],
       correctAnswer: type === 'quiz' ? 0 : undefined,
       explanation: type === 'quiz' ? '' : undefined,
@@ -261,18 +236,21 @@ export default function Builder() {
   }
 
   async function handleImageUpload(e, presetKey, onReady) {
-    const f = e.target.files?.[0]
+    const input = e.target
+    const f = input.files?.[0]
     if (!f) return
+    pendingImages.current++
+    setUploadingImages(pendingImages.current)
     try {
-      const result = await optimizeImageFile(f, IMAGE_PRESETS[presetKey])
-      onReady(result.dataUrl)
-      if (result.optimizedBytes < result.originalBytes) {
-        showToast(`이미지 최적화 완료 (${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)})`, 'ok')
-      }
+      const result = await uploadFormImage(sb, user.id, f, presetKey)
+      onReady(result.url)
+      showToast(`이미지 저장 완료 (${formatBytes(result.originalBytes)} → ${formatBytes(result.optimizedBytes)})`, 'ok')
     } catch {
-      showToast('이미지를 처리하지 못했습니다.', 'fail')
+      showToast('이미지 저장에 실패했습니다. 20MB 이하 이미지로 다시 시도해주세요.', 'fail')
     } finally {
-      e.target.value = ''
+      pendingImages.current--
+      setUploadingImages(pendingImages.current)
+      input.value = ''
     }
   }
   function onCoverImg(e) { handleImageUpload(e, 'cover', setCoverImgData) }
@@ -314,10 +292,10 @@ export default function Builder() {
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>← 나가기</button>
           <button className="btn btn-ghost btn-sm" onClick={() => { const w = window.open('','_blank'); w.document.write(genHTML()); w.document.close() }}>👁 미리보기</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => handleSave()} disabled={saving}>
-            {saving ? '⏳' : '💾'} {saving ? '저장중' : '저장'}
+          <button className="btn btn-ghost btn-sm" onClick={() => handleSave()} disabled={saving || publishing || uploadingImages > 0}>
+            {saving ? '⏳' : '💾'} {uploadingImages ? '이미지 저장중' : saving ? '저장중' : '저장'}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={handlePublish} disabled={publishing}>
+          <button className="btn btn-primary btn-sm" onClick={handlePublish} disabled={publishing || saving || uploadingImages > 0}>
             {publishing ? '⏳ 발행중...' : isPublished ? '🔄 재발행' : '🚀 저장 & 발행'}
           </button>
         </div>
@@ -591,10 +569,11 @@ export default function Builder() {
 
                 <input className={s.qLabelInp} value={q.label} placeholder="질문을 입력하세요..." onChange={e => updQ(q.id, 'label', e.target.value)} />
                 <input className={s.qHintInp} value={q.hint} placeholder="설명 추가 (선택)" onChange={e => updQ(q.id, 'hint', e.target.value)} />
+                {(q.type === 'short' || q.type === 'long') && <input className={s.qHintInp} value={q.placeholder || ''} aria-label="답변 입력 예시" placeholder="입력 예시 (선택)" onChange={e => updQ(q.id, 'placeholder', e.target.value)} />}
 
                 <div className={s.qPrev}>
-                  {q.type === 'short' && <div className={s.fk}>답변을 입력하세요...</div>}
-                  {q.type === 'long' && <div className={s.fk} style={{height:64,lineHeight:'1.6'}}>장문 답변...</div>}
+                  {q.type === 'short' && <div className={s.fk}>{q.placeholder || '답변을 입력하세요...'}</div>}
+                  {q.type === 'long' && <div className={s.fk} style={{minHeight:64,lineHeight:'1.6',overflowWrap:'anywhere'}}>{q.placeholder || '답변을 입력하세요...'}</div>}
                   {q.type === 'phone' && <div className={s.fk}>🇰🇷 +82 &nbsp; 010-0000-0000</div>}
                   {q.type === 'email' && <div className={s.fk}>example@email.com</div>}
                   {(q.type === 'multiple' || q.type === 'single') && (

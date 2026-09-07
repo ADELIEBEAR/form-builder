@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase'; 
+import { supabase, getFormBySlug } from '../lib/supabase';
 import { generateFormHTML } from '../lib/generateHTML';
 import styles from './PublicForm.module.css';
 
@@ -208,14 +208,8 @@ const PublicForm = () => {
         setLoading(true);
         const decodedSlug = decodeURIComponent(slug);
         
-        const { data, error: supabaseError } = await supabase
-          .from('forms')
-          .select('*')
-          .eq('slug', decodedSlug)
-          .eq('is_published', true)
-          .single();
-
-        if (supabaseError || !data) throw new Error("폼을 찾을 수 없습니다.");
+        const data = await getFormBySlug(decodedSlug);
+        if (!data) throw new Error("폼을 찾을 수 없습니다.");
 
         setForm(data);
         incrementViewCount(decodedSlug);
