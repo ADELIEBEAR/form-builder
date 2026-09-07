@@ -4,6 +4,7 @@ import { getForm, getResponses, getResponsesForForms } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import s from './Responses.module.css'
+import { orderAnswerKeys } from '../lib/answerOrder'
 
 // 전화번호 정규화 — 하이픈/공백 제거
 function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
@@ -285,7 +286,7 @@ export default function Responses() {
     acc[date].push(r); return acc
   }, {})
 
-  const allKeys = [...new Set(responses.flatMap(r=>Object.keys(r.answers||{})).filter(k=>!k.startsWith('_')))]
+  const allKeys = orderAnswerKeys([...new Set(responses.flatMap(r=>Object.keys(r.answers||{})).filter(k=>!k.startsWith('_')))], responses)
   const previewKeys = [...allKeys].sort((a,b) => {
     const short=['이름','성함','닉네임','이메일','email','전화','연락처','번호','phone']
     const late=['동의','약관','개인정보']
@@ -589,3 +590,4 @@ export default function Responses() {
     </div>
   )
 }
+

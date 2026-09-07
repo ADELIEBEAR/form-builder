@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
 import { useTheme } from '../lib/themeContext'
+import { orderAnswerKeys } from '../lib/answerOrder'
 
 const RESULTS_PATH = '/responses'
 const MIN_LOCAL_PHONE_SEARCH_DIGITS = 4
@@ -466,7 +467,7 @@ export default function Dashboard() {
 
     const formMap = Object.fromEntries(forms.map(f => [f.id, f]))
     const dupeAnalysis = report.dupes || buildDuplicateAnalysis(responses || [], forms)
-    const keys = [...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))]
+    const keys = orderAnswerKeys([...new Set(responses.flatMap(r => Object.keys(r.answers || {}).filter(k => !k.startsWith('_'))))], responses)
     const header = ['폼명', '그룹', '제출일시', '전화번호', '중복여부', '중복구분', '동일번호 전체응답수', '동일번호 참여폼수', '같은폼 동일번호 응답수', ...keys]
     const rows = responses.map(r => {
       const f = formMap[r.form_id] || {}
@@ -767,10 +768,12 @@ export default function Dashboard() {
 
   // ── 응답 전체 값 정리
   function getFirstAnswers(r, form) {
-    return Object.entries(r.answers || {})
+    const entries = Object.entries(r.answers || {})
       .filter(([k, v]) => !k.startsWith('_') && v != null && String(formatAnswerValue(v)).trim())
       .map(([k, v]) => [normalizeAnswerLabel(k, form), formatAnswerValue(v), k])
       .sort((a, b) => answerPriority(a[0]) - answerPriority(b[0]) || a[0].localeCompare(b[0], 'ko'))
+    const byKey = new Map(entries.map(entry => [entry[2], entry]))
+    return orderAnswerKeys([...byKey.keys()], [r]).map(key => byKey.get(key))
   }
 
   const allResponseSearchResults = useMemo(() => {
@@ -1368,3 +1371,4 @@ export default function Dashboard() {
     </div>
   )
 }
+
