@@ -65,7 +65,7 @@ async function saveResponse(formId, answers) {
   if (!response.ok) throw new Error('응답을 저장하지 못했습니다.');
 }
 
-function clientFormPatch() {
+export function clientFormPatch() {
   return `<script>
 (function(){
   try {
@@ -105,6 +105,7 @@ function clientFormPatch() {
     }
 
     document.addEventListener('keydown', function(e){
+      if (typeof SINGLE_PAGE !== 'undefined' && SINGLE_PAGE) return;
       var tag = e.target && e.target.tagName;
       if ((e.key === 'Enter' || e.key === 'ArrowRight') && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON')) {
         if (tag === 'TEXTAREA') return;
@@ -225,7 +226,7 @@ const PublicForm = () => {
   useEffect(() => {
     if (!form) return;
     const handler = async (event) => {
-      if (event.data?.type === 'FORM_SUBMIT') {
+      if (event.source === iframeRef.current?.contentWindow && event.data?.type === 'FORM_SUBMIT') {
         try {
           const validationMessage = validateSubmissionAnswers(event.data.answers, form.questions || []);
           if (validationMessage) {
@@ -235,6 +236,7 @@ const PublicForm = () => {
           }
           openPdfFile(event.data?.pdfUrl);
           await saveResponse(form.id, event.data.answers);
+          iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_SUCCESS' }, '*');
           console.log("✅ 저장 완료");
         } catch (err) {
           iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR' }, '*');
@@ -256,6 +258,7 @@ const PublicForm = () => {
 
   const settings = {
     ...(form.settings || {}),
+    waitForSubmit: true,
     doneTitle: (form.settings?.doneTitle || '신청이 완료되었습니다!'),
     doneDesc: (form.settings?.doneDesc || '신청해주셔서 감사합니다. 확인 후 안내드리겠습니다.'),
     scriptUrl: (form.settings?.scriptUrl) || 'https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec'

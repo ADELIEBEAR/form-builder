@@ -1,4 +1,5 @@
 import { getConceptCSS } from './themes.js'
+import { singlePageCSS, singlePageJS } from './singlePage.js'
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
@@ -13,12 +14,15 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     conceptTheme='default',
     useStart=true,
     bgBlur=0, bgOverlay=0.5, bgOverlayColor='#000000',
-    allowBack=true, autoNext=false, useConfetti=true, useKb=true,
+    allowBack=true, autoNext=false, useConfetti=true, useKb: keyboardEnabled=true,
+    layout='steps', submitBtnText='제출하기', waitForSubmit=false,
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
     doneCta='', doneUrl='', donePdfUrl='',
     scriptUrl='https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec',
   } = settings
+  const singlePage = layout === 'single'
+  const useKb = keyboardEnabled && !singlePage
   const submitPdfUrl = donePdfUrl || (/\.pdf(\?|#|$)/i.test(doneUrl) ? doneUrl : '')
   const coverImgData = Object.hasOwn(assets, 'coverImgData') ? assets.coverImgData : settings.coverImgData ?? null
   const qImgData = assets.qImgData ?? settings.qImgData ?? {}
@@ -67,7 +71,9 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   ][animType] || ''
 
   const slides = questions.map((q, i) => {
-    const imgH = qImgData[q.id]
+    const imgH = qImgData[q.id] && singlePage
+      ? `<img class="question-image" src="${esc(qImgData[q.id])}" loading="lazy" decoding="async" alt="">`
+      : qImgData[q.id]
       ? `<img src="${qImgData[q.id]}" loading="lazy" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:180px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`
       : ''
     let field = ''
@@ -92,6 +98,24 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
       field = `<div class="cg" id="g${q.id}">${opts}</div><div class="qfb" id="qfb${i}" style="display:none"></div>`
     } else if (q.type === 'legal') {
       field = `<div class="ls">${esc(q.legalText||'').replace(/\n/g,'<br>')}</div><div class="la" id="la${q.id}" onclick="this.classList.toggle('ck')"><div class="ld"></div><span style="font-size:13px;color:var(--tx2);font-weight:300"><strong style="color:var(--tx);font-weight:500">위 내용에 동의합니다.</strong></span></div>`
+    }
+
+    if (singlePage) {
+      if (['single', 'multiple', 'quiz'].includes(q.type)) {
+        const multi = q.type === 'multiple'
+        const inputType = multi ? 'checkbox' : 'radio'
+        const options = (q.options || []).map((option, oi) => `<label class="ci${multi?'':' si'}" data-oi="${oi}"><input class="native-choice" type="${inputType}" name="g${q.id}" onchange="pick(this.parentElement,'g${q.id}',${multi})"><div class="cb${multi?'':' rb'}"></div><span>${esc(option)}</span></label>`).join('')
+        const other = q.other && q.type !== 'quiz' ? `<label class="ci${multi?'':' si'}"><input class="native-choice" type="${inputType}" name="g${q.id}" aria-label="기타" onchange="if(${multi}&&!this.checked)pick(this.parentElement,'g${q.id}',true);else pickOther(this.parentElement,'g${q.id}',${multi})"><div class="cb${multi?'':' rb'}"></div><input class="oi" placeholder="기타..." aria-label="기타 답변" id="oi${q.id}" onfocus="pickOther(this.parentElement,'g${q.id}',${multi})"></label>` : ''
+        field = `<div class="cg" id="g${q.id}" role="group" aria-labelledby="label${q.id}">${options}${other}</div>`
+      } else if (q.type === 'legal') {
+        field = `<div class="ls">${esc(q.legalText||'').replace(/\n/g,'<br>')}</div><label class="la" id="la${q.id}"><input class="native-choice" type="checkbox" onchange="this.parentElement.classList.toggle('ck',this.checked)"><div class="ld"></div><span>위 내용에 동의합니다.</span></label>`
+      }
+      field = field.replace(/ onkeydown="[^"]*"/g, '').replace(/class="fi"/g, `class="fi" aria-labelledby="label${q.id}" aria-describedby="hint${q.id} e${i}" aria-required="${!!q.required}"`)
+      return `<section class="single-question" id="sl${i}" aria-labelledby="label${q.id}">
+        ${imgH}<div class="question-heading"><label class="ct" id="label${q.id}" for="f${q.id}">${esc(q.label||'질문')}</label><span class="required">${q.required?'필수':'선택'}</span></div>
+        <div class="cs" id="hint${q.id}"${q.hint?'':' hidden'}>${esc(q.hint||'')}</div>
+        ${field}<div class="em" id="e${i}" role="alert"></div>
+      </section>`
     }
 
     const isLast = i === TOTAL - 1
@@ -120,10 +144,10 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     if (q.type==='short'||q.type==='long') {
       const isNameField = ['이름','성함','성명','닉네임','name'].some(word => String(q.label || '').toLowerCase().includes(word.toLowerCase()))
       const isPhoneField = ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(word => String(q.label || '').toLowerCase().includes(word.toLowerCase()))
-      return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v){er(${i},'답변을 입력해주세요.');return false;}`:''}${isNameField?`if(v){const nv=v.replace(/[\s._\-·•・,，。!@#$%^&*+=~\`|\\/?:;\[\]{}<>"']/g,'');const lw=nv.toLowerCase();const badWords=['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'];if(!nv||nv.length<2||/^[0-9]+$/.test(nv)||/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(nv)||(/^(.)\\1+$/.test(nv)&&nv.length<=4)||badWords.some(w=>lw.includes(w.toLowerCase()))){er(${i},'정확한 이름을 입력해주세요.');return false;}}`:''}${isPhoneField?`if(v){const n=v.replace(/[-\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}}`:''}ans['${esc2(q.label||'q'+i)}']=v;break;}`
+      return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v){er(${i},'답변을 입력해주세요.');return false;}`:''}${isNameField?`if(v){const nv=v.replace(/[\s._\-·•・,，。!@#$%^&*+=~\`|\\/?:;\[\]{}<>"']/g,'');const lw=nv.toLowerCase();const badWords=['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'];if(!nv||nv.length<2||/^[0-9]+$/.test(nv)||/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(nv)||(/^(.)\\1+$/.test(nv)&&nv.length<=4)||badWords.some(w=>lw.includes(w.toLowerCase()))){er(${i},'정확한 이름을 입력해주세요.');return false;}}`:''}${isPhoneField?`if(v){const n=v.replace(/[-\\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}}`:''}ans['${esc2(q.label||'q'+i)}']=v;break;}`
     }
-    if (q.type==='phone') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';const n=v.replace(/[-\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));${q.required?`if(!n){er(${i},'전화번호를 입력해주세요.');return false;}`:''}if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}ans['${esc2(q.label||'전화번호')}']=v;break;}`
-    if (q.type==='email') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v)){er(${i},'올바른 이메일을 입력해주세요.');return false;}`:''}ans['${esc2(q.label||'이메일')}']=v;break;}`
+    if (q.type==='phone') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';const n=v.replace(/[-\\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));${q.required?`if(!n){er(${i},'전화번호를 입력해주세요.');return false;}`:''}if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}ans['${esc2(q.label||'전화번호')}']=v;break;}`
+    if (q.type==='email') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';if((${!!q.required}&&!v)||(v&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v))){er(${i},'올바른 이메일을 입력해주세요.');return false;}ans['${esc2(q.label||'이메일')}']=v;break;}`
     if (q.type==='multiple') return `case ${i}:{const sel=[...document.querySelectorAll('#g${q.id} .ci.ck')].map(el=>{const oi=el.querySelector('.oi');return oi?oi.value||'기타':el.querySelector('span').textContent;});${q.required?`if(!sel.length){er(${i},'하나 이상 선택해주세요.');return false;}`:''}ans['${esc2(q.label||'q'+i)}']=sel.join(', ');break;}`
     if (q.type==='single') return `case ${i}:{const el=document.querySelector('#g${q.id} .ci.ck');const oi=el?.querySelector('.oi');const sel=oi?oi.value||'기타':el?.querySelector('span')?.textContent||'';${q.required?`if(!sel){er(${i},'선택해주세요.');return false;}`:''}ans['${esc2(q.label||'q'+i)}']=sel;break;}`
     if (q.type==='quiz') return `case ${i}:{const el=document.querySelector('#g${q.id} .ci.ck');${q.required?`if(!el){er(${i},'보기를 선택해주세요.');return false;}`:''}break;}`
@@ -133,7 +157,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const firstShortLabel = questions.find(q=>q.type==='short')?.label||''
 
-  const startHTML = useStart ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
+  const startHTML = useStart && !singlePage ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
     ${coverImgData?`<img src="${coverImgData}" loading="eager" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:200px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`:'' }
     <div class="stag">${esc(startTag)}</div>
     <div class="stit">${esc(title).replace(/\n/g,'<br>')}</div>
@@ -238,7 +262,8 @@ ${conceptTheme!=='default'?`body{font-family:${fontFamily}!important}.ct,.stit{f
 #pf{background:linear-gradient(90deg,${theme.c1},${theme.c2})!important}
 ${animCSS}
 @media(max-width:480px){.card{padding:28px 22px 22px;border-radius:20px}.ct{font-size:19px}}
-</style></head><body>
+${singlePage ? singlePageCSS : ''}
+</style></head><body${singlePage?' class="single-page"':''}>
 ${bgImgData?'<div id="bg-img"></div><div id="bg-overlay"></div>':''}
 <div id="pw"><div id="pf"></div></div>
 <div id="sc"></div>
@@ -248,7 +273,14 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
 <div id="tst"></div>
 <div class="wrap">
   ${startHTML}
+  ${singlePage?`<main class="card single-sheet" id="single-form">
+    <header class="single-header">
+      ${coverImgData?`<img class="single-cover" src="${esc(coverImgData)}" decoding="async" alt="">`:''}
+      <h1 class="single-title">${esc(title||'신청서')}</h1>
+      ${startDesc?`<p class="single-desc">${esc(startDesc)}</p>`:''}
+    </header>`:''}
   ${slides}
+  ${singlePage?`<footer class="single-footer"><button class="nb single-submit" id="sb" type="button" onclick="submitSingle()"><span class="sp"></span><span class="nl">${esc(submitBtnText||'제출하기')}</span></button></footer></main>`:''}
   <div class="sl" id="done"><div class="card done-card">
     <div class="dr"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
     <div class="dt">${esc(doneTitle)}</div>
@@ -260,19 +292,22 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
 </div>
 <script>
 const SU='${esc2(scriptUrl)}';
+const SINGLE_PAGE=${singlePage};
+const WAIT_FOR_SUBMIT=${singlePage && !!waitForSubmit};
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
 const QS=${JSON.stringify(questions.map(q=>({id:q.id,type:q.type})))};
 const HIST=[];
-let cur=-1,anim=false;
+let cur=${singlePage?'0':'-1'},anim=false,submitted=false;
 let qzScore=0,qzTotal=0,qzDone={};
 const ans={};
 upUI();
-${!useStart?'initFirst();':''}
+${!useStart&&!singlePage?'initFirst();':''}
 function initFirst(){cur=0;const s=document.getElementById('sl0');if(s){s.style.display='flex';s.classList.add('active');const i=s.querySelector('input,textarea');if(i)setTimeout(()=>i.focus(),80);}upUI();}
 function sid(i){return i<0?'ss':i>=TOTAL?'done':'sl'+i}
 function upUI(){
+  if(SINGLE_PAGE)return;
   if(cur<0||cur>=TOTAL){document.getElementById('pf').style.width=cur>=TOTAL?'100%':'0%';document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';return;}
   document.getElementById('pf').style.width=((cur+1)/TOTAL*100)+'%';
   document.getElementById('sc').textContent=(cur+1)+' / '+TOTAL;
@@ -312,6 +347,7 @@ function sf(){
   upUI();
 }
 function gn(s){
+  if(SINGLE_PAGE)return;
   if(anim)return;if(!vld(s))return;
   const br=BRANCH[s];
   let next=s+1;
@@ -321,8 +357,8 @@ function gn(s){
     if(oi>=0&&br[oi]!=null){const t=br[oi];if(t==='done'){finishForm();return;}next=parseInt(t);}
   }
   HIST.push(cur);
+  if(next>=TOTAL){finishForm();return;}
   const f=cur;cur=next;
-  if(cur>=TOTAL){finishForm();return;}
   go(f,cur,'n');upUI();
 }
 function gp(s){
@@ -334,8 +370,10 @@ function pick(el,gid,multi){
   if(el.classList.contains('qdisabled'))return;
   if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));
   el.classList.toggle('ck');el.style.transform='scale(0.96)';setTimeout(()=>el.style.transform='',100);
-  ${autoNext?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320);}`:''}}
-function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.add('ck');el.querySelector('.oi')?.focus();}
+  if(SINGLE_PAGE){syncChoices(gid);updateSinglePath();}
+  ${autoNext&&!singlePage?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320);}`:''}}
+function syncChoices(gid){document.querySelectorAll('#'+gid+' .ci').forEach(el=>{const input=el.querySelector('.native-choice');if(input)input.checked=el.classList.contains('ck');});}
+function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.add('ck');if(SINGLE_PAGE){syncChoices(gid);updateSinglePath();}el.querySelector('.oi')?.focus();}
 function pickQuiz(el,gid,qi){
   if(qzDone[qi])return;
   document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));
@@ -371,28 +409,40 @@ function er(i,m){const e=document.getElementById('e'+i);e.textContent='⚠ '+m;e
 function ce(){document.querySelectorAll('.em').forEach(e=>{e.textContent='';e.classList.remove('on')});document.querySelectorAll('.fi').forEach(f=>f.classList.remove('er'));}
 function vld(s){ce();switch(s){${vldCases}default:break;}return true;}
 function finishForm(){
+  if(submitted)return;
+  submitted=true;
+  ans._ts=new Date().toLocaleString('ko-KR');
+  ans._formTitle=${JSON.stringify(title || '').replace(/</g, '\\u003c')};
+  try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans,pdfUrl:'${esc2(submitPdfUrl)}'},'*');}catch(e){}
+  if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
+  if(WAIT_FOR_SUBMIT){const btn=document.getElementById('sb');btn.disabled=true;btn.classList.add('ld2');return;}
+  completeForm();
+}
+function completeForm(){
   const f=cur;cur=TOTAL;
   const dn=document.getElementById('dn');
   if(dn){const nk='${esc2(firstShortLabel)}';if(ans[nk])dn.textContent=ans[nk]+', ';}
   ${hasQuiz?`const sc=document.getElementById('qscore');if(sc&&qzTotal>0){const p=Math.round(qzScore/qzTotal*100);sc.textContent='🏆 점수: '+qzScore+' / '+qzTotal+' ('+p+'%)';sc.style.color=p>=70?'#4ade80':p>=40?'#fbbf24':'#f87171';}`:'' }
   document.getElementById('sc').style.opacity='0';document.getElementById('gb').className='';
   ${useKb?"document.getElementById('kh').style.opacity='0';":""}
-  go(f,TOTAL,'n');document.getElementById('pf').style.width='100%';
+  if(SINGLE_PAGE){document.getElementById('single-form').hidden=true;document.getElementById('done').style.display='flex';window.scrollTo(0,0);}
+  else go(f,TOTAL,'n');
+  document.getElementById('pf').style.width='100%';
   ${useConfetti?'if(!qzTotal||qzScore===qzTotal)setTimeout(cf,420);else if(qzScore>0)setTimeout(cf,420);':''}
   tst('✅ 완료되었습니다!','ok');
-  ans._ts=new Date().toLocaleString('ko-KR');
-  ans._formTitle="${esc(title).replace(/\n/g,' ')}";
-  try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans,pdfUrl:'${esc2(submitPdfUrl)}'},'*');}catch(e){}
-  if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
 }
 async function sub(){
+  if(SINGLE_PAGE){submitSingle();return;}
   if(anim)return;if(!vld(${TOTAL-1}))return;
   const btn=document.getElementById('sb');if(btn){btn.classList.add('ld2');btn.disabled=true;}
   finishForm();
   if(btn){btn.classList.remove('ld2');btn.disabled=false;}
 }
 function rst(){
+  submitted=false;ce();
   document.querySelectorAll('input').forEach(el=>el.value='');
+  document.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);
+  document.querySelectorAll('[aria-invalid]').forEach(el=>el.removeAttribute('aria-invalid'));
   document.querySelectorAll('textarea').forEach(el=>el.value='');
   document.querySelectorAll('.ci,.la').forEach(el=>el.classList.remove('ck','qcorrect','qwrong','qdisabled'));
   document.querySelectorAll('.qfb').forEach(el=>{el.style.display='none';});
@@ -402,6 +452,7 @@ function rst(){
   Object.keys(ans).forEach(k=>delete ans[k]);
   Object.keys(qzDone).forEach(k=>delete qzDone[k]);
   qzScore=0;qzTotal=0;HIST.length=0;
+  if(SINGLE_PAGE){document.getElementById('done').style.display='none';document.getElementById('single-form').hidden=false;cur=0;updateSinglePath();window.scrollTo(0,0);return;}
   document.getElementById('pf').style.width='0%';document.getElementById('sc').style.opacity='0';
   ${useKb?"document.getElementById('kh').style.opacity='1';":""}
   const f=cur;cur=-1;
@@ -411,6 +462,7 @@ ${confJS}
 function rp(e,btn){const r=btn.getBoundingClientRect(),sz=Math.max(r.width,r.height)*2,el=document.createElement('span');el.className='rp';el.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+(e.clientX-r.left-sz/2)+'px;top:'+(e.clientY-r.top-sz/2)+'px';btn.appendChild(el);setTimeout(()=>el.remove(),560);}
 function tst(m,t){const el=document.getElementById('tst');el.textContent=m;el.className=t+' on';setTimeout(()=>el.className='',3200);}
 ${kbJS}
+${singlePage ? singlePageJS : ''}
 ${useKb?"setTimeout(()=>document.getElementById('kh').style.opacity='0',5000);":""}
 <\/script></body></html>`
 }

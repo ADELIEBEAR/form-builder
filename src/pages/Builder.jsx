@@ -17,6 +17,7 @@ const nid = () => ++UID
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
+  layout: 'steps', submitBtnText: '제출하기',
   bgBlur: 0,
   bgOverlay: 0.5,
   bgOverlayColor: '#000000',
@@ -35,6 +36,7 @@ export default function Builder() {
   const [questions, setQuestions] = useState([])
   const [theme, setTheme] = useState(COLOR_THEMES[0])
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  const singlePage = settings.layout === 'single'
   const [coverImgData, setCoverImgData] = useState(null)
   const [bgImgData, setBgImgData] = useState(null)
   const [qImgData, setQImgData] = useState({})
@@ -305,6 +307,17 @@ export default function Builder() {
 
         {/* ── 왼쪽 패널 ── */}
         <div className={s.lpanel}>
+          <fieldset className={s.layoutPicker}>
+            <legend>폼 형식</legend>
+            <div className={s.layoutOptions}>
+              {[['steps', '한 질문씩'], ['single', '한 페이지']].map(([value, label]) => (
+                <label key={value} className={s.layoutOption}>
+                  <input type="radio" name="form-layout" value={value} checked={(settings.layout || 'steps') === value} onChange={() => setSetting('layout', value)} />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className={s.tabs}>
             {['질문', '디자인', '설정'].map((t, i) => (
               <button key={i} className={`${s.tab} ${activeTab === i ? s.tabOn : ''}`} onClick={() => setActiveTab(i)}>{t}</button>
@@ -399,7 +412,7 @@ export default function Builder() {
                     </>}
                   </div>
                   <div className={s.lsep}/>
-                  <div className={s.lsec}>애니메이션</div>
+                  {!singlePage && <><div className={s.lsec}>애니메이션</div>
                   <div className={s.animGrid}>
                     {[
                       {i:0, label:'↑ 슬라이드', emoji:'⬆️'},
@@ -418,7 +431,7 @@ export default function Builder() {
                         <span className={s.animLabel}>{label}</span>
                       </button>
                     ))}
-                  </div>
+                  </div></>}
                 </>}
 
                 {designTab === 1 && <>
@@ -438,28 +451,31 @@ export default function Builder() {
             {/* ── 탭 2: 설정 ── */}
             {activeTab === 2 && (
               <>
-                <div className={s.lsec}>시작 화면</div>
-                <ToggleRow label="시작 화면 사용" val={settings.useStart} onChange={v => setSetting('useStart', v)} light={isLight} />
-                {settings.useStart && (
+                <div className={s.lsec}>{singlePage ? '폼 소개' : '시작 화면'}</div>
+                {!singlePage && <ToggleRow label="시작 화면 사용" val={settings.useStart} onChange={v => setSetting('useStart', v)} light={isLight} />}
+                {(singlePage || settings.useStart) && (
                   <>
-                    <SetRow label="태그 텍스트" light={isLight}>
+                    {!singlePage && <SetRow label="태그 텍스트" light={isLight}>
                       <input className={s.inp} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
-                    </SetRow>
+                    </SetRow>}
                     <SetRow label="소개 설명" light={isLight}>
                       <input className={s.inp} value={settings.startDesc} onChange={e => setSetting('startDesc', e.target.value)} placeholder="폼 소개..." />
                     </SetRow>
-                    <SetRow label="시작 버튼 텍스트" light={isLight}>
+                    {!singlePage && <SetRow label="시작 버튼 텍스트" light={isLight}>
                       <input className={s.inp} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
-                    </SetRow>
+                    </SetRow>}
                   </>
                 )}
 
                 <div className={s.lsep}/>
                 <div className={s.lsec}>폼 동작</div>
-                <ToggleRow label="이전 버튼" val={settings.allowBack} onChange={v => setSetting('allowBack', v)} light={isLight} />
-                <ToggleRow label="자동 다음" val={settings.autoNext} onChange={v => setSetting('autoNext', v)} light={isLight} />
+                {!singlePage && <ToggleRow label="이전 버튼" val={settings.allowBack} onChange={v => setSetting('allowBack', v)} light={isLight} />}
+                {!singlePage && <ToggleRow label="자동 다음" val={settings.autoNext} onChange={v => setSetting('autoNext', v)} light={isLight} />}
+                {singlePage && <SetRow label="제출 버튼 텍스트" light={isLight}>
+                  <input className={s.inp} value={settings.submitBtnText || ''} onChange={e => setSetting('submitBtnText', e.target.value)} placeholder="제출하기" />
+                </SetRow>}
                 <ToggleRow label="Confetti 효과" val={settings.useConfetti} onChange={v => setSetting('useConfetti', v)} light={isLight} />
-                <ToggleRow label="키보드 단축키" val={settings.useKb} onChange={v => setSetting('useKb', v)} light={isLight} />
+                {!singlePage && <ToggleRow label="키보드 단축키" val={settings.useKb} onChange={v => setSetting('useKb', v)} light={isLight} />}
                 <div className={s.lsep}/>
                 <div className={s.lsec}>완료 화면</div>
                 <SetRow label="완료 제목" light={isLight}>
@@ -492,7 +508,7 @@ export default function Builder() {
           <div className={s.editorInner}>
 
             {/* 시작화면 카드 */}
-            {settings.useStart && (
+            {(singlePage || settings.useStart) && (
               <div className={s.startCard}>
                 {coverImgData
                   ? <div className={s.startCoverWrap}>
@@ -506,7 +522,7 @@ export default function Builder() {
                   : <label className={s.startCoverPlaceholder}>📷 표지 이미지 업로드<input type="file" accept="image/*" style={{display:'none'}} onChange={onCoverImg}/></label>
                 }
                 <div className={s.startBody}>
-                  <input className={s.startTagEdit} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />
+                  {!singlePage && <input className={s.startTagEdit} value={settings.startTag} onChange={e => setSetting('startTag', e.target.value)} placeholder="✦ Form" />}
                   <textarea
                     className={s.startTitleEdit}
                     value={title}
@@ -523,10 +539,10 @@ export default function Builder() {
                     rows={1}
                     onInput={e => { e.target.style.height='auto'; e.target.style.height=e.target.scrollHeight+'px' }}
                   />
-                  <div className={s.startBtnWrap}>
+                  {!singlePage && <div className={s.startBtnWrap}>
                     <input className={s.startBtnEdit} value={settings.startBtnText} onChange={e => setSetting('startBtnText', e.target.value)} placeholder="시작하기" />
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                  </div>
+                  </div>}
                 </div>
               </div>
             )}
