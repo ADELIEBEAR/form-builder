@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Single page form verification</title>
+<style>body{margin:0;font-family:sans-serif}#results{padding:12px;white-space:pre-wrap}iframe{border:0;width:100%;height:100vh;display:block}</style>
+<div id="results">Running...</div>
+<iframe id="preview" title="Single page form"></iframe>
+<script type="module">
+import { generateFormHTML } from '/src/lib/generateHTML.js'
+import { clientFormPatch } from '/src/pages/PublicForm.jsx'
+const frame = document.getElementById('preview')
+const results = document.getElementById('results')
+const theme = { c1: '#16846b', c2: '#227ca8' }
+const questions = [
+  { id: 1, type: 'short', label: '신청자 성함', hint: '신청 확인에 사용할 이름을 입력해주세요.', required: true },
+  { id: 2, type: 'phone', label: '연락처', required: true },
+  { id: 3, type: 'email', label: '이메일', required: false },
+  { id: 4, type: 'single', label: '참여 방식', options: ['온라인', '방문'], required: true, branches: [{ optionIdx: 0, targetIdx: 5 }] },
+  { id: 5, type: 'short', label: '방문 지역', required: true },
+  { id: 6, type: 'multiple', label: '관심 분야', options: ['기업 분석', '시장 흐름'], other: true, required: true },
+  { id: 7, type: 'long', label: '남기실 말씀', hint: '궁금한 내용을 자유롭게 남겨주세요.' },
+  { id: 8, type: 'quiz', label: '확인 질문', options: ['첫 번째', '두 번째'], correctAnswer: 0 },
+  { id: 9, type: 'legal', label: '개인정보 수집 및 이용 동의', legalText: '신청 확인과 안내를 위해 이름과 연락처를 수집합니다.', required: true },
+]
+const messages = []
+window.addEventListener('message', e => { if(e.source === frame.contentWindow && e.data?.type === 'FORM_SUBMIT') messages.push(e.data) })
+const log = []
+function check(value, label) { if(!value) throw new Error(label); log.push('PASS ' + label) }
+function tick() { return new Promise(resolve => setTimeout(resolve, 25)) }
+frame.srcdoc = generateFormHTML('투자 인사이트 알림 신청', questions, theme, { layout: 'single', waitForSubmit: true, conceptTheme: new URLSearchParams(location.search).get('theme') || 'medical', useStart: true, autoNext: true, useKb: true, useConfetti: false, startDesc: '관심 있는 소식과 자료를 보내드립니다.', scriptUrl: '', doneTitle: '신청이 완료되었습니다', submitBtnText: '알림 신청하기' })
+  .replace('</body></html>', clientFormPatch() + '</body></html>')
+if (new URLSearchParams(location.search).has('demo')) results.hidden = true
+frame.addEventListener('load', async () => {
+  try {
+    const doc = frame.contentDocument
+    const field = id => doc.getElementById(id)
+    const choose = (group, index) => doc.querySelectorAll('#' + group + ' .native-choice')[index].click()
+    check(doc.querySelectorAll('.single-question:not([hidden])').length === 9, 'all questions initially visible')
+    field('sb').click()
+    check(field('e0').textContent.includes('답변'), 'first required field blocks submission')
+    check(messages.length === 0, 'invalid form never submits')
+    field('f1').value = '홍길동'
+    field('f1').dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    check(doc.activeElement === field('f2'), 'Enter focuses next field without submitting')
+    field('f2').value = '010-4826-7395'
+    field('f3').value = 'invalid-email'
+    field('sb').click()
+    check(field('e2').textContent.includes('이메일'), 'optional email still validates entered value')
+    field('f3').value = ''
+    choose('g4', 1)
+    field('sb').click()
+    check(field('e4').textContent.includes('답변'), 'conditional required field validated')
+    field('f5').value = '서울'
+    choose('g4', 0)
+    check(field('sl4').hidden, 'branch hides skipped question')
+    choose('g4', 1)
+    check(!field('sl4').hidden && field('f5').value === '서울', 'switching branch restores entered value')
+    choose('g4', 0)
+    choose('g6', 0)
+    choose('g6', 1)
+    choose('g6', 2)
+    field('oi6').value = '산업 동향'
+    choose('g6', 2)
+    check(!doc.querySelectorAll('#g6 .ci')[2].classList.contains('ck'), 'other checkbox can be unchecked')
+    field('f7').focus()
+    field('oi6').focus()
+    choose('g8', 0)
+    field('sb').click()
+    check(field('e8').textContent.includes('동의'), 'consent required before submission')
+    doc.querySelector('#la9 input').click()
+    field('f7').value = '첫 줄\n둘째 줄'
+    field('sb').click()
+    field('sb').click()
+    await tick()
+    check(messages.length === 1, 'one submission despite repeated clicks')
+    check(!field('single-form').hidden && field('sb').disabled, 'waits for server acknowledgement')
+    frame.contentWindow.postMessage({ type: 'SUBMIT_ERROR', message: 'Retry test' }, '*')
+    await tick()
+    check(!field('sb').disabled && field('f1').value === '홍길동', 'save error retains answers and allows retry')
+    field('sb').click()
+    await tick()
+    check(messages.length === 2, 'retry sends one new submission')
+    frame.contentWindow.postMessage({ type: 'SUBMIT_SUCCESS' }, '*')
+    await tick()
+    check(messages[0].answers['신청자 성함'] === '홍길동', 'name submitted')
+    check(messages[0].answers['연락처'] === '010-4826-7395', 'phone validation and submission')
+    check(!Object.hasOwn(messages[0].answers, '방문 지역'), 'hidden answers omitted')
+    check(messages[0].answers['관심 분야'] === '기업 분석, 시장 흐름, 산업 동향', 'multiple selections and other captured')
+    check(messages[0].answers['남기실 말씀'] === '첫 줄\n둘째 줄', 'multiline answer captured')
+    check(messages[0].answers['Q8_답'].includes('정답'), 'quiz scored')
+    check(field('single-form').hidden && field('done').style.display === 'flex', 'completion screen visible')
+    doc.querySelector('.drst').click()
+    check(!field('single-form').hidden && field('f1').value === '', 'restart clears and shows form')
+    check(doc.querySelectorAll('.native-choice:checked').length === 0, 'restart clears native selections')
+    check(doc.querySelectorAll('.single-question:not([hidden])').length === 9, 'restart restores branch visibility')
+    results.textContent = log.join('\n') + '\nALL PASSED'
+  } catch (error) { results.textContent = log.join('\n') + '\nFAIL ' + error.message }
+}, { once: true })
+</script>
+</html>
