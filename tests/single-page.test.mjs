@@ -62,3 +62,39 @@ test('single-page output preserves assets, completion CTA and custom description
   assert.match(html, /&lt;intro&gt;/)
   assert.match(html, /href="https:\/\/example.com\/done"/)
 })
+
+test('step forms still navigate, submit only once, and restart after shared runtime changes', () => {
+  const nodes = new Map()
+  function element(id) {
+    if (!nodes.has(id)) nodes.set(id, {
+      style: {}, value: '', textContent: '', classList: { add() {}, remove() {} },
+      focus() {}, querySelector() { return null },
+    })
+    return nodes.get(id)
+  }
+  const submissions = []
+  const context = vm.createContext({
+    document: { getElementById: element, querySelectorAll: () => [] },
+    window: { parent: { postMessage: message => submissions.push(JSON.parse(JSON.stringify(message))) } },
+    setTimeout: callback => callback(),
+  })
+  const html = generateFormHTML('Application', questions.slice(0, 2), theme, {
+    useKb: false, useConfetti: false, scriptUrl: '',
+  })
+  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context)
+  context.sf()
+  element('f1').value = 'Alice'
+  context.gn(0)
+  assert.equal(element('sl1').style.display, 'flex')
+  element('f2').value = '010-4826-7395'
+  context.gn(1)
+  context.finishForm()
+  assert.equal(submissions.length, 1)
+  assert.equal(submissions[0].answers.Name, 'Alice')
+  assert.equal(submissions[0].answers.Phone, '010-4826-7395')
+  assert.equal(element('sl1').style.display, 'none')
+  assert.equal(element('done').style.display, 'flex')
+  context.rst()
+  assert.equal(element('done').style.display, 'none')
+  assert.equal(element('ss').style.display, 'flex')
+})
