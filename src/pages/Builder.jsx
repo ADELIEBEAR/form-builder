@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 import { getForm, saveForm, publishForm } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import s from './Builder.module.css'
-import { CONCEPT_THEMES, COLOR_THEMES, FONTS } from '../lib/themes'
+import { CONCEPT_THEMES, FONTS } from '../lib/themes'
+import { getConceptSwatch } from '../lib/conceptPresentation'
 import { useTheme } from '../lib/themeContext'
 import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
@@ -34,7 +35,7 @@ export default function Builder() {
 
   const [title, setTitle] = useState('')
   const [questions, setQuestions] = useState([])
-  const [theme, setTheme] = useState(COLOR_THEMES[0])
+  const [theme, setTheme] = useState({ c1:'#3b82f6', c2:'#60a5fa' })
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const singlePage = settings.layout === 'single'
   const [coverImgData, setCoverImgData] = useState(null)
@@ -360,26 +361,48 @@ export default function Builder() {
             {activeTab === 1 && (
               <>
                 <div className={s.subTabs}>
-                  <button className={`${s.subTab} ${designTab===0?s.subTabOn:''}`} onClick={()=>setDesignTab(0)}>🎨 테마</button>
-                  <button className={`${s.subTab} ${designTab===1?s.subTabOn:''}`} onClick={()=>setDesignTab(1)}>🔤 폰트</button>
+                  <button className={`${s.subTab} ${designTab===0?s.subTabOn:''}`} onClick={()=>setDesignTab(0)}>테마</button>
+                  <button className={`${s.subTab} ${designTab===1?s.subTabOn:''}`} onClick={()=>setDesignTab(1)}>글꼴</button>
                 </div>
 
                 {designTab === 0 && <>
-                  <div className={s.lsec}>컨셉 테마</div>
+                  <div className={s.lsec}>스타일 5</div>
                   <div className={s.conceptGrid}>
                     {CONCEPT_THEMES.map(ct => (
                       <div key={ct.id} className={`${s.conceptCard} ${settings.conceptTheme===ct.id?s.conceptCardOn:''}`} onClick={()=>setSetting('conceptTheme',ct.id)} title={ct.desc}>
-                        <div className={s.conceptEmoji}>{ct.emoji}</div>
-                        <div className={s.conceptName}>{ct.name}</div>
+                        <span
+                          className={`${s.conceptSwatch} ${ct.id.startsWith('clean_') ? s.cleanSwatch : ''}`}
+                          data-clean-theme={ct.id}
+                          style={ct.id.startsWith('clean_') ? undefined : getConceptSwatch(ct.id, theme.c1)}
+                          aria-hidden="true"
+                        />
+                        <div className={s.conceptCopy}>
+                          <div className={s.conceptName}>{ct.name}</div>
+                          <div className={s.conceptDesc}>{ct.desc}</div>
+                        </div>
                       </div>
                     ))}
                   </div>
                   <div className={s.lsep}/>
                   <div className={s.lsec}>색상</div>
-                  <div className={s.themeGrid}>
-                    {COLOR_THEMES.map((t,i) => (
-                      <div key={i} className={`${s.tdot} ${theme.c1===t.c1?s.tdotOn:''}`} style={{background:`linear-gradient(135deg,${t.c1},${t.c2})`}} title={t.name} onClick={()=>setTheme(t)}/>
-                    ))}
+                  <div className={s.customColors}>
+                    <div className={s.colorPreview} style={{background:`linear-gradient(90deg,${theme.c1},${theme.c2})`}} aria-hidden="true" />
+                    <div className={s.colorPickerGrid}>
+                      <label className={s.colorPickerField}>
+                        <span>주 색상</span>
+                        <div className={s.colorPickerControl}>
+                          <input type="color" value={theme.c1} onChange={e=>setTheme({...theme,c1:e.target.value})} aria-label="주 색상 선택" />
+                          <code>{theme.c1.toUpperCase()}</code>
+                        </div>
+                      </label>
+                      <label className={s.colorPickerField}>
+                        <span>보조 색상</span>
+                        <div className={s.colorPickerControl}>
+                          <input type="color" value={theme.c2} onChange={e=>setTheme({...theme,c2:e.target.value})} aria-label="보조 색상 선택" />
+                          <code>{theme.c2.toUpperCase()}</code>
+                        </div>
+                      </label>
+                    </div>
                   </div>
                   <div className={s.lsep}/>
                   <div className={s.lsec}>배경 이미지</div>
@@ -789,7 +812,7 @@ export default function Builder() {
 
 function ToggleRow({ label, val, onChange, light }) {
   const muted = light ? '#6b7280' : '#9997ab'
-  const bg = val ? '#7c6cfc' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
+  const bg = val ? 'var(--action)' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
   return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 2px'}}>
       <span style={{fontSize:12,color:muted}}>{label}</span>
@@ -801,7 +824,7 @@ function ToggleRow({ label, val, onChange, light }) {
 }
 
 function ToggleInline({ label, val, onChange, light }) {
-  const bg = val ? '#7c6cfc' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
+  const bg = val ? 'var(--action)' : (light ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)')
   const color = light ? '#6b7280' : '#7a788f'
   return (
     <div style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer'}} onClick={() => onChange(!val)}>

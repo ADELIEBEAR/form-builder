@@ -2,7 +2,7 @@
 
 /* ── 로딩 ── */
 .loadWrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
-.spinner { width: 28px; height: 28px; border: 2px solid rgba(124,108,252,.2); border-top-color: var(--a1); border-radius: 50%; animation: spin .7s linear infinite; }
+.spinner { width: 28px; height: 28px; border: 2px solid color-mix(in srgb,var(--a1) 20%,transparent); border-top-color: var(--a1); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── 헤더 ── */
@@ -17,14 +17,14 @@
 .backBtn:hover { background: var(--surface-hover); color: var(--text); }
 .formName { font-family: 'Gmarket Sans', sans-serif; font-size: 15px; font-weight: 700; }
 .headerMeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
-.totalBadge { font-size: 11px; color: var(--a1); background: rgba(124,108,252,.1); border: 1px solid rgba(124,108,252,.2); border-radius: 99px; padding: 1px 9px; }
+.totalBadge { font-size: 11px; color: var(--a1); background: color-mix(in srgb,var(--a1) 10%,transparent); border: 1px solid color-mix(in srgb,var(--a1) 20%,transparent); border-radius: 99px; padding: 1px 9px; }
 .filterBadge { font-size: 11px; color: var(--muted2); background: var(--surface); border-radius: 99px; padding: 1px 9px; }
 .newBadge { font-size: 11px; color: #ff4444; background: rgba(255,68,68,.1); border: 1px solid rgba(255,68,68,.25); border-radius: 99px; padding: 1px 9px; cursor: pointer; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.6} }
 .headerRight { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .notifBtn { width: 32px; height: 32px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all .15s; }
 .notifBtn:hover { background: var(--surface-hover); }
-.notifOn { background: rgba(124,108,252,.1); border-color: rgba(124,108,252,.3); }
+.notifOn { background: color-mix(in srgb,var(--a1) 10%,transparent); border-color: color-mix(in srgb,var(--a1) 30%,transparent); }
 
 /* ── 필터 바 ── */
 .filterBar {
@@ -35,21 +35,21 @@
 .searchWrap { position: relative; flex: 1; min-width: 180px; max-width: 280px; }
 .searchIco { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .searchInp { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 30px 7px 30px; font-size: 12px; color: var(--text); outline: none; transition: border-color .2s; font-family: 'Noto Sans KR', sans-serif; }
-.searchInp:focus { border-color: rgba(124,108,252,.4); }
+.searchInp:focus { border-color: color-mix(in srgb,var(--a1) 40%,transparent); }
 .searchInp::placeholder { color: var(--muted); }
 .searchClear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 2px; }
 .dateFilters { display: flex; gap: 4px; align-items: center; }
 .dateBtn { padding: 5px 11px; border-radius: 7px; background: transparent; border: 1px solid var(--border); font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
 .dateBtn:hover { border-color: var(--border2); color: var(--text); }
-.dateBtnOn { background: rgba(124,108,252,.12); border-color: rgba(124,108,252,.35); color: var(--a1); }
+.dateBtnOn { background: color-mix(in srgb,var(--a1) 12%,transparent); border-color: color-mix(in srgb,var(--a1) 35%,transparent); color: var(--a1); }
 .dateInput { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11px; color: var(--text); outline: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
-.dateInput:focus { border-color: rgba(124,108,252,.4); }
+.dateInput:focus { border-color: color-mix(in srgb,var(--a1) 40%,transparent); }
 .filterRight { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .sortBtn { padding: 5px 11px; border-radius: 7px; background: transparent; border: 1px solid var(--border); font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; white-space: nowrap; font-family: 'Noto Sans KR', sans-serif; }
 .sortBtn:hover { border-color: var(--border2); color: var(--text); }
 .viewToggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .viewBtn { padding: 5px 12px; background: transparent; border: none; font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; font-family: 'Noto Sans KR', sans-serif; }
-.viewBtnOn { background: rgba(124,108,252,.15); color: var(--a1); }
+.viewBtnOn { background: color-mix(in srgb,var(--a1) 15%,transparent); color: var(--a1); }
 
 /* ── 빈 상태 ── */
 .emptyWrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 80px 20px; text-align: center; }
@@ -62,7 +62,7 @@
 .dateGroup { display: flex; flex-direction: column; gap: 10px; }
 .dateGroupHeader { display: flex; align-items: center; gap: 10px; }
 .dateGroupLabel { font-size: 12px; font-weight: 700; color: var(--muted2); letter-spacing: .05em; }
-.dateGroupCount { font-size: 11px; color: var(--a1); background: rgba(124,108,252,.1); border-radius: 99px; padding: 1px 8px; }
+.dateGroupCount { font-size: 11px; color: var(--a1); background: color-mix(in srgb,var(--a1) 10%,transparent); border-radius: 99px; padding: 1px 8px; }
 .cardGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 
 /* ── 응답 카드 ── */
@@ -71,13 +71,13 @@
   cursor: pointer; transition: all .18s; overflow: hidden;
 }
 .respCard:hover { border-color: var(--border2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.25); }
-.respCardSelected { border-color: rgba(124,108,252,.4); background: rgba(124,108,252,.04); }
+.respCardSelected { border-color: color-mix(in srgb,var(--a1) 40%,transparent); background: color-mix(in srgb,var(--a1) 4%,transparent); }
 .respCardExpanded { border-color: var(--a1); }
 .respCardHeader { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
 .respCardLeft { display: flex; align-items: center; gap: 8px; }
 .respCardRight { display: flex; align-items: center; gap: 8px; }
 .checkbox { width: 14px; height: 14px; cursor: pointer; accent-color: var(--a1); }
-.respNum { font-size: 11px; font-weight: 700; color: var(--a1); background: rgba(124,108,252,.1); border-radius: 5px; padding: 1px 7px; }
+.respNum { font-size: 11px; font-weight: 700; color: var(--a1); background: color-mix(in srgb,var(--a1) 10%,transparent); border-radius: 5px; padding: 1px 7px; }
 .respDate { font-size: 11px; color: var(--muted2); }
 .expandIcon { font-size: 9px; color: var(--muted); }
 
@@ -109,7 +109,7 @@
 .thIp { width: 145px; padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--s1); position: sticky; top: 0; z-index: 5; }
 .tr { cursor: pointer; transition: background .12s; }
 .tr:hover td { background: var(--surface); }
-.trSelected td { background: rgba(124,108,252,.05); }
+.trSelected td { background: color-mix(in srgb,var(--a1) 5%,transparent); }
 .tdCheck, .tdNum, .tdDate, .td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
 .tdNum { color: var(--muted); font-size: 12px; }
 .tdDate { color: var(--muted2); font-size: 12px; white-space: nowrap; }
@@ -236,3 +236,12 @@
   font-weight: 800;
   margin-right: 3px;
 }
+
+.header{height:auto;min-height:64px;padding-top:10px;padding-bottom:10px}
+.formName{font-family:inherit;font-weight:600}
+.filterBar{padding-top:14px;padding-bottom:14px}
+.respCard{border-radius:8px}.respCard:hover{box-shadow:0 3px 12px rgba(0,0,0,.07)}
+.respCardSelected{background:color-mix(in srgb,var(--a1) 6%,var(--card));border-color:var(--a1)}
+.totalBadge,.respNum{background:var(--surface-active);border-color:var(--border2)}
+.searchInp:focus{border-color:var(--a1)}
+.table{font-variant-numeric:tabular-nums}.table th{background:var(--s1)}

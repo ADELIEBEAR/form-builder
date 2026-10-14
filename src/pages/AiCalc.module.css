@@ -10,7 +10,7 @@
   align-items: flex-start;
   gap: 20px;
   margin-bottom: 18px;
-  background: linear-gradient(135deg, rgba(124,108,252,.20), rgba(34,197,94,.08));
+  background: color-mix(in srgb,var(--a1) 10%,var(--card));
   border: 1px solid rgba(124,108,252,.28);
   border-radius: 22px;
   padding: 22px;
@@ -45,7 +45,7 @@
 .controls input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 11px; padding: 11px; outline: none; }
 .controls input:focus { border-color: rgba(124,108,252,.48); }
 .primary { background: rgba(124,108,252,.20) !important; border-color: rgba(124,108,252,.45) !important; color: var(--a1) !important; }
-.aiBtn { background: linear-gradient(135deg, rgba(124,108,252,.30), rgba(34,197,94,.18)) !important; border-color: rgba(34,197,94,.35) !important; color: #fff !important; }
+.aiBtn { background: var(--action) !important; border-color: color-mix(in srgb,var(--a1) 45%,transparent) !important; color: #fff !important; }
 .error { color: var(--danger); background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); border-radius: 14px; padding: 13px 15px; margin-bottom: 14px; }
 .summaryGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 14px 0; }
 .summaryGrid div {
@@ -59,7 +59,7 @@
   flex-direction: column;
   justify-content: center;
 }
-.summaryGrid b { display: block; font-size: 29px; color: #22c55e; margin-bottom: 7px; letter-spacing: -0.02em; }
+.summaryGrid b { display: block; font-size: 29px; color: var(--a1); margin-bottom: 7px; letter-spacing: 0; }
 .summaryGrid span { color: var(--muted); font-size: 12px; font-weight: 850; line-height: 1.35; }
 .actions { display: flex; gap: 10px; margin-bottom: 14px; }
 .resultBox, .listBox, .readyBox {
@@ -110,4 +110,4 @@
 }
 .actions { flex-wrap: wrap; }
 .actions button { flex: 1 1 190px; }
-.representativeBtn { background: rgba(34,197,94,.14) !important; border-color: rgba(34,197,94,.38) !important; color: #22c55e !important; }
+.representativeBtn { background: color-mix(in srgb,var(--a1) 12%,transparent) !important; border-color: color-mix(in srgb,var(--a1) 38%,transparent) !important; color: var(--a1) !important; }

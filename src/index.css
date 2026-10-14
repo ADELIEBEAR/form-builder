@@ -1,17 +1,18 @@
 :root {
-  --bg: #08080f;
-  --s1: #0f0f1c;
-  --s2: #161626;
-  --card: #1c1c2e;
-  --card2: #222236;
+  --bg: #17191b;
+  --s1: #202325;
+  --s2: #282c2f;
+  --card: #232729;
+  --card2: #2c3134;
   --border: rgba(255,255,255,.07);
   --border2: rgba(255,255,255,.13);
   --border3: rgba(255,255,255,.22);
-  --a1: #7c6cfc;
-  --a2: #c084fc;
-  --text: #f0eff8;
-  --muted: #7a788f;
-  --muted2: #9997ab;
+  --action: #3f63e9;
+  --a1: #6f8df2;
+  --a2: #9bb0f7;
+  --text: #f1f4f5;
+  --muted: #96a2a8;
+  --muted2: #b5bfc3;
   --danger: #f87171;
   --success: #4ade80;
   --warning: #fbbf24;
@@ -22,7 +23,7 @@
   --surface-hover: rgba(255,255,255,.09);
   --surface-active: rgba(255,255,255,.13);
   /* 네비/헤더 반투명 */
-  --nav-bg: rgba(8,8,15,.9);
+  --nav-bg: #202325;
   /* 카드 이미지 위 배지 */
   --img-badge-bg: rgba(0,0,0,.28);
   --img-badge-text: rgba(255,255,255,.9);
@@ -38,9 +39,10 @@
   --border: rgba(0,0,0,.09);
   --border2: rgba(0,0,0,.15);
   --border3: rgba(0,0,0,.22);
-  --a1: #7c6cfc;
-  --a2: #c084fc;
-  --text: #1a1a2a;
+  --action: #3158d8;
+  --a1: #3158d8;
+  --a2: #5f7fe5;
+  --text: #252f34;
   --muted: #6b7280;
   --muted2: #4b5563;
   --danger: #ef4444;
@@ -72,7 +74,7 @@ button, input, textarea, select { font-family: inherit; }
 .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
 .btn-primary { background: linear-gradient(135deg, var(--a1), var(--a2)); color: #fff; }
-.btn-primary:hover { opacity: .87; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,108,252,.3); }
+.btn-primary:hover { opacity: .87; transform: translateY(-1px); box-shadow: 0 6px 20px color-mix(in srgb,var(--a1) 30%,transparent); }
 .btn-primary:active { transform: scale(.97); }
 .btn-danger { background: rgba(248,113,113,.1); color: var(--danger); border: 1px solid rgba(248,113,113,.2); }
 .btn-danger:hover { background: rgba(248,113,113,.18); }
@@ -89,7 +91,7 @@ button, input, textarea, select { font-family: inherit; }
   border-radius: 10px; padding: 9px 13px; font-size: 13px; color: var(--text);
   outline: none; transition: border-color .2s, box-shadow .2s;
 }
-.inp:focus { border-color: rgba(124,108,252,.5); box-shadow: 0 0 0 3px rgba(124,108,252,.1); }
+.inp:focus { border-color: color-mix(in srgb,var(--a1) 50%,transparent); box-shadow: 0 0 0 3px color-mix(in srgb,var(--a1) 10%,transparent); }
 .inp::placeholder { color: var(--muted); }
 textarea.inp { resize: none; line-height: 1.55; }
 
@@ -105,9 +107,16 @@ textarea.inp { resize: none; line-height: 1.55; }
 }
 .toast-wrap.show { transform: translateX(-50%) translateY(0); }
 .toast-wrap.ok { border-color: rgba(74,222,128,.35); color: var(--success); }
-.toast-wrap.info { border-color: rgba(124,108,252,.35); color: var(--a1); }
+.toast-wrap.info { border-color: color-mix(in srgb,var(--a1) 35%,transparent); color: var(--a1); }
 .toast-wrap.fail { border-color: rgba(248,113,113,.35); color: var(--danger); }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Administrative surfaces stay quiet; form colors remain independent. */
+.btn,.inp{border-radius:6px;letter-spacing:0}
+.btn-primary{background:var(--action);color:#fff}
+.btn-primary:hover{box-shadow:none}
+.inp:focus{border-color:var(--a1);box-shadow:0 0 0 3px color-mix(in srgb,var(--a1) 12%,transparent)}
+.btn:focus-visible{outline:2px solid var(--a1);outline-offset:3px}

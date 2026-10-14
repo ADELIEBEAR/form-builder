@@ -29,7 +29,7 @@
   top: -22px;
   margin: -22px -24px 18px;
   padding: 16px 22px;
-  background: linear-gradient(135deg, rgba(124,108,252,.35), rgba(34,197,94,.18));
+  background: color-mix(in srgb,var(--a1) 16%,transparent);
   border-bottom: 1px solid rgba(124,108,252,.32);
   font-size: 18px;
   font-weight: 900;
@@ -80,7 +80,7 @@ button[class*="geminiBtn"]::after {
 }
 
 [class*="firstApplyText"] {
-  color: #22c55e !important;
+  color: var(--a1) !important;
   font-size: 12px;
   font-weight: 700;
 }

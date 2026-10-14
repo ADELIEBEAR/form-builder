@@ -1,9 +1,15 @@
+import { CLEAN_THEMES, getCleanThemeCSS } from './cleanThemes.js'
+import { getConceptPresentation } from './conceptPresentation.js'
+import { getThemeAtmosphereCSS, getThemeTypeface } from './themeAtmosphere.js'
+import { getReferenceFormPresentation } from './referenceFormPresentation.js'
+
 // ══════════════════════════════════════
 // 컨셉 테마 정의 — 20종 + 금융 10종 (총 30종)
 // 각 테마별 맞춤형 고해상도 배경 이미지 및 글래스모피즘 적용
 // ══════════════════════════════════════
 
-export const CONCEPT_THEMES = [
+export const ALL_CONCEPT_THEMES = [
+  ...CLEAN_THEMES,
   { id:'default',   name:'기본',      emoji:'🌙', desc:'다크 모던 & 글래스' },
   { id:'soft',      name:'말랑말랑',  emoji:'🍬', desc:'파스텔 구름' },
   { id:'cyber',     name:'사이버',    emoji:'⚡', desc:'네온 시티' },
@@ -35,6 +41,16 @@ export const CONCEPT_THEMES = [
   { id:'bloomberg', name:'블룸버그',  emoji:'📊', desc:'블랙 데이터 터미널' },
   { id:'gold',      name:'골드마켓',  emoji:'🥇', desc:'금괴 텍스처' },
   { id:'matrix',    name:'매트릭스',  emoji:'🟩', desc:'디지털 코드 비' },
+]
+
+// The picker stays intentionally small. ALL_CONCEPT_THEMES remains available so
+// forms saved with an older theme keep rendering without any data migration.
+export const CONCEPT_THEMES = [
+  { id:'clean_white', name:'미니멀', desc:'밝고 단정한 기본형' },
+  { id:'clean_graphite', name:'다크', desc:'차분한 차콜 중심의 화면' },
+  { id:'soft', name:'소프트', desc:'부드러운 여백과 둥근 인상' },
+  { id:'ocean', name:'오션', desc:'맑은 해안 에디토리얼' },
+  { id:'glass', name:'글래스', desc:'깊이감 있는 다크 레이어' },
 ]
 
 export const COLOR_THEMES = [
@@ -137,6 +153,16 @@ export const FONTS = [
 // 컨셉별 CSS 생성 (전체 30종 풀버전)
 // ══════════════════════════════════════
 export function getConceptCSS(id, c1, c2, font) {
+  const clean = getCleanThemeCSS(id, c1)
+  if (clean) return clean
+  const typeface = getThemeTypeface(id, font)
+  return [
+    getConceptPresentation(id, c1, c2, typeface),
+    getThemeAtmosphereCSS(id),
+    getReferenceFormPresentation(id, font),
+  ].join('\n')
+
+  /* Legacy theme CSS is retained below as a compatibility reference. */
   const T = {
 
     // ── 1. 기본 (다크 모던) ──────────────────

@@ -1,5 +1,8 @@
 import { getConceptCSS } from './themes.js'
 import { singlePageCSS, singlePageJS } from './singlePage.js'
+import { formRefinementCSS } from './formRefinement.js'
+import { getThemeFontURL, getThemeTypeface } from './themeAtmosphere.js'
+import { getFeaturedThemePolish } from './featuredThemePolish.js'
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
@@ -57,6 +60,8 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const qIds = JSON.stringify(questions.map(q => q.id))
 
   const conceptCSS = getConceptCSS(conceptTheme, theme.c1, theme.c2, fontFamily)
+  const featuredThemePolish = getFeaturedThemePolish(conceptTheme)
+  const themeFontURL = getThemeFontURL(getThemeTypeface(conceptTheme, fontFamily))
   const animCSS = [
     `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-40px)}}@keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(40px)}}.en{animation:siU .38s ease both}.ex{animation:soU .28s ease both}.ep{animation:siD .38s ease both}.xp{animation:soD .28s ease both}`,
     `@keyframes fdi{from{opacity:0;transform:scale(.94);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}@keyframes fdo{from{opacity:1;filter:blur(0)}to{opacity:0;transform:scale(1.05);filter:blur(6px)}}.en,.ep{animation:fdi .4s cubic-bezier(.22,1,.36,1) both}.ex,.xp{animation:fdo .28s ease both}`,
@@ -74,7 +79,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     const imgH = qImgData[q.id] && singlePage
       ? `<img class="question-image" src="${esc(qImgData[q.id])}" loading="lazy" decoding="async" alt="">`
       : qImgData[q.id]
-      ? `<img src="${qImgData[q.id]}" loading="lazy" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:180px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`
+      ? `<img class="question-image" src="${qImgData[q.id]}" loading="lazy" decoding="async" alt="">`
       : ''
     let field = ''
     if (q.type === 'short') {
@@ -158,7 +163,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const firstShortLabel = questions.find(q=>q.type==='short')?.label||''
 
   const startHTML = useStart && !singlePage ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
-    ${coverImgData?`<img src="${coverImgData}" loading="eager" decoding="async" style="width:calc(100% + 68px);margin:-38px -34px 24px;height:200px;object-fit:cover;border-radius:24px 24px 0 0;display:block" alt="">`:'' }
+    ${coverImgData?`<img class="cover-image" src="${coverImgData}" loading="eager" decoding="async" alt="">`:'' }
     <div class="stag">${esc(startTag)}</div>
     <div class="stit">${esc(title).replace(/\n/g,'<br>')}</div>
     ${startDesc?`<div class="sdesc">${esc(startDesc)}</div>`:''}
@@ -175,7 +180,8 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 <html lang="ko"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>${esc(title)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@300;400;500&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&display=swap" rel="stylesheet">
+<link href="${themeFontURL}" rel="stylesheet">
 <style>
 :root{--c1:${theme.c1};--c2:${theme.c2};--tx:#f0eff8;--tx2:#9997ab;--tx3:#7a788f;--bg2:#1a1a28;--bd:rgba(255,255,255,.09);--bd2:rgba(255,255,255,.15);--ls-bg:rgba(255,255,255,.025)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -254,7 +260,7 @@ ${bgImgData?`#bg-img{position:fixed;inset:0;z-index:-2;background-image:url('${b
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 ${conceptCSS}
-${conceptTheme!=='default'?`body{font-family:${fontFamily}!important}.ct,.stit{font-family:${fontFamily}!important}`:''}
+${fontFamily!=="'Noto Sans KR',sans-serif"?`body{font-family:${fontFamily}!important}.ct,.stit{font-family:${fontFamily}!important}`:''}
 .nb{background:linear-gradient(135deg,${theme.c1},${theme.c2})!important}.nb:hover{box-shadow:0 8px 28px color-mix(in srgb,${theme.c1} 40%,transparent)!important}
 .sbt{background:linear-gradient(135deg,${theme.c1},${theme.c2})!important}
 .ci.ck{border-color:${theme.c1}!important}.ci.ck .cb{background:${theme.c1}!important;border-color:${theme.c1}!important}
@@ -263,6 +269,9 @@ ${conceptTheme!=='default'?`body{font-family:${fontFamily}!important}.ct,.stit{f
 ${animCSS}
 @media(max-width:480px){.card{padding:28px 22px 22px;border-radius:20px}.ct{font-size:19px}}
 ${singlePage ? singlePageCSS : ''}
+${formRefinementCSS}
+${featuredThemePolish}
+${bgImgData && conceptTheme.startsWith('clean_') ? 'body{background:transparent}' : ''}
 </style></head><body${singlePage?' class="single-page"':''}>
 ${bgImgData?'<div id="bg-img"></div><div id="bg-overlay"></div>':''}
 <div id="pw"><div id="pf"></div></div>
