@@ -446,3 +446,6 @@
 .pvFrame{box-shadow:0 18px 44px rgba(0,0,0,.2)}
 @media(max-width:1100px){.lpanel{width:260px}.rpanel{width:350px}.editorInner{padding:28px 18px}}
 @media(max-width:760px){.lpanel,.rpanel{width:100%}.editorInner{padding:24px 12px 36px}.conceptGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.conceptCard{align-items:flex-start}.conceptDesc{white-space:normal}}
+
+/* Long forms keep off-screen questions out of layout and paint work. */
+.qcard{content-visibility:auto;contain-intrinsic-size:auto 320px}

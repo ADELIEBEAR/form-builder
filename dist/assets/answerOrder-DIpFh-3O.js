@@ -1,0 +1,1 @@
+function c(o,a=[]){var i;const n=o.filter(t=>typeof t=="string"&&!t.startsWith("_")),f=new Set(n),s=new Map;for(const t of a){const e=(i=t==null?void 0:t.answers)==null?void 0:i._field_order;if(Array.isArray(e))for(const r of e.slice(0,100))f.has(r)&&!s.has(r)&&s.set(r,s.size)}return[...n].sort((t,e)=>(s.get(t)??1/0)-(s.get(e)??1/0))}export{c as o};

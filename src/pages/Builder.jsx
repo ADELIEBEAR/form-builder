@@ -59,6 +59,8 @@ export default function Builder() {
   const { theme: appTheme, toggle: toggleAppTheme } = useTheme()
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
+  const pvIdle = useRef(null)
+  const lastPreviewHTML = useRef('')
   const autoSaveTimer = useRef(null)
   const saveInFlight = useRef(false)
   const pendingImages = useRef(0)
@@ -94,19 +96,37 @@ export default function Builder() {
 
   // 미리보기
   const updatePreview = useCallback(() => {
-  if (!pvRef.current) return
-  pvRef.current.srcdoc = generateFormHTML(
-    title,
-    questions,
-    theme,
-    settings,
-    { coverImgData, qImgData, bgImgData }
-  )
-}, [title, questions, theme, settings, coverImgData, qImgData, bgImgData])
+    if (!pvRef.current) return
+    const html = generateFormHTML(
+      title,
+      questions,
+      theme,
+      settings,
+      { coverImgData, qImgData, bgImgData }
+    )
+    if (html === lastPreviewHTML.current) return
+    lastPreviewHTML.current = html
+    pvRef.current.srcdoc = html
+  }, [title, questions, theme, settings, coverImgData, qImgData, bgImgData])
 
   useEffect(() => {
     clearTimeout(pvTimer.current)
-    pvTimer.current = setTimeout(updatePreview, 400)
+    if (pvIdle.current != null) {
+      if ('cancelIdleCallback' in window) window.cancelIdleCallback(pvIdle.current)
+      else clearTimeout(pvIdle.current)
+    }
+    pvTimer.current = setTimeout(() => {
+      pvIdle.current = 'requestIdleCallback' in window
+        ? window.requestIdleCallback(updatePreview, { timeout: 800 })
+        : setTimeout(updatePreview, 0)
+    }, 550)
+    return () => {
+      clearTimeout(pvTimer.current)
+      if (pvIdle.current != null) {
+        if ('cancelIdleCallback' in window) window.cancelIdleCallback(pvIdle.current)
+        else clearTimeout(pvIdle.current)
+      }
+    }
   }, [updatePreview])
 
   // 자동 저장 (3분마다)

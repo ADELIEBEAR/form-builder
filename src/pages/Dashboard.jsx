@@ -776,15 +776,21 @@ export default function Dashboard() {
   }
 
   // ── 그룹 목록
-  const allGroups = ['전체', ...Array.from(new Set(forms.map(f => f.group_tag).filter(Boolean)))]
-
-  const filtered = forms.filter(f => {
-    const matchSearch = f.title?.toLowerCase().includes(search.toLowerCase()) ||
-      f.memo?.toLowerCase().includes(search.toLowerCase()) ||
-      f.group_tag?.toLowerCase().includes(search.toLowerCase())
-    const matchGroup = groupFilter === '전체' || f.group_tag === groupFilter
-    return matchSearch && matchGroup
-  })
+  const allGroups = useMemo(
+    () => ['전체', ...Array.from(new Set(forms.map(f => f.group_tag).filter(Boolean)))],
+    [forms]
+  )
+  const formById = useMemo(() => new Map(forms.map(form => [form.id, form])), [forms])
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase()
+    return forms.filter(f => {
+      const matchSearch = f.title?.toLowerCase().includes(query) ||
+        f.memo?.toLowerCase().includes(query) ||
+        f.group_tag?.toLowerCase().includes(query)
+      const matchGroup = groupFilter === '전체' || f.group_tag === groupFilter
+      return matchSearch && matchGroup
+    })
+  }, [forms, search, groupFilter])
 
   // ── 응답 전체 값 정리
   function getFirstAnswers(r, form) {
@@ -804,12 +810,12 @@ export default function Dashboard() {
         const phones = extractPhonesFromAnswers(r.answers)
         const matchPhone = phones.some(phone => matchesPhoneQuery(phone, query))
         if (!matchPhone) return null
-        const form = forms.find(f => f.id === r.form_id) || {}
+        const form = formById.get(r.form_id) || {}
         return { response: r, form, phones }
       })
       .filter(Boolean)
       .sort((a, b) => new Date(b.response.submitted_at) - new Date(a.response.submitted_at))
-  }, [allRespData, allRespSearch, forms])
+  }, [allRespData, allRespSearch, formById])
 
   const displayedPhoneSearchResults = allResponseSearchResults.slice(0, MAX_PHONE_SEARCH_RESULTS)
   const isAllRespSearchTooShort = allRespSearch && !canSearchPhoneQuery(normalizePhone(allRespSearch))
