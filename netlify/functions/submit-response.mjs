@@ -5,7 +5,6 @@ import { validateFormAnswers } from '../lib/submission-validation.mjs'
 function env(key) { return globalThis.Netlify?.env?.get(key) ?? process.env[key] }
 
 export const config = {
-  path: '/api/submit-response',
   rateLimit: { action: 'rate_limit', aggregateBy: ['ip', 'domain'], windowSize: 60, windowLimit: 10 },
 }
 
