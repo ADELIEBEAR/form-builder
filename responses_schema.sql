@@ -1,4 +1,9 @@
 -- 응답 저장 테이블
+-- Existing production repair (2026-10-28): applied separately to the existing table.
+-- ALTER TABLE public.responses ADD CONSTRAINT responses_answer_integrity_v1
+-- CHECK (jsonb_typeof(answers) = 'object' AND answers::text !~*
+-- '(\m(ALPHA|BRAVO)_[0-9a-f]{6}\M|UNIQUE_MARKER|\mpentest\M|\mstring_not_object\M|\mTEST_USER\M)') NOT VALID;
+-- NOT VALID preserves legacy malformed rows for review; new writes are checked.
 create table public.responses (
   id uuid default gen_random_uuid() primary key,
   form_id uuid references public.forms(id) on delete cascade not null,

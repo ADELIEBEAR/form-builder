@@ -1,4 +1,5 @@
 import { isIP } from 'node:net'
+import { responseIssue } from '../../src/lib/responseIntegrity.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -33,6 +34,7 @@ export async function handler(event) {
   if (!UUID_PATTERN.test(formId) || !answers || Array.isArray(answers) || typeof answers !== 'object') {
     return json(400, { error: '폼 응답 형식이 올바르지 않습니다.' })
   }
+  if (responseIssue(answers)) return json(400, { error: '정상 신청 내용만 제출할 수 있습니다.' })
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY

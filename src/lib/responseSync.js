@@ -1,3 +1,5 @@
+import { normalizeResponse } from './responseIntegrity.js'
+
 export const RESPONSE_PAGE_SIZE = 1000
 const SYNC_OVERLAP_MS = 60_000
 
@@ -15,7 +17,7 @@ export async function fetchAllResponsePages(makeQuery, pageSize = RESPONSE_PAGE_
     const { data, error } = await makeQuery(before).limit(pageSize)
     if (error) throw error
     const chunk = data || []
-    rows.push(...chunk)
+    rows.push(...chunk.map(normalizeResponse))
     if (chunk.length < pageSize) return rows
     const last = chunk[chunk.length - 1]
     if (!last?.id || !last.submitted_at || (last.id === before?.id && last.submitted_at === before?.submitted_at)) {

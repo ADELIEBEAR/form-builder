@@ -66,6 +66,7 @@ function isBadPhoneValue(value) {
   return ['12345678','23456789','34567890','87654321','98765432'].some(seq => n.includes(seq))
 }
 function getBadDbReason(answers) {
+  if (answers?._response_issue) return answers._response_issue
   // 최종 DB 품질 판정은 이름이 아니라 전화번호 기준으로만 처리한다.
   // 이름이 한 글자거나 닉네임처럼 보여도, 정상 전화번호가 있으면 정상 DB다.
   const phones = getPhonesFromAnswers(answers)

@@ -1319,7 +1319,7 @@ export default function Dashboard() {
                         <span className={s.phoneResultTime}>{formatDateShort(r.submitted_at)}</span>
                       </div>
                       <strong className={s.phoneResultNumber}>
-                        {phones.length ? phones.map(formatPhone).join(', ') : '번호 없음'}
+                        {r.answers?._response_issue || (phones.length ? phones.map(formatPhone).join(', ') : '번호 없음')}
                       </strong>
                       <div className={s.phoneResultMeta}>
                         <span>DB: {form?.group_tag || form?.memo || '미지정'}</span>
