@@ -37,7 +37,7 @@ test('malformed and test payloads are rejected before network writes', async () 
   globalThis.fetch = () => { throw new Error('must not insert') }
   try {
     for (const answers of ['bad', ['a'], null, { '1': 'ALPHA_bc7ec5' }]) {
-      const result = await handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({
+      const result = await handler({ httpMethod: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
         formId: 'b17a0ae6-3ebc-4b43-a364-08d5e0f1d773', answers,
       }) })
       assert.equal(result.statusCode, 400)

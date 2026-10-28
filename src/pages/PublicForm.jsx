@@ -56,7 +56,7 @@ function validateSubmissionAnswers(answers, questions) {
 }
 
 async function saveResponse(formId, answers) {
-  const response = await fetch('/.netlify/functions/submit-response', {
+  const response = await fetch('/api/submit-response', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ formId, answers }),

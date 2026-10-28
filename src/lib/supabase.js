@@ -213,10 +213,11 @@ export async function optimizeExistingFormImages(userId, onProgress) {
 
 // 응답 제출 (로그인 없이)
 export async function submitResponse(formId, answers) {
-  const { error } = await supabase
-    .from('responses')
-    .insert({ form_id: formId, answers })
-  if (error) throw error
+  const response = await fetch('/api/submit-response', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ formId, answers }),
+  })
+  if (!response.ok) throw new Error('응답을 저장하지 못했습니다.')
 }
 
 // 응답 목록 가져오기 (폼 주인만)

@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/.netlify/functions/submit-response"
+  to = "/api/submit-response"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
