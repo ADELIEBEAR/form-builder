@@ -10,6 +10,10 @@ export function validateFormAnswers(answers, form) {
   const questions = form.questions || []
   const known = new Set(questions.map(answerKey))
   for (const [key, value] of Object.entries(answers)) {
+    if (['_ts', '_formTitle'].includes(key)) {
+      if (typeof value !== 'string' || value.length > 500) return '응답 메타정보가 올바르지 않습니다.'
+      continue
+    }
     if (!known.has(key) || ['__proto__', 'constructor', 'prototype'].includes(key)) return '알 수 없는 응답 항목입니다.'
     if (typeof value !== 'string' || value.length > 10000) return '응답 값이 올바르지 않습니다.'
   }

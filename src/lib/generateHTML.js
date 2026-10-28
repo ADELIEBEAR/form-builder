@@ -302,7 +302,7 @@ ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</d
 <script>
 const SU='${esc2(scriptUrl)}';
 const SINGLE_PAGE=${singlePage};
-const WAIT_FOR_SUBMIT=${singlePage && !!waitForSubmit};
+const WAIT_FOR_SUBMIT=${!!waitForSubmit};
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
@@ -471,7 +471,17 @@ ${confJS}
 function rp(e,btn){const r=btn.getBoundingClientRect(),sz=Math.max(r.width,r.height)*2,el=document.createElement('span');el.className='rp';el.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+(e.clientX-r.left-sz/2)+'px;top:'+(e.clientY-r.top-sz/2)+'px';btn.appendChild(el);setTimeout(()=>el.remove(),560);}
 function tst(m,t){const el=document.getElementById('tst');el.textContent=m;el.className=t+' on';setTimeout(()=>el.className='',3200);}
 ${kbJS}
-${singlePage ? singlePageJS : ''}
+${singlePage ? singlePageJS : `
+window.addEventListener('message',event=>{
+  if(event.source!==window.parent||!WAIT_FOR_SUBMIT||!submitted)return;
+  if(event.data?.type==='SUBMIT_SUCCESS'&&cur<TOTAL){completeForm();return;}
+  if(event.data?.type==='SUBMIT_ERROR'&&cur<TOTAL){
+    submitted=false;
+    const button=document.getElementById('sb');button.disabled=false;button.classList.remove('ld2');
+    tst(event.data.message||'저장하지 못했습니다. 다시 제출해주세요.','fail');
+  }
+});
+`}
 ${useKb?"setTimeout(()=>document.getElementById('kh').style.opacity='0',5000);":""}
 <\/script></body></html>`
 }

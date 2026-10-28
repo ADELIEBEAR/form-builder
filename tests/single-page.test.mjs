@@ -75,7 +75,7 @@ test('step forms still navigate, submit only once, and restart after shared runt
   const submissions = []
   const context = vm.createContext({
     document: { getElementById: element, querySelectorAll: () => [] },
-    window: { parent: { postMessage: message => submissions.push(JSON.parse(JSON.stringify(message))) } },
+    window: { addEventListener() {}, parent: { postMessage: message => submissions.push(JSON.parse(JSON.stringify(message))) } },
     setTimeout: callback => callback(),
   })
   const html = generateFormHTML('Application', questions.slice(0, 2), theme, {
@@ -97,4 +97,27 @@ test('step forms still navigate, submit only once, and restart after shared runt
   context.rst()
   assert.equal(element('done').style.display, 'none')
   assert.equal(element('ss').style.display, 'flex')
+})
+
+test('step form waits for server success and permits retry after save failure', () => {
+  const nodes = new Map()
+  const element = id => {
+    if (!nodes.has(id)) nodes.set(id, { style: {}, value: '', textContent: '', classList: { add() {}, remove() {} }, focus() {}, querySelector() { return null } })
+    return nodes.get(id)
+  }
+  let receive
+  const parent = { postMessage() {} }
+  const context = vm.createContext({ document: { getElementById: element, querySelectorAll: () => [] }, window: { parent, addEventListener(type, fn) { if (type === 'message') receive = fn } }, setTimeout: fn => fn() })
+  const html = generateFormHTML('Application', questions.slice(0, 1), theme, { useKb: false, useConfetti: false, scriptUrl: '', waitForSubmit: true })
+  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context)
+  context.sf()
+  element('f1').value = 'Save check'
+  context.gn(0)
+  assert.notEqual(element('done').style.display, 'flex')
+  receive({ source: parent, data: { type: 'SUBMIT_ERROR', message: 'Save failed' } })
+  assert.equal(element('sb').disabled, false)
+  assert.notEqual(element('done').style.display, 'flex')
+  context.finishForm()
+  receive({ source: parent, data: { type: 'SUBMIT_SUCCESS' } })
+  assert.equal(element('done').style.display, 'flex')
 })

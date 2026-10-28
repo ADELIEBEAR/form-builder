@@ -16,6 +16,12 @@ test('required legal agreement and choice membership are enforced', () => {
   assert.ok(validateFormAnswers({ 선택: 'C', 동의: '동의' }, f))
   assert.ok(validateFormAnswers({ 선택: 'A', 동의: '미동의' }, f))
 })
+test('renderer metadata is accepted but arbitrary fields remain rejected', () => {
+  const answers = { 성함: '별칭', 연락처: '01055512345', _ts: '2026. 10. 28.', _formTitle: '검증 폼' }
+  assert.equal(validateFormAnswers(answers, form), '')
+  assert.ok(validateFormAnswers({ ...answers, _ts: {} }, form))
+  assert.ok(validateFormAnswers({ ...answers, unexpected: 'x' }, form))
+})
 test('conditional branches do not require skipped fields', () => {
   const f = { questions: [{ type: 'single', label: '선택', options: ['끝', '계속'], required: true, branches: [{ optionIdx: 0, targetIdx: 'done' }] }, { type: 'short', label: '뒤', required: true }] }
   assert.equal(validateFormAnswers({ 선택: '끝' }, f), '')
