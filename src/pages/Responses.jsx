@@ -6,9 +6,9 @@ import { useAuth } from '../hooks/useAuth'
 import s from './Responses.module.css'
 import { orderAnswerKeys } from '../lib/answerOrder'
 import { mergeResponseUpdates, responseSyncStart } from '../lib/responseSync'
+import { normalizePhone } from '../lib/phoneValidation'
 
 // 전화번호 정규화 — 하이픈/공백 제거
-function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
 // 한국 전화번호 패턴만 인식 (010/011/016/017/018/019 + 7~8자리)
 function looksLikePhone(v) {
   const n = normalizePhone(v)
@@ -297,7 +297,8 @@ export default function Responses() {
     .filter(r => {
       if (!search) return true
       const haystack = [r.ip_address, ...Object.values(r.answers||{})].filter(Boolean).join(' ').toLowerCase()
-      return haystack.includes(search.toLowerCase())
+      const phoneQuery = normalizePhone(search)
+      return haystack.includes(search.toLowerCase()) || (/^\d+$/.test(phoneQuery) && getPhonesFromAnswers(r.answers).some(phone => phone.includes(phoneQuery)))
     })
     .filter(r => showDupesOnly ? isDupe(r) : true)
     .filter(r => showUniqueOnly ? isUniqueRepresentative(r) : true)

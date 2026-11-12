@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { getForms, getResponsesForForms } from '../lib/supabase'
 import s from './AiCalc.module.css'
 
-function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
+import { normalizePhone } from '../lib/phoneValidation'
 function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 function formatPhone(v) {
   const n = normalizePhone(v)

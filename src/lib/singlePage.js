@@ -50,18 +50,15 @@ body.single-page{display:block;overflow-x:hidden;overflow-y:auto;padding:32px 16
 `
 
 export const singlePageJS = `
-const getSinglePagePath=${getSinglePagePath.toString()};
 function singlePath(){
-  const selected={};
-  QS.forEach((q,i)=>{const el=document.querySelector('#g'+q.id+' .ci.ck');if(el?.dataset.oi!=null)selected[i]=el.dataset.oi;});
-  return getSinglePagePath(TOTAL,BRANCH,selected);
+  return responsePath();
 }
 function updateSinglePath(){
   const visible=new Set(singlePath());
   QS.forEach((q,i)=>{document.getElementById('sl'+i).hidden=!visible.has(i);});
 }
 function singleEnter(event){
-  if(event.key!=='Enter'||event.isComposing)return;
+  if(event.key!=='Enter'||event.isComposing||event.keyCode===229)return;
   const target=event.target;
   if(target.tagName!=='INPUT'||target.type==='radio'||target.type==='checkbox')return;
   event.preventDefault();
@@ -89,7 +86,7 @@ function submitSingle(){
     if(!selected)continue;
     const ok=Number(selected.dataset.oi)===QUIZ[i].correct;
     qzTotal++;if(ok)qzScore++;
-    ans['Q'+(i+1)+'_답']=(ok?'✅정답':'❌오답')+'(선택:'+selected.querySelector('span').textContent+')';
+    ans[ANSWER_KEYS[i]]=(ok?'✅정답':'❌오답')+'(선택:'+selected.querySelector('span').textContent+')';
   }
   finishForm();
 }
@@ -100,7 +97,7 @@ window.addEventListener('message',event=>{
   if(event.data?.type==='SUBMIT_SUCCESS'&&cur<TOTAL){completeForm();return;}
   if(event.data?.type==='SUBMIT_ERROR'&&cur<TOTAL){
     submitted=false;
-    const button=document.getElementById('sb');button.disabled=false;button.classList.remove('ld2');
+    setSubmissionBusy(false);
     tst(event.data.message||'저장하지 못했습니다. 다시 제출해주세요.','fail');
   }
 });

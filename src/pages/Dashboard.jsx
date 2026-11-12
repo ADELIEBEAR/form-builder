@@ -8,6 +8,7 @@ import { createAndConnectSheet } from '../lib/googleSheets'
 import s from './Dashboard.module.css'
 import { useTheme } from '../lib/themeContext'
 import { orderAnswerKeys } from '../lib/answerOrder'
+import { normalizePhone } from '../lib/phoneValidation'
 
 const RESULTS_PATH = '/responses'
 const MIN_LOCAL_PHONE_SEARCH_DIGITS = 4
@@ -18,7 +19,6 @@ const ADMIN_UNLOCK_VERSION = '2026-08-03-admin-pin-keypad'
 const ADMIN_UNLOCK_STORAGE_KEY = 'admin_unlocked_version'
 const PIN_KEYS = ['1','2','3','4','5','6','7','8','9','clear','0','back']
 
-function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
 function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 function canSearchPhoneQuery(query) {
   if (query.length < MIN_LOCAL_PHONE_SEARCH_DIGITS) return false

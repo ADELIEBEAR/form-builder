@@ -10,11 +10,10 @@ import { useTheme } from '../lib/themeContext'
 import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import { formatBytes, getFormImageSettings, uploadFormImage } from '../lib/imageAssets'
+import { newQuestionId, normalizeQuestions, remapQuestionBranches, removeQuestionOption } from '../lib/questionModel'
 
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', quiz:'퀴즈', phone:'전화번호', email:'이메일', legal:'동의' }
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
-let UID = 0
-const nid = () => ++UID
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
@@ -65,22 +64,31 @@ export default function Builder() {
   const saveInFlight = useRef(false)
   const pendingImages = useRef(0)
   const lastSaved = useRef('')
+  const formState = useRef(null)
+  const loadedId = useRef(null)
+  formState.current = { title, questions, theme, settings, bgImgData, coverImgData, qImgData }
+  loadedId.current = currentFormId
 
   useEffect(() => {
-    if (!formId) return
+    if (!formId || formId === loadedId.current) return
+    let active = true
+    let expected = JSON.stringify(formState.current)
     function applyForm(form) {
       const imageSettings = getFormImageSettings(form)
-      UID = Math.max(UID, ...(form.questions || []).map(q => Number(q.id) || 0))
-      setTitle(form.title)
-      setTheme({ c1: form.theme_c1, c2: form.theme_c2 })
-      setQuestions(form.questions || [])
-      setSettings({ ...DEFAULT_SETTINGS, ...imageSettings })
+      const normalized = normalizeQuestions(form.questions || [], imageSettings.qImgData)
+      const nextTheme = { c1: form.theme_c1 || '#3b82f6', c2: form.theme_c2 || '#60a5fa' }
+      const nextSettings = { ...DEFAULT_SETTINGS, ...imageSettings, qImgData: normalized.qImgData }
+      setTitle(form.title || '')
+      setTheme(nextTheme)
+      setQuestions(normalized.questions)
+      setSettings(nextSettings)
       setBgImgData(imageSettings.bgImgData)
       setCoverImgData(imageSettings.coverImgData)
-      setQImgData(imageSettings.qImgData)
+      setQImgData(normalized.qImgData)
       setCurrentFormId(form.id)
       setCurrentSlug(form.slug)
       setIsPublished(form.is_published)
+      expected = JSON.stringify({ title: form.title || '', questions: normalized.questions, theme: nextTheme, settings: nextSettings, bgImgData: imageSettings.bgImgData, coverImgData: imageSettings.coverImgData, qImgData: normalized.qImgData })
     }
     // 세션 캐시 먼저 적용 (즉시 표시)
     try {
@@ -89,9 +97,11 @@ export default function Builder() {
     } catch {}
     // 항상 최신 데이터도 fetch
     getForm(formId).then(form => {
-      applyForm(form)
+      if (!active) return
+      if (JSON.stringify(formState.current) === expected) applyForm(form)
       try { sessionStorage.setItem('form_' + formId, JSON.stringify(form)) } catch {}
-    }).catch(() => showToast('폼을 불러올 수 없습니다.', 'fail'))
+    }).catch(() => { if (active) showToast('폼을 불러올 수 없습니다.', 'fail') })
+    return () => { active = false }
   }, [formId])
 
   // 미리보기
@@ -210,7 +220,7 @@ export default function Builder() {
       setCurrentFormId(saved.id)
       applySavedImages(saved, snapshot)
       lastSaved.current = JSON.stringify({ ...snapshot, id: saved.id, settings: saved.settings })
-      const published = await publishForm(saved.id, title)
+      const published = await publishForm(saved.id, snapshot.title)
       setCurrentSlug(published.slug)
       setIsPublished(true)
       setShowPublishModal(true)
@@ -224,7 +234,7 @@ export default function Builder() {
 
   function addQ(type) {
     const q = {
-      id: nid(), type, label: '', hint: '', placeholder: '', required: true, other: false,
+      id: newQuestionId(questions), type, label: '', hint: '', placeholder: '', required: true, other: false,
       options: (type === 'multiple' || type === 'single') ? ['옵션 1', '옵션 2'] : type === 'quiz' ? ['옵션 1', '옵션 2', '옵션 3', '옵션 4'] : [],
       correctAnswer: type === 'quiz' ? 0 : undefined,
       explanation: type === 'quiz' ? '' : undefined,
@@ -237,23 +247,35 @@ export default function Builder() {
   }
 
   function updQ(id, key, val) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, [key]: val } : q)) }
-  function delQ(id) { setQuestions(prev => prev.filter(q => q.id !== id)); setQImgData(prev => { const n = { ...prev }; delete n[id]; return n }) }
+  function delQ(id) { setQuestions(prev => remapQuestionBranches(prev, prev.filter(q => q.id !== id))); setQImgData(prev => { const n = { ...prev }; delete n[id]; return n }) }
+  function duplicateQ(question) {
+    const copy = { ...structuredClone(question), id: newQuestionId(questions) }
+    setQuestions(prev => {
+      const index = prev.findIndex(q => q.id === question.id)
+      if (index < 0) return prev
+      const next = [...prev]
+      next.splice(index + 1, 0, copy)
+      return remapQuestionBranches(prev, next)
+    })
+    if (qImgData[question.id]) setQImgData(prev => ({ ...prev, [copy.id]: prev[question.id] }))
+  }
   function moveQ(id, dir) {
     setQuestions(prev => {
       const arr = [...prev]; const i = arr.findIndex(q => q.id === id); const ni = i + dir
-      if (ni < 0 || ni >= arr.length) return arr
-      ;[arr[i], arr[ni]] = [arr[ni], arr[i]]; return arr
+      if (i < 0 || ni < 0 || ni >= arr.length) return prev
+      ;[arr[i], arr[ni]] = [arr[ni], arr[i]]; return remapQuestionBranches(prev, arr)
     })
   }
   function addOpt(id) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: [...q.options, `옵션 ${q.options.length + 1}`] } : q)) }
   function updOpt(id, oi, val) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: q.options.map((o, i) => i === oi ? val : o) } : q)) }
-  function delOpt(id, oi) { setQuestions(prev => prev.map(q => q.id === id && q.options.length > 1 ? { ...q, options: q.options.filter((_, i) => i !== oi) } : q)) }
+  function delOpt(id, oi) { setQuestions(prev => prev.map(q => q.id === id ? removeQuestionOption(q, oi) : q)) }
 
   function onDrop(targetId) {
-    if (!dragSrc || dragSrc === targetId) return
+    if (dragSrc == null || dragSrc === targetId) return
     setQuestions(prev => {
       const arr = [...prev]; const fi = arr.findIndex(q => q.id === dragSrc); const ti = arr.findIndex(q => q.id === targetId)
-      const [item] = arr.splice(fi, 1); arr.splice(ti, 0, item); return arr
+      if (fi < 0 || ti < 0) return prev
+      const [item] = arr.splice(fi, 1); arr.splice(ti, 0, item); return remapQuestionBranches(prev, arr)
     })
     setDragSrc(null)
   }
@@ -621,7 +643,7 @@ export default function Builder() {
                   <div className={s.qActs}>
                     {idx > 0 && <button className={s.ib} onClick={() => moveQ(q.id, -1)} title="위로">↑</button>}
                     {idx < questions.length - 1 && <button className={s.ib} onClick={() => moveQ(q.id, 1)} title="아래로">↓</button>}
-                    <button className={`${s.ib} ${s.ibDup}`} onClick={() => { const nq = { ...q, id: nid() }; setQuestions(prev => { const arr = [...prev]; arr.splice(idx+1, 0, nq); return arr }) }} title="복제">⧉</button>
+                    <button className={`${s.ib} ${s.ibDup}`} onClick={() => duplicateQ(q)} title="복제">⧉</button>
                     <button className={`${s.ib} ${s.ibDel}`} onClick={() => delQ(q.id)} title="삭제">✕</button>
                   </div>
                 </div>

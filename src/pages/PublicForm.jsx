@@ -2,55 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase, getFormBySlug } from '../lib/supabase';
 import { generateFormHTML } from '../lib/generateHTML';
+import { getAnswerKeys } from '../lib/answerKeys';
+import { isPhoneQuestion, isValidPhone } from '../lib/phoneValidation';
 import styles from './PublicForm.module.css';
 
-function normalizePhoneValue(value) {
-  let n = String(value || '').replace(/[^0-9]/g, '').trim();
-  if (n.startsWith('8210') && n.length === 12) n = '0' + n.slice(2);
-  if (n.startsWith('82') && n.length === 12) n = '0' + n.slice(2);
-  return n;
-}
-
-function looksLikeValidPhone(value) {
-  const n = normalizePhoneValue(value);
-  return /^010\d{8}$/.test(n);
-}
-
-const BAD_PHONE_VALUES = new Set([
-  '01000000000', '01011111111', '01022222222', '01033333333', '01044444444',
-  '01055555555', '01066666666', '01077777777', '01088888888', '01099999999',
-  '01012345678', '01012341234', '01012121212', '01010101010', '01098765432'
-]);
-
-function isBadPhoneValue(value) {
-  const n = normalizePhoneValue(value);
-  if (!n) return false;
-  if (!looksLikeValidPhone(n)) return true;
-  if (BAD_PHONE_VALUES.has(n)) return true;
-  const tail = n.slice(3);
-  if (/^(\d)\1+$/.test(tail)) return true;
-  return ['12345678', '23456789', '34567890', '87654321', '98765432'].some(seq => n.includes(seq));
-}
-
-function answerForQuestion(answers, question, fallback) {
-  const label = question?.label || fallback;
-  return answers?.[label] ?? answers?.[fallback] ?? '';
-}
-
 function validateSubmissionAnswers(answers, questions) {
-  for (const question of questions || []) {
-    if (question.type === 'phone') {
-      const value = answerForQuestion(answers, question, '전화번호');
-      if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
-    }
-    if (question.type === 'short' || question.type === 'long') {
-      const label = String(question.label || '').toLowerCase();
-      const isPhoneField = ['전화', '연락처', '휴대폰', '핸드폰', '번호', 'phone', 'mobile', 'tel'].some(word => label.includes(word.toLowerCase()));
-      if (isPhoneField) {
-        const value = answerForQuestion(answers, question, question.label || '');
-        if (value && isBadPhoneValue(value)) return '올바른 전화번호를 입력해주세요.';
-      }
-    }
+  const keys = getAnswerKeys(questions || []);
+  for (const [i, question] of (questions || []).entries()) {
+    const value = answers?.[keys[i]];
+    if (isPhoneQuestion(question) && value && !isValidPhone(value)) return '올바른 전화번호를 입력해주세요.';
   }
   return '';
 }
@@ -62,67 +22,16 @@ async function saveResponse(formId, answers) {
     body: JSON.stringify({ formId, answers }),
   });
 
-  if (!response.ok) throw new Error('응답을 저장하지 못했습니다.');
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
+    throw new Error(result?.error || '응답을 저장하지 못했습니다. 다시 시도해주세요.');
+  }
 }
 
 export function clientFormPatch() {
   return `<script>
 (function(){
   try {
-    var bad = new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);
-    function cleanPhone(value){
-      var n = String(value || '').replace(/[^0-9]/g, '');
-      if (n.indexOf('8210') === 0 && n.length === 12) n = '0' + n.slice(2);
-      if (n.indexOf('82') === 0 && n.length === 12) n = '0' + n.slice(2);
-      return n;
-    }
-    function goodPhone(value){
-      var n = cleanPhone(value);
-      if (!/^010\\d{8}$/.test(n)) return false;
-      if (bad.has(n)) return false;
-      var tail = n.slice(3);
-      if (/^(\\d)\\1+$/.test(tail)) return false;
-      return !['12345678','23456789','34567890','87654321','98765432'].some(function(seq){ return n.indexOf(seq) >= 0; });
-    }
-
-    var oldVld = typeof vld === 'function' ? vld : null;
-    if (oldVld) {
-      vld = function(s){
-        var ok = oldVld(s);
-        if (ok) return true;
-        var slide = document.getElementById('sl' + s);
-        if (!slide) return false;
-        var input = slide.querySelector('input,textarea');
-        if (!input) return false;
-        var label = (slide.querySelector('.ct') && slide.querySelector('.ct').textContent) || '';
-        var isPhoneField = input.type === 'tel' || ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(function(w){ return label.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
-        var value = input.value || '';
-        if (!isPhoneField || !value || !goodPhone(value)) return false;
-        if (typeof ce === 'function') ce();
-        if (typeof ans !== 'undefined') ans[label || '전화번호'] = value.trim();
-        return true;
-      };
-    }
-
-    document.addEventListener('keydown', function(e){
-      if (typeof SINGLE_PAGE !== 'undefined' && SINGLE_PAGE) return;
-      var tag = e.target && e.target.tagName;
-      if ((e.key === 'Enter' || e.key === 'ArrowRight') && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON')) {
-        if (tag === 'TEXTAREA') return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation && e.stopImmediatePropagation();
-        if (e.key === 'Enter') {
-          if (typeof cur !== 'undefined' && cur < 0 && typeof sf === 'function') sf();
-          else if (typeof cur !== 'undefined' && typeof TOTAL !== 'undefined' && cur < TOTAL && typeof gn === 'function') {
-            var q = (typeof QS !== 'undefined') ? QS[cur] : null;
-            if (q && q.type === 'quiz' && typeof quizCheck === 'function') quizCheck(cur);
-            else gn(cur);
-          }
-        }
-      }
-    }, true);
-
     function politeSentence(text){
       return String(text || '')
         .replace(/안내드릴게요/g, '안내드리겠습니다')
@@ -177,6 +86,7 @@ const PublicForm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const iframeRef = useRef(null);
+  const submitting = useRef(null);
 
   const openPdfFile = (pdfUrl) => {
     if (!pdfUrl || typeof pdfUrl !== 'string') return;
@@ -204,29 +114,36 @@ const PublicForm = () => {
   };
 
   useEffect(() => {
+    let active = true;
     const fetchForm = async () => {
       try {
         setLoading(true);
+        setError(null);
         const decodedSlug = decodeURIComponent(slug);
         
         const data = await getFormBySlug(decodedSlug);
+        if (!active) return;
         if (!data) throw new Error("폼을 찾을 수 없습니다.");
 
         setForm(data);
         incrementViewCount(decodedSlug);
       } catch (err) {
-        setError(err.message);
+        if (active) setError(err.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     if (slug) fetchForm();
+    return () => { active = false; };
   }, [slug]);
 
   useEffect(() => {
     if (!form) return;
     const handler = async (event) => {
       if (event.source === iframeRef.current?.contentWindow && event.data?.type === 'FORM_SUBMIT') {
+        if (submitting.current?.formId === form.id) return;
+        const attempt = { formId: form.id, source: event.source };
+        submitting.current = attempt;
         try {
           const validationMessage = validateSubmissionAnswers(event.data.answers, form.questions || []);
           if (validationMessage) {
@@ -234,12 +151,15 @@ const PublicForm = () => {
             alert(validationMessage);
             return;
           }
-          openPdfFile(event.data?.pdfUrl);
           await saveResponse(form.id, event.data.answers);
-          iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_SUCCESS' }, '*');
-          console.log("✅ 저장 완료");
+          if (attempt.source === iframeRef.current?.contentWindow) {
+            attempt.source.postMessage({ type: 'SUBMIT_SUCCESS' }, '*');
+            openPdfFile(event.data?.pdfUrl);
+          }
         } catch (err) {
-          iframeRef.current?.contentWindow?.postMessage({ type: 'SUBMIT_ERROR' }, '*');
+          if (attempt.source === iframeRef.current?.contentWindow) attempt.source.postMessage({ type: 'SUBMIT_ERROR', message: err.message }, '*');
+        } finally {
+          if (submitting.current === attempt) submitting.current = null;
         }
       }
     };

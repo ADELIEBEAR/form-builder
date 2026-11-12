@@ -1,39 +1,20 @@
 import { getConceptCSS } from './themes.js'
-import { singlePageCSS, singlePageJS } from './singlePage.js'
+import { getSinglePagePath, singlePageCSS, singlePageJS } from './singlePage.js'
 import { formRefinementCSS } from './formRefinement.js'
 import { getThemeFontURL, getThemeTypeface } from './themeAtmosphere.js'
 import { getFeaturedThemePolish } from './featuredThemePolish.js'
+import { normalizeQuestions } from './questionModel.js'
+import { getAnswerKeys } from './answerKeys.js'
+import { readableButtonColors } from './buttonColors.js'
+import { isPhoneQuestion, isValidPhone } from './phoneValidation.js'
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
 }
 function esc2(s) {
-  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\u003c').replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029')
 }
-
-function parseHexColor(color) {
-  const value = String(color || '').trim()
-  const short = /^#([0-9a-f]{3})$/i.exec(value)
-  const full = /^#([0-9a-f]{6})$/i.exec(value)
-  const hex = short
-    ? short[1].split('').map(channel => channel + channel).join('')
-    : full?.[1]
-  if (!hex) return null
-  return [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16))
-}
-
-function readableButtonText(c1, c2) {
-  const first = parseHexColor(c1) || [124, 108, 252]
-  const second = parseHexColor(c2) || first
-  const midpoint = first.map((channel, index) => (channel + second[index]) / 2 / 255)
-  const linear = midpoint.map(channel => channel <= 0.04045
-    ? channel / 12.92
-    : ((channel + 0.055) / 1.055) ** 2.4)
-  const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
-  const blackContrast = (luminance + 0.05) / 0.05
-  const whiteContrast = 1.05 / (luminance + 0.05)
-  return blackContrast >= whiteContrast ? '#000000' : '#ffffff'
-}
+const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c')
 
 export function generateFormHTML(title, questions, theme, settings={}, assets={}) {
   const {
@@ -52,7 +33,10 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const useKb = keyboardEnabled && !singlePage
   const submitPdfUrl = donePdfUrl || (/\.pdf(\?|#|$)/i.test(doneUrl) ? doneUrl : '')
   const coverImgData = Object.hasOwn(assets, 'coverImgData') ? assets.coverImgData : settings.coverImgData ?? null
-  const qImgData = assets.qImgData ?? settings.qImgData ?? {}
+  const normalized = normalizeQuestions(questions, assets.qImgData ?? settings.qImgData ?? {})
+  questions = normalized.questions
+  const qImgData = normalized.qImgData
+  const answerKeys = getAnswerKeys(questions)
   const bgImgData = Object.hasOwn(assets, 'bgImgData') ? assets.bgImgData : settings.bgImgData ?? null
   const TOTAL = questions.length
 
@@ -61,7 +45,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const hasQuiz = questions.some(q => q.type === 'quiz')
 
   // 퀴즈 정답 데이터
-  const quizData = JSON.stringify(
+  const quizData = scriptJSON(
     questions.reduce((acc, q, i) => {
       if (q.type === 'quiz') acc[i] = { correct: q.correctAnswer ?? 0, explanation: q.explanation || '' }
       return acc
@@ -69,7 +53,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   )
 
   // 분기 맵: { questionIdx: { optionIdx: targetQuestionIdx | 'done' } }
-  const branchMap = JSON.stringify(
+  const branchMap = scriptJSON(
     questions.reduce((acc, q, i) => {
       if ((q.type === 'single' || q.type === 'quiz') && q.branches?.length) {
         const map = {}
@@ -81,11 +65,15 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   )
 
   // 질문 id 배열
-  const qIds = JSON.stringify(questions.map(q => q.id))
+  const qIds = scriptJSON(questions.map(q => q.id))
 
   const conceptCSS = getConceptCSS(conceptTheme, theme.c1, theme.c2, fontFamily)
   const featuredThemePolish = getFeaturedThemePolish(conceptTheme)
-  const buttonText = readableButtonText(theme.c1, theme.c2)
+  const solidButton = conceptTheme.startsWith('clean_')
+  const buttonColors = readableButtonColors(theme.c1, solidButton ? theme.c1 : theme.c2)
+  const buttonText = buttonColors.text
+  const buttonAngle = conceptTheme === 'ocean' ? 110 : conceptTheme === 'glass' ? 115 : 135
+  const buttonBackground = solidButton ? buttonColors.c1 : `linear-gradient(${buttonAngle}deg,${buttonColors.c1},${buttonColors.c2})`
   const themeFontURL = getThemeFontURL(getThemeTypeface(conceptTheme, fontFamily))
   const animCSS = [
     `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-40px)}}@keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(40px)}}.en{animation:siU .38s ease both}.ex{animation:soU .28s ease both}.ep{animation:siD .38s ease both}.xp{animation:soD .28s ease both}`,
@@ -108,13 +96,13 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
       : ''
     let field = ''
     if (q.type === 'short') {
-      field = `<input type="text" class="fi" id="f${q.id}" placeholder="${esc(q.placeholder||'답변을 입력하세요...')}" onkeydown="if(event.key==='Enter')gn(${i})">`
+      field = `<input type="text" class="fi" id="f${q.id}" placeholder="${esc(q.placeholder||'답변을 입력하세요...')}">`
     } else if (q.type === 'long') {
       field = `<textarea class="fi" id="f${q.id}" style="height:110px;resize:none;padding-top:13px;line-height:1.6" placeholder="${esc(q.placeholder||'답변을 입력하세요...')}"></textarea>`
     } else if (q.type === 'phone') {
-      field = `<div style="position:relative"><div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--tx3);pointer-events:none">🇰🇷 +82</div><input type="tel" class="fi" id="f${q.id}" style="padding-left:72px" placeholder="010-0000-0000" inputmode="tel" onkeydown="if(event.key==='Enter')gn(${i})"></div>`
+      field = `<div style="position:relative"><div style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--tx3);pointer-events:none">🇰🇷 +82</div><input type="tel" class="fi" id="f${q.id}" style="padding-left:72px" placeholder="010-0000-0000" inputmode="tel"></div>`
     } else if (q.type === 'email') {
-      field = `<input type="email" class="fi" id="f${q.id}" placeholder="example@email.com" inputmode="email" onkeydown="if(event.key==='Enter')gn(${i})">`
+      field = `<input type="email" class="fi" id="f${q.id}" placeholder="example@email.com" inputmode="email">`
     } else if (q.type === 'multiple') {
       const opts = (q.options||[]).map(o => `<div class="ci" onclick="pick(this,'g${q.id}',true)"><div class="cb"></div><span>${esc(o)}</span></div>`).join('')
       const other = q.other ? `<div class="ci" onclick="pickOther(this,'g${q.id}',true)"><div class="cb"></div><input class="oi" placeholder="기타..." id="oi${q.id}" onclick="event.stopPropagation()"></div>` : ''
@@ -170,13 +158,14 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 </div>`
   }).join('')
 
-  const vldCases = questions.map((q, i) => {
+  const vldCases = questions.map((question, i) => {
+    const q = { ...question, label: answerKeys[i] }
     if (q.type==='short'||q.type==='long') {
       const isNameField = ['이름','성함','성명','닉네임','name'].some(word => String(q.label || '').toLowerCase().includes(word.toLowerCase()))
-      const isPhoneField = ['전화','연락처','휴대폰','핸드폰','번호','phone','mobile','tel'].some(word => String(q.label || '').toLowerCase().includes(word.toLowerCase()))
-      return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v){er(${i},'답변을 입력해주세요.');return false;}`:''}${isNameField?`if(v){const nv=v.replace(/[\s._\-·•・,，。!@#$%^&*+=~\`|\\/?:;\[\]{}<>"']/g,'');const lw=nv.toLowerCase();const badWords=['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'];if(!nv||nv.length<2||/^[0-9]+$/.test(nv)||/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(nv)||(/^(.)\\1+$/.test(nv)&&nv.length<=4)||badWords.some(w=>lw.includes(w.toLowerCase()))){er(${i},'정확한 이름을 입력해주세요.');return false;}}`:''}${isPhoneField?`if(v){const n=v.replace(/[-\\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}}`:''}ans['${esc2(q.label||'q'+i)}']=v;break;}`
+      const isPhoneField = isPhoneQuestion(question)
+      return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v){er(${i},'답변을 입력해주세요.');return false;}`:''}${isNameField?`if(v){const nv=v.replace(/[\s._\-·•・,，。!@#$%^&*+=~\`|\\/?:;\[\]{}<>"']/g,'');const lw=nv.toLowerCase();const badWords=['샘플','sample','demo','dummy','asdf','qwer','확인용','삭제','연습'];if(!nv||nv.length<2||/^[0-9]+$/.test(nv)||/^[ㄱ-ㅎㅏ-ㅣ]+$/.test(nv)||(/^(.)\\1+$/.test(nv)&&nv.length<=4)||badWords.some(w=>lw.includes(w.toLowerCase()))){er(${i},'정확한 이름을 입력해주세요.');return false;}}`:''}${isPhoneField?`if(v&&!validPhone(v)){er(${i},'올바른 전화번호를 입력해주세요.');return false;}`:''}ans['${esc2(q.label||'q'+i)}']=v;break;}`
     }
-    if (q.type==='phone') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';const n=v.replace(/[-\\s()]/g,'');const bad=new Set(['01000000000','01011111111','01022222222','01033333333','01044444444','01055555555','01066666666','01077777777','01088888888','01099999999','01012345678','01012341234','01012121212','01010101010','01098765432']);const tail=n.slice(3);const badPhone=!!n&&(!/^010\\d{8}$/.test(n)||bad.has(n)||(tail&&new Set(tail.split('')).size===1)||['12345678','23456789','34567890','87654321','98765432'].some(seq=>n.includes(seq)));${q.required?`if(!n){er(${i},'전화번호를 입력해주세요.');return false;}`:''}if(badPhone){er(${i},'올바른 전화번호를 입력해주세요.');return false;}ans['${esc2(q.label||'전화번호')}']=v;break;}`
+    if (q.type==='phone') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';${q.required?`if(!v){er(${i},'전화번호를 입력해주세요.');return false;}`:''}if(v&&!validPhone(v)){er(${i},'올바른 전화번호를 입력해주세요.');return false;}ans['${esc2(q.label||'전화번호')}']=v;break;}`
     if (q.type==='email') return `case ${i}:{const v=document.getElementById('f${q.id}')?.value.trim()||'';if((${!!q.required}&&!v)||(v&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v))){er(${i},'올바른 이메일을 입력해주세요.');return false;}ans['${esc2(q.label||'이메일')}']=v;break;}`
     if (q.type==='multiple') return `case ${i}:{const sel=[...document.querySelectorAll('#g${q.id} .ci.ck')].map(el=>{const oi=el.querySelector('.oi');return oi?oi.value||'기타':el.querySelector('span').textContent;});${q.required?`if(!sel.length){er(${i},'하나 이상 선택해주세요.');return false;}`:''}ans['${esc2(q.label||'q'+i)}']=sel.join(', ');break;}`
     if (q.type==='single') return `case ${i}:{const el=document.querySelector('#g${q.id} .ci.ck');const oi=el?.querySelector('.oi');const sel=oi?oi.value||'기타':el?.querySelector('span')?.textContent||'';${q.required?`if(!sel){er(${i},'선택해주세요.');return false;}`:''}ans['${esc2(q.label||'q'+i)}']=sel;break;}`
@@ -185,7 +174,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     return `case ${i}:break;`
   }).join('\n')
 
-  const firstShortLabel = questions.find(q=>q.type==='short')?.label||''
+  const firstShortLabel = answerKeys[questions.findIndex(q=>q.type==='short')] || ''
 
   const startHTML = useStart && !singlePage ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
     ${coverImgData?`<img class="cover-image" src="${coverImgData}" loading="eager" decoding="async" alt="">`:'' }
@@ -197,7 +186,16 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   </div></div>` : ''
 
   const confJS = useConfetti?`function cf(){const w=document.getElementById('cfw'),colors=['${theme.c1}','${theme.c2}','#f0eff8','#4ade80','#fbbf24','#f472b6','#38bdf8'];for(let i=0;i<90;i++){const p=document.createElement('div'),c=colors[i%colors.length],sz=5+Math.random()*8;p.style.cssText='position:absolute;top:-12px;left:'+Math.random()*100+'vw;width:'+sz+'px;height:'+sz+'px;background:'+c+';border-radius:'+(Math.random()>.5?'50%':'3px')+';animation:cff '+(1.6+Math.random()*1.6)+'s '+(Math.random()*.9)+'s linear forwards';w.appendChild(p);}setTimeout(()=>w.innerHTML='',4500);}`:''
-  const kbJS = useKb?`document.addEventListener('keydown',e=>{if(document.activeElement?.tagName==='TEXTAREA')return;if(e.key==='Enter'||e.key==='ArrowRight'){if(cur<0)sf();else if(cur<TOTAL){const q=QS[cur];if(q&&q.type==='quiz')quizCheck(cur);else gn(cur);}}if((e.key==='ArrowLeft'||e.key==='Backspace')&&document.activeElement?.tagName!=='INPUT'){if(${allowBack}&&(cur>0||HIST.length>0))gp(cur);}});`:''
+  const kbJS = useKb?`document.addEventListener('keydown',e=>{
+    if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.repeat||e.ctrlKey||e.altKey||e.metaKey||anim||submitted)return;
+    const target=e.target,tag=target?.tagName;
+    if(target?.isContentEditable||['TEXTAREA','SELECT','BUTTON','A'].includes(tag))return;
+    if(e.key==='Enter'||(e.key==='ArrowRight'&&tag!=='INPUT')){
+      e.preventDefault();
+      if(cur<0)sf();else if(cur<TOTAL){const q=QS[cur];if(q&&q.type==='quiz')quizCheck(cur);else gn(cur);}
+    }
+    if((e.key==='ArrowLeft'||e.key==='Backspace')&&tag!=='INPUT'&&${allowBack}&&(cur>0||HIST.length>0)){e.preventDefault();gp(cur);}
+  });`:''
 
   const doneScoreHTML = hasQuiz ? `<div id="qscore" style="margin:10px 0 4px;font-size:15px;font-weight:600"></div>` : ''
 
@@ -297,6 +295,8 @@ ${singlePage ? singlePageCSS : ''}
 ${formRefinementCSS}
 ${featuredThemePolish}
 body .nb,body .sbt,body .dcta,body.single-page .single-submit{color:${buttonText}!important}
+body .nb,body .sbt,body .dcta,body.single-page .single-submit{background:${buttonBackground}!important}
+body .nb:hover,body .sbt:hover,body .dcta:hover,body.single-page .single-submit:hover{color:${buttonText}!important;background:${buttonBackground}!important}
 body .nb .sp,body .sbt .sp{border-color:color-mix(in srgb,${buttonText} 30%,transparent);border-top-color:${buttonText}}
 ${bgImgData && conceptTheme.startsWith('clean_') ? 'body{background:transparent}' : ''}
 </style></head><body${singlePage?' class="single-page"':''}>
@@ -333,7 +333,9 @@ const WAIT_FOR_SUBMIT=${!!waitForSubmit};
 const TOTAL=${TOTAL};
 const QUIZ=${quizData};
 const BRANCH=${branchMap};
-const QS=${JSON.stringify(questions.map(q=>({id:q.id,type:q.type})))};
+const QS=${scriptJSON(questions.map(q=>({id:q.id,type:q.type,required:!!q.required})))};
+const ANSWER_KEYS=${scriptJSON(answerKeys)};
+const getFormPath=${getSinglePagePath.toString()};
 const HIST=[];
 let cur=${singlePage?'0':'-1'},anim=false,submitted=false;
 let qzScore=0,qzTotal=0,qzDone={};
@@ -384,21 +386,23 @@ function sf(){
 }
 function gn(s){
   if(SINGLE_PAGE)return;
-  if(anim)return;if(!vld(s))return;
+  if(anim||submitted||s!==cur)return;
+  if(QS[s]?.type==='quiz'&&!qzDone[s]&&document.querySelector('#g'+QS[s].id+' .ci.ck')){quizCheck(s);return;}
+  if(!vld(s))return;
   const br=BRANCH[s];
   let next=s+1;
   if(br){
     const el=document.querySelector('#g'+QS[s].id+' .ci.ck');
     const oi=el?parseInt(el.dataset.oi??-1):-1;
-    if(oi>=0&&br[oi]!=null){const t=br[oi];if(t==='done'){finishForm();return;}next=parseInt(t);}
+    if(oi>=0&&br[oi]!=null){const t=br[oi];if(t==='done'){finishForm();return;}const target=Number(t);if(Number.isInteger(target)&&target>=0&&target<TOTAL)next=target;}
   }
+  if(next>=TOTAL||next===s||HIST.includes(next)){finishForm();return;}
   HIST.push(cur);
-  if(next>=TOTAL){finishForm();return;}
   const f=cur;cur=next;
   go(f,cur,'n');upUI();
 }
 function gp(s){
-  if(anim)return;
+  if(anim||submitted)return;
   const prev=HIST.length>0?HIST.pop():(cur>0?cur-1:0);
   const f=cur;cur=prev;go(f,cur,'p');upUI();
 }
@@ -407,7 +411,7 @@ function pick(el,gid,multi){
   if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));
   el.classList.toggle('ck');el.style.transform='scale(0.96)';setTimeout(()=>el.style.transform='',100);
   if(SINGLE_PAGE){syncChoices(gid);updateSinglePath();}
-  ${autoNext&&!singlePage?`if(!multi){const s=document.querySelectorAll('#'+gid+' .ci.ck').length;if(s===1)setTimeout(()=>gn(cur),320);}`:''}}
+  ${autoNext&&!singlePage?`if(!multi){const s=cur;if(document.querySelectorAll('#'+gid+' .ci.ck').length===1)setTimeout(()=>{if(cur===s)gn(s);},320);}`:''}}
 function syncChoices(gid){document.querySelectorAll('#'+gid+' .ci').forEach(el=>{const input=el.querySelector('.native-choice');if(input)input.checked=el.classList.contains('ck');});}
 function pickOther(el,gid,multi){if(!multi)document.querySelectorAll('#'+gid+' .ci').forEach(c=>c.classList.remove('ck'));el.classList.add('ck');if(SINGLE_PAGE){syncChoices(gid);updateSinglePath();}el.querySelector('.oi')?.focus();}
 function pickQuiz(el,gid,qi){
@@ -416,15 +420,15 @@ function pickQuiz(el,gid,qi){
   el.classList.add('ck');
 }
 function quizCheck(qi){
-  if(qzDone[qi])return;
+  if(qzDone[qi]){gn(qi);return;}
   const qd=QUIZ[qi];if(!qd)return;
   const gid='g'+QS[qi].id;
   const sel=document.querySelector('#'+gid+' .ci.ck');
-  if(!sel){er(qi,'보기를 선택해주세요.');return;}
+  if(!sel){if(!QS[qi].required){gn(qi);return;}er(qi,'보기를 선택해주세요.');return;}
   const selOi=parseInt(sel.dataset.oi);
   const ok=selOi===qd.correct;
   qzDone[qi]=true;qzTotal++;if(ok)qzScore++;
-  ans['Q'+(qi+1)+'_답']=(ok?'✅정답':'❌오답')+'(선택:'+sel.querySelector('span').textContent+')';
+  ans[ANSWER_KEYS[qi]]=(ok?'✅정답':'❌오답')+'(선택:'+sel.querySelector('span').textContent+')';
   document.querySelectorAll('#'+gid+' .ci').forEach(c=>{
     c.classList.add('qdisabled');
     const oi=parseInt(c.dataset.oi);
@@ -435,7 +439,8 @@ function quizCheck(qi){
   if(fb){
     fb.style.display='block';
     fb.className='qfb '+(ok?'ok':'ng');
-    fb.innerHTML=(ok?'✅ 정답입니다!':'❌ 오답입니다.')+(qd.explanation?'<br><span style="font-size:12px;opacity:.85">💡 '+qd.explanation+'</span>':'');
+    fb.textContent=ok?'✅ 정답입니다!':'❌ 오답입니다.';
+    if(qd.explanation){const detail=document.createElement('span');detail.style.cssText='font-size:12px;opacity:.85';detail.textContent='💡 '+qd.explanation;fb.append(document.createElement('br'),detail);}
   }
   const cb=document.getElementById('qcb'+qi),nb=document.getElementById('qnb'+qi);
   if(cb)cb.style.display='none';
@@ -444,17 +449,39 @@ function quizCheck(qi){
 function er(i,m){const e=document.getElementById('e'+i);e.textContent='⚠ '+m;e.classList.add('on');}
 function ce(){document.querySelectorAll('.em').forEach(e=>{e.textContent='';e.classList.remove('on')});document.querySelectorAll('.fi').forEach(f=>f.classList.remove('er'));}
 function vld(s){ce();switch(s){${vldCases}default:break;}return true;}
+const validPhone = ${isValidPhone.toString()};
+function responsePath(){
+  const selected={};
+  QS.forEach((q,i)=>{if(q.type!=='single'&&q.type!=='quiz')return;const el=document.querySelector('#g'+q.id+' .ci.ck');if(el?.dataset.oi!=null)selected[i]=el.dataset.oi;});
+  return getFormPath(TOTAL,BRANCH,selected);
+}
+function setSubmissionBusy(busy){
+  document.querySelectorAll('.nb,.sbt,#gb,.bb').forEach(button=>{button.disabled=busy;button.classList.remove('ld2');});
+  const button=document.getElementById(SINGLE_PAGE?'sb':QS[cur]?.type==='quiz'?'qnb'+cur:'sb');
+  if(button){button.disabled=busy;if(busy)button.classList.add('ld2');}
+}
 function finishForm(){
   if(submitted)return;
+  const path=responsePath(),keys=new Set(path.map(i=>ANSWER_KEYS[i]));
+  Object.keys(ans).forEach(key=>{if(!keys.has(key))delete ans[key];});
+  qzScore=0;qzTotal=0;
+  path.forEach(i=>{
+    if(QS[i].type!=='quiz')return;
+    const selected=document.querySelector('#g'+QS[i].id+' .ci.ck');
+    if(!selected)return;
+    const ok=Number(selected.dataset.oi)===Number(QUIZ[i].correct);
+    qzTotal++;if(ok)qzScore++;
+    ans[ANSWER_KEYS[i]]=(ok?'✅정답':'❌오답')+'(선택:'+selected.querySelector('span').textContent+')';
+  });
   submitted=true;
   ans._ts=new Date().toLocaleString('ko-KR');
   ans._formTitle=${JSON.stringify(title || '').replace(/</g, '\\u003c')};
   try{window.parent.postMessage({type:'FORM_SUBMIT',answers:ans,pdfUrl:'${esc2(submitPdfUrl)}'},'*');}catch(e){}
-  if(SU){try{fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)});}catch(e){}}
-  if(WAIT_FOR_SUBMIT){const btn=document.getElementById('sb');btn.disabled=true;btn.classList.add('ld2');return;}
+  if(WAIT_FOR_SUBMIT){setSubmissionBusy(true);return;}
   completeForm();
 }
 function completeForm(){
+  if(SU){try{Promise.resolve(fetch(SU,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(ans)})).catch(()=>{});}catch(e){}}
   const f=cur;cur=TOTAL;
   const dn=document.getElementById('dn');
   if(dn){const nk='${esc2(firstShortLabel)}';if(ans[nk])dn.textContent=ans[nk]+', ';}
@@ -469,13 +496,11 @@ function completeForm(){
 }
 async function sub(){
   if(SINGLE_PAGE){submitSingle();return;}
-  if(anim)return;if(!vld(${TOTAL-1}))return;
-  const btn=document.getElementById('sb');if(btn){btn.classList.add('ld2');btn.disabled=true;}
-  finishForm();
-  if(btn){btn.classList.remove('ld2');btn.disabled=false;}
+  gn(cur);
 }
 function rst(){
-  submitted=false;ce();
+  if(anim)return;
+  submitted=false;ce();setSubmissionBusy(false);
   document.querySelectorAll('input').forEach(el=>el.value='');
   document.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);
   document.querySelectorAll('[aria-invalid]').forEach(el=>el.removeAttribute('aria-invalid'));
@@ -492,7 +517,7 @@ function rst(){
   document.getElementById('pf').style.width='0%';document.getElementById('sc').style.opacity='0';
   ${useKb?"document.getElementById('kh').style.opacity='1';":""}
   const f=cur;cur=-1;
-  ${!useStart?'setTimeout(initFirst,460);':"go(f,-1,'p');upUI();"}
+  ${!useStart?"document.getElementById('done').style.display='none';initFirst();":"go(f,-1,'p');upUI();"}
 }
 ${confJS}
 function rp(e,btn){const r=btn.getBoundingClientRect(),sz=Math.max(r.width,r.height)*2,el=document.createElement('span');el.className='rp';el.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+(e.clientX-r.left-sz/2)+'px;top:'+(e.clientY-r.top-sz/2)+'px';btn.appendChild(el);setTimeout(()=>el.remove(),560);}
@@ -504,7 +529,7 @@ window.addEventListener('message',event=>{
   if(event.data?.type==='SUBMIT_SUCCESS'&&cur<TOTAL){completeForm();return;}
   if(event.data?.type==='SUBMIT_ERROR'&&cur<TOTAL){
     submitted=false;
-    const button=document.getElementById('sb');button.disabled=false;button.classList.remove('ld2');
+    setSubmissionBusy(false);
     tst(event.data.message||'저장하지 못했습니다. 다시 제출해주세요.','fail');
   }
 });

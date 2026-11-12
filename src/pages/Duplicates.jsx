@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase, getResponsesForForms } from '../lib/supabase'
 import s from './Duplicates.module.css'
+import { normalizePhone } from '../lib/phoneValidation'
 
-function normalizePhone(v) { return String(v||'').replace(/[-\s()]/g,'').trim() }
 function looksLikePhone(v) { return /^010\d{8}$/.test(normalizePhone(v)) }
 function formatPhone(v) {
   const n = normalizePhone(v)
@@ -38,16 +38,19 @@ export default function Duplicates() {
       // 전화번호별 그룹핑
       const phoneMap = {}
       ;(allResp||[]).forEach(r => {
+        const seenPhones = new Set()
         Object.entries(r.answers||{}).forEach(([k,v]) => {
           if (!looksLikePhone(v)) return
           const norm = normalizePhone(v)
+          if (seenPhones.has(norm)) return
+          seenPhones.add(norm)
           if (!phoneMap[norm]) phoneMap[norm] = { phone: String(v), normalized: norm, entries: [] }
           phoneMap[norm].entries.push({
             responseId: r.id, formId: r.form_id,
             formTitle: formMap[r.form_id]?.title || '알 수 없는 폼',
             formColor1: formMap[r.form_id]?.theme_c1 || '#7c6cfc',
             formColor2: formMap[r.form_id]?.theme_c2 || '#c084fc',
-            answers: r.answers, date: r.submitted_at, questionKey: k,
+            answers: r.answers, date: r.submitted_at, questionKey: k, phone: norm,
           })
         })
       })
@@ -95,8 +98,8 @@ export default function Duplicates() {
   }
 
   const filtered = dupeGroups.filter(g =>
-    g.phone.includes(search) ||
-    g.entries.some(e=>e.formTitle.includes(search))
+    g.normalized.includes(normalizePhone(search)) ||
+    g.entries.some(e=>e.formTitle.toLowerCase().includes(search.toLowerCase()))
   )
 
   return (

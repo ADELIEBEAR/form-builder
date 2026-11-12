@@ -140,6 +140,7 @@ export async function deleteForm(formId) {
 
 // 폼 발행 (slug 생성 + is_published = true)
 export async function publishForm(formId, title) {
+  const existing = await getForm(formId, 'id, slug')
   // 한글은 로마자 변환 대신 제거하고 영문/숫자만 사용
   const slugBase = title
     .toLowerCase()
@@ -147,7 +148,7 @@ export async function publishForm(formId, title) {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 30) || 'form'
-  const slug = slugBase + '-' + Math.random().toString(36).slice(2, 7)
+  const slug = existing.slug || slugBase + '-' + Math.random().toString(36).slice(2, 7)
 
   const { data, error } = await supabase
     .from('forms')
