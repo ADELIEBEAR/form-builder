@@ -137,6 +137,14 @@ const PublicForm = () => {
     return () => { active = false; };
   }, [slug]);
 
+  // Respondents should see the form's own name on the browser tab, not the builder's.
+  useEffect(() => {
+    if (!form?.title) return;
+    const previous = document.title;
+    document.title = form.title;
+    return () => { document.title = previous; };
+  }, [form?.title]);
+
   useEffect(() => {
     if (!form) return;
     const handler = async (event) => {
