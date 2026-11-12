@@ -30,7 +30,9 @@ function readableButtonText(c1, c2) {
     ? channel / 12.92
     : ((channel + 0.055) / 1.055) ** 2.4)
   const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
-  return luminance > 0.179 ? '#111827' : '#ffffff'
+  const blackContrast = (luminance + 0.05) / 0.05
+  const whiteContrast = 1.05 / (luminance + 0.05)
+  return blackContrast >= whiteContrast ? '#000000' : '#ffffff'
 }
 
 export function generateFormHTML(title, questions, theme, settings={}, assets={}) {
