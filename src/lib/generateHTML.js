@@ -11,6 +11,28 @@ function esc2(s) {
   return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")
 }
 
+function parseHexColor(color) {
+  const value = String(color || '').trim()
+  const short = /^#([0-9a-f]{3})$/i.exec(value)
+  const full = /^#([0-9a-f]{6})$/i.exec(value)
+  const hex = short
+    ? short[1].split('').map(channel => channel + channel).join('')
+    : full?.[1]
+  if (!hex) return null
+  return [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16))
+}
+
+function readableButtonText(c1, c2) {
+  const first = parseHexColor(c1) || [124, 108, 252]
+  const second = parseHexColor(c2) || first
+  const midpoint = first.map((channel, index) => (channel + second[index]) / 2 / 255)
+  const linear = midpoint.map(channel => channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4)
+  const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+  return luminance > 0.179 ? '#111827' : '#ffffff'
+}
+
 export function generateFormHTML(title, questions, theme, settings={}, assets={}) {
   const {
     animType=0, fontFamily="'Noto Sans KR',sans-serif",
@@ -61,6 +83,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const conceptCSS = getConceptCSS(conceptTheme, theme.c1, theme.c2, fontFamily)
   const featuredThemePolish = getFeaturedThemePolish(conceptTheme)
+  const buttonText = readableButtonText(theme.c1, theme.c2)
   const themeFontURL = getThemeFontURL(getThemeTypeface(conceptTheme, fontFamily))
   const animCSS = [
     `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-40px)}}@keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(40px)}}.en{animation:siU .38s ease both}.ex{animation:soU .28s ease both}.ep{animation:siD .38s ease both}.xp{animation:soD .28s ease both}`,
@@ -271,6 +294,8 @@ ${animCSS}
 ${singlePage ? singlePageCSS : ''}
 ${formRefinementCSS}
 ${featuredThemePolish}
+body .nb,body .sbt,body .dcta,body.single-page .single-submit{color:${buttonText}!important}
+body .nb .sp,body .sbt .sp{border-color:color-mix(in srgb,${buttonText} 30%,transparent);border-top-color:${buttonText}}
 ${bgImgData && conceptTheme.startsWith('clean_') ? 'body{background:transparent}' : ''}
 </style></head><body${singlePage?' class="single-page"':''}>
 ${bgImgData?'<div id="bg-img"></div><div id="bg-overlay"></div>':''}
