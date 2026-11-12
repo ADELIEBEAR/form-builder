@@ -41,6 +41,7 @@ export function remapQuestionBranches(previous, next) {
 export function removeQuestionOption(question, index) {
   if (!question.options || question.options.length <= 1 || index < 0 || index >= question.options.length) return question
   const next = { ...question, options: question.options.filter((_, i) => i !== index) }
+  if (question.optionMeta) next.optionMeta = question.optionMeta.filter((_, i) => i !== index)
   if (question.correctAnswer != null) next.correctAnswer = question.correctAnswer === index ? 0 : question.correctAnswer - (question.correctAnswer > index ? 1 : 0)
   if (question.branches) next.branches = question.branches.filter(b => b.optionIdx !== index).map(b => ({ ...b, optionIdx: b.optionIdx - (b.optionIdx > index ? 1 : 0) }))
   return next

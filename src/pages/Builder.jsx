@@ -4,16 +4,30 @@ import { useAuth } from '../hooks/useAuth'
 import { getForm, saveForm, publishForm } from '../lib/supabase'
 import { generateFormHTML } from '../lib/generateHTML'
 import s from './Builder.module.css'
-import { CONCEPT_THEMES, FONTS } from '../lib/themes'
-import { getConceptSwatch } from '../lib/conceptPresentation'
+import { CONCEPT_THEMES, FONTS, resolveThemeId } from '../lib/themes'
 import { useTheme } from '../lib/themeContext'
 import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import { formatBytes, getFormImageSettings, uploadFormImage } from '../lib/imageAssets'
 import { newQuestionId, normalizeQuestions, remapQuestionBranches, removeQuestionOption } from '../lib/questionModel'
+import { FRIENDLY_LOOK } from '../lib/formLook'
 
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', quiz:'퀴즈', phone:'전화번호', email:'이메일', legal:'동의' }
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(b.slice(i, i + 2), 16) * (1 - t) + parseInt(a.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')
+// Runs only inside the editor's preview frame: makes the visible texts editable in place.
+const PREVIEW_EDIT_SCRIPT = `<script>(()=>{
+const send=d=>parent.postMessage(Object.assign({type:'PV_EDIT'},d),'*');
+const make=(el,d)=>{if(!el)return;el.contentEditable='plaintext-only';el.spellcheck=false;el.classList.add('pved');
+el.addEventListener('click',e=>e.stopPropagation());
+el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();el.blur();}});
+el.addEventListener('input',()=>send(Object.assign({value:el.textContent},d)));};
+make(document.querySelector('.stit'),{field:'title'});make(document.querySelector('.fhead b'),{field:'title'});make(document.querySelector('.sdesc'),{field:'startDesc'});
+QS.forEach((q,i)=>{const s=document.getElementById('sl'+i);if(!s)return;
+make(s.querySelector('.ct'),{field:'label',q:i});make(s.querySelector('.cs'),{field:'hint',q:i});
+s.querySelectorAll('.cg .ci').forEach((c,o)=>{if(c.querySelector('.oi'))return;make(c.querySelector('span'),{field:'option',q:i,o});make(c.querySelector('.od'),{field:'optDesc',q:i,o});make(c.querySelector('.ob'),{field:'optBadge',q:i,o});});});
+const st=document.createElement('style');st.textContent='.pved{cursor:text;outline:none;border-radius:6px;transition:box-shadow .15s}.pved:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--c1) 35%,transparent)}.pved:focus{box-shadow:0 0 0 2px var(--c1)}';document.head.appendChild(st);
+})()</script>`
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
   useStart: true,
@@ -35,7 +49,8 @@ export default function Builder() {
   const [title, setTitle] = useState('')
   const [questions, setQuestions] = useState([])
   const [theme, setTheme] = useState({ c1:'#3b82f6', c2:'#60a5fa' })
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  // New forms start on the friendly theme; saved forms keep whatever they stored.
+  const [settings, setSettings] = useState(formId ? DEFAULT_SETTINGS : { ...DEFAULT_SETTINGS, conceptTheme: 'clean_warm' })
   const singlePage = settings.layout === 'single'
   const [coverImgData, setCoverImgData] = useState(null)
   const [bgImgData, setBgImgData] = useState(null)
@@ -59,6 +74,8 @@ export default function Builder() {
   const pvRef = useRef(null)
   const pvTimer = useRef(null)
   const pvIdle = useRef(null)
+  const pvQuestions = useRef([])
+  const pvSelfEdit = useRef(false)
   const lastPreviewHTML = useRef('')
   const autoSaveTimer = useRef(null)
   const saveInFlight = useRef(false)
@@ -116,8 +133,46 @@ export default function Builder() {
     )
     if (html === lastPreviewHTML.current) return
     lastPreviewHTML.current = html
-    pvRef.current.srcdoc = html
+    // Text typed inside the preview is already on screen there; reloading would drop the caret.
+    if (pvSelfEdit.current) { pvSelfEdit.current = false; pvQuestions.current = questions; return }
+    // Keep the preview where the editor is working instead of restarting at the first screen.
+    let target = null, scrollY = 0
+    try {
+      const active = pvRef.current.contentDocument?.querySelector('.sl.active')?.id || ''
+      if (/^sl\d+$/.test(active)) target = Number(active.slice(2))
+      scrollY = Math.round(pvRef.current.contentWindow?.scrollY || 0)
+    } catch {}
+    const prev = pvQuestions.current
+    pvQuestions.current = questions
+    if (prev.length) {
+      const changed = questions.map((q, i) => q !== prev[i] ? i : -1).filter(i => i >= 0)
+      if (changed.length === 1) target = changed[0]
+      else if (questions.length === prev.length + 1) target = questions.findIndex(q => !prev.includes(q))
+    }
+    const restore = `<script>(()=>{if(SINGLE_PAGE){scrollTo(0,${scrollY});return}const s=document.getElementById('sl${target}');if(!s)return;document.querySelectorAll('.sl').forEach(e=>{e.style.display='none';e.classList.remove('active')});s.style.display='flex';s.classList.add('active');cur=${target};upUI()})()</script>`
+    pvRef.current.srcdoc = html.replace(/<\/body>(?![\s\S]*<\/body>)/, (target == null && !scrollY ? '' : restore) + PREVIEW_EDIT_SCRIPT + '</body>')
   }, [title, questions, theme, settings, coverImgData, qImgData, bgImgData])
+
+  // Edits made directly on the preview text flow back into the same state the left panel edits.
+  useEffect(() => {
+    function onPreviewEdit(event) {
+      const d = event.data
+      if (event.source !== pvRef.current?.contentWindow || d?.type !== 'PV_EDIT' || typeof d.value !== 'string') return
+      pvSelfEdit.current = true
+      if (d.field === 'title') return setTitle(d.value)
+      if (d.field === 'startDesc') return setSettings(prev => ({ ...prev, startDesc: d.value }))
+      setQuestions(prev => prev.map((q, i) => {
+        if (i !== d.q) return q
+        if (d.field === 'label' || d.field === 'hint') return { ...q, [d.field]: d.value }
+        if (d.field === 'option') return { ...q, options: q.options.map((o, oi) => oi === d.o ? d.value : o) }
+        const optionMeta = q.options.map((_, oi) => ({ ...(q.optionMeta?.[oi] || {}) }))
+        if (optionMeta[d.o]) optionMeta[d.o][d.field === 'optDesc' ? 'desc' : 'badge'] = d.value
+        return { ...q, optionMeta }
+      }))
+    }
+    window.addEventListener('message', onPreviewEdit)
+    return () => window.removeEventListener('message', onPreviewEdit)
+  }, [])
 
   useEffect(() => {
     clearTimeout(pvTimer.current)
@@ -129,7 +184,7 @@ export default function Builder() {
       pvIdle.current = 'requestIdleCallback' in window
         ? window.requestIdleCallback(updatePreview, { timeout: 800 })
         : setTimeout(updatePreview, 0)
-    }, 550)
+    }, 120)
     return () => {
       clearTimeout(pvTimer.current)
       if (pvIdle.current != null) {
@@ -268,6 +323,22 @@ export default function Builder() {
   }
   function addOpt(id) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: [...q.options, `옵션 ${q.options.length + 1}`] } : q)) }
   function updOpt(id, oi, val) { setQuestions(prev => prev.map(q => q.id === id ? { ...q, options: q.options.map((o, i) => i === oi ? val : o) } : q)) }
+  function updOptMeta(id, oi, key, val) {
+    setQuestions(prev => prev.map(q => {
+      if (q.id !== id) return q
+      const optionMeta = q.options.map((_, i) => ({ ...(q.optionMeta?.[i] || {}) }))
+      optionMeta[oi][key] = val
+      return { ...q, optionMeta }
+    }))
+  }
+  function setLook(key, val) {
+    setSettings(prev => {
+      const look = { ...(prev.look || {}) }
+      if (val == null || val === '') delete look[key]
+      else look[key] = val
+      return { ...prev, look }
+    })
+  }
   function delOpt(id, oi) { setQuestions(prev => prev.map(q => q.id === id ? removeQuestionOption(q, oi) : q)) }
 
   function onDrop(targetId) {
@@ -404,18 +475,18 @@ export default function Builder() {
               <>
                 <div className={s.subTabs}>
                   <button className={`${s.subTab} ${designTab===0?s.subTabOn:''}`} onClick={()=>setDesignTab(0)}>테마</button>
+                  <button className={`${s.subTab} ${designTab===2?s.subTabOn:''}`} onClick={()=>setDesignTab(2)}>꾸미기</button>
                   <button className={`${s.subTab} ${designTab===1?s.subTabOn:''}`} onClick={()=>setDesignTab(1)}>글꼴</button>
                 </div>
 
                 {designTab === 0 && <>
-                  <div className={s.lsec}>스타일 5</div>
+                  <div className={s.lsec}>스타일</div>
                   <div className={s.conceptGrid}>
                     {CONCEPT_THEMES.map(ct => (
-                      <div key={ct.id} className={`${s.conceptCard} ${settings.conceptTheme===ct.id?s.conceptCardOn:''}`} onClick={()=>setSetting('conceptTheme',ct.id)} title={ct.desc}>
+                      <div key={ct.id} className={`${s.conceptCard} ${resolveThemeId(settings.conceptTheme)===ct.id?s.conceptCardOn:''}`} onClick={()=>setSetting('conceptTheme',ct.id)} title={ct.desc}>
                         <span
-                          className={`${s.conceptSwatch} ${ct.id.startsWith('clean_') ? s.cleanSwatch : ''}`}
-                          data-clean-theme={ct.id}
-                          style={ct.id.startsWith('clean_') ? undefined : getConceptSwatch(ct.id, theme.c1)}
+                          className={`${s.conceptSwatch} ${s.cleanSwatch}`}
+                          style={{ background: '#fff', border: '1px solid #9aa3af', boxShadow: 'none', ...ct.thumb }}
                           aria-hidden="true"
                         />
                         <div className={s.conceptCopy}>
@@ -427,6 +498,12 @@ export default function Builder() {
                   </div>
                   <div className={s.lsep}/>
                   <div className={s.lsec}>색상</div>
+                  <div className={s.seg} style={{ marginBottom: 10 }}>
+                    {[['테마대로', null], ['밝게', ['#f4f5f7', '#ffffff']], ['은은하게', [mixHex(theme.c1, '#ffffff', .12), '#ffffff']], ['어둡게', ['#0f1115', '#191c23']]].map(([label, tone]) => (
+                      <button key={label} type="button" className={`${s.segBtn} ${(settings.look?.tone || '테마대로') === label ? s.segBtnOn : ''}`}
+                        onClick={() => setSettings(prev => { const look = { ...(prev.look || {}) }; if (tone) { look.bg = tone[0]; look.card = tone[1]; look.tone = label } else { delete look.bg; delete look.card; delete look.tone } return { ...prev, look } })}>{label}</button>
+                    ))}
+                  </div>
                   <div className={s.customColors}>
                     <div className={s.colorPreview} style={{background:`linear-gradient(90deg,${theme.c1},${theme.c2})`}} aria-hidden="true" />
                     <div className={s.colorPickerGrid}>
@@ -498,6 +575,64 @@ export default function Builder() {
                     ))}
                   </div></>}
                 </>}
+
+                {designTab === 2 && (() => {
+                  const look = settings.look || {}
+                  const seg = (k, options) => (
+                    <div className={s.seg}>
+                      {options.map(([value, label]) => (
+                        <button key={label} type="button" className={`${s.segBtn} ${(look[k] ?? null) === value ? s.segBtnOn : ''}`} onClick={() => setLook(k, value)}>{label}</button>
+                      ))}
+                    </div>
+                  )
+                  const color = (k, label) => (
+                    <div className={s.colorRow}>
+                      <span>{label}</span>
+                      <span className={s.lookColor}>
+                        {look[k] && <button type="button" className={s.lookReset} onClick={() => setLook(k, null)}>테마대로</button>}
+                        <input type="color" value={look[k] || '#ffffff'} onChange={e => setLook(k, e.target.value)} className={s.colorPick} aria-label={label} />
+                      </span>
+                    </div>
+                  )
+                  const onOff = [[null,'테마대로'],[true,'보이기'],[false,'숨기기']]
+                  return <>
+                    <div className={s.lookPreset}>
+                      <button type="button" className={s.lookPresetBtn} onClick={() => setSettings(prev => ({ ...prev, look: { ...(prev.look || {}), ...FRIENDLY_LOOK } }))}>포근한 신청서 모양으로 채우기</button>
+                      <button type="button" className={s.lookReset} onClick={() => setSettings(prev => ({ ...prev, look: {} }))}>전부 테마대로 되돌리기</button>
+                    </div>
+                    <div className={s.lsec}>상단</div>
+                    <SetRow label="상단 제목 줄" light={isLight}>{seg('header', onOff)}</SetRow>
+                    {look.header && <SetRow label="제목 아래 한 줄" light={isLight}>
+                      <input className={s.inp} value={look.headerSub || ''} onChange={e => setLook('headerSub', e.target.value)} placeholder="예: 원하시는 자료를 무료로 받아보세요" />
+                    </SetRow>}
+                    {!singlePage && <>
+                      <SetRow label="진행 표시" light={isLight}>{seg('steps', [[null,'테마대로'],['dots','번호'],['bar','막대'],['none','없음']])}</SetRow>
+                      <SetRow label="STEP 배지" light={isLight}>{seg('stepLabel', onOff)}</SetRow>
+                    </>}
+                    <div className={s.lsep}/>
+                    <div className={s.lsec}>색</div>
+                    {color('bg', '바탕색')}
+                    {color('card', '카드색')}
+                    {color('titleColor', '제목색')}
+                    <div className={s.lsep}/>
+                    <div className={s.lsec}>정렬</div>
+                    <SetRow label="제목·설명" light={isLight}>{seg('textAlign', [[null,'테마대로'],['left','왼쪽'],['center','가운데'],['right','오른쪽']])}</SetRow>
+                    <SetRow label="선택지 글자" light={isLight}>{seg('optAlign', [[null,'테마대로'],['left','왼쪽'],['center','가운데'],['right','오른쪽']])}</SetRow>
+                    <SetRow label="버튼" light={isLight}>{seg('btnAlign', [[null,'테마대로'],['left','왼쪽'],['center','가운데'],['right','오른쪽']])}</SetRow>
+                    <div className={s.lsep}/>
+                    <div className={s.lsec}>모양</div>
+                    <div className={s.sliderRow}>
+                      <span>모서리</span>
+                      <input type="range" min="0" max="40" step="2" value={look.radius ?? 20} onChange={e => setLook('radius', Number(e.target.value))} className={s.slider} />
+                      <span>{look.radius == null ? '테마' : look.radius + 'px'}</span>
+                    </div>
+                    <SetRow label="카드 윗선" light={isLight}>{seg('topBar', onOff)}</SetRow>
+                    <SetRow label="버튼 모양" light={isLight}>{seg('btnShape', [[null,'테마대로'],['square','각지게'],['round','둥글게'],['pill','알약']])}</SetRow>
+                    <SetRow label="버튼 너비" light={isLight}>{seg('btnWide', [[null,'테마대로'],[true,'넓게'],[false,'좁게']])}</SetRow>
+                    <SetRow label="글자·칸 크기" light={isLight}>{seg('size', [[null,'테마대로'],['lg','크게']])}</SetRow>
+                    {!singlePage && <SetRow label="카드 위치" light={isLight}>{seg('align', [[null,'테마대로'],['top','위쪽'],['center','가운데']])}</SetRow>}
+                  </>
+                })()}
 
                 {designTab === 1 && <>
                   <div className={s.lsec}>폰트 선택</div>
@@ -664,6 +799,15 @@ export default function Builder() {
                           <div className={`${s.optCb} ${q.type === 'single' ? s.optCbRound : ''}`} />
                           <input className={s.optInp} value={opt} placeholder={`옵션 ${oi + 1}`} onChange={e => updOpt(q.id, oi, e.target.value)} />
                           <button className={s.optDel} onClick={() => delOpt(q.id, oi)}>✕</button>
+                          {q.optionDetail && <div className={s.optMeta}>
+                            <input className={s.optInp} value={q.optionMeta?.[oi]?.desc || ''} placeholder="설명 한 줄 (선택)" onChange={e => updOptMeta(q.id, oi, 'desc', e.target.value)} />
+                            <div className={s.badgePick}>
+                              {['HOT!', 'NEW', 'EVENT!', '추천', 'FREE'].map(badge => (
+                                <button key={badge} type="button" className={`${s.badgeChip} ${q.optionMeta?.[oi]?.badge === badge ? s.badgeChipOn : ''}`} onClick={() => updOptMeta(q.id, oi, 'badge', q.optionMeta?.[oi]?.badge === badge ? '' : badge)}>{badge}</button>
+                              ))}
+                              <input className={s.optInp} value={q.optionMeta?.[oi]?.badge || ''} placeholder="직접 입력" maxLength={8} onChange={e => updOptMeta(q.id, oi, 'badge', e.target.value)} />
+                            </div>
+                          </div>}
                         </div>
                       ))}
                       {q.other && (
@@ -673,6 +817,7 @@ export default function Builder() {
                         </div>
                       )}
                       <button className={s.addOptBtn} onClick={() => addOpt(q.id)}>+ 옵션 추가</button>
+                      <ToggleInline label="선택지 설명·배지 (HOT·추천 등)" val={!!q.optionDetail} onChange={v => updQ(q.id, 'optionDetail', v)} light={isLight} />
                     </div>
                   )}
                   {q.type === 'legal' && (
@@ -773,7 +918,7 @@ export default function Builder() {
 
         {/* ── 미리보기 패널 ── */}
         <div className={s.rpanel}>
-          <div className={s.rpHead}>
+          <div className={s.rpHead} title="미리보기의 글자를 눌러 바로 고칠 수 있어요">
             <span className={s.rpTitle}>미리보기</span>
             <div className={s.pvModeToggle}>
               <button className={`${s.pvModeBtn} ${pvMode==='mobile'?s.pvModeBtnOn:''}`} onClick={()=>setPvMode('mobile')}>📱</button>

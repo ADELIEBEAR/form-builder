@@ -835,20 +835,20 @@ export default function Dashboard() {
         </div>
         <div className={s.headerRight}>
           <button className={`${s.adminBtn} ${isUnlocked ? s.unlocked : ''}`} onClick={handleAdminAction}>
-            {isUnlocked ? '🔓 암호 변경' : '🔒 잠금 해제'}
+            {isUnlocked ? '암호 변경' : '🔒 잠금 해제'}
           </button>
-          <button type="button" className={s.aiCalcBtn || s.statsBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산</button>
-          <button type="button" className={s.dupeBtn} onClick={goDuplicates}>📵 중복 체크</button>
+          <button type="button" className={s.aiCalcBtn || s.statsBtn} onClick={() => navigate('/ai-calc')}>AI 계산</button>
+          <button type="button" className={s.dupeBtn} onClick={goDuplicates}>중복 체크</button>
           <button className={`${s.allRespBtn} ${panelMode === 'all' ? s.allRespBtnOn : ''}`}
             onClick={() => {
               if (panelMode === 'all') { setPanelMode(null); return }
               if (!isUnlocked) { setPendingAction('all'); setInputPw(''); setPwError(''); setShowPwModal(true); return }
               fetchAllResp()
             }}>
-            {isUnlocked ? '📋 전체 응답' : '🔒 전체 응답'}
+            {isUnlocked ? '전체 응답' : '🔒 전체 응답'}
           </button>
           <button className={`${s.statsBtn} ${panelMode === 'stats' ? s.statsBtnOn : ''}`} onClick={handleStatsClick}>
-            {isUnlocked ? '📈 통계/CSV' : '🔒 통계/CSV'}
+            {isUnlocked ? '통계/CSV' : '🔒 통계/CSV'}
           </button>
           <div className={s.userChip}>
             {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} className={s.avatar} alt="" />}
@@ -1030,11 +1030,11 @@ export default function Dashboard() {
 
                   <div className={s.cardActions}>
                     <div className={s.actionRow}>
-                      <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>✏️ 편집</button>
+                      <button className={`${s.actionBtn} ${s.actionBtnPrimary}`} onClick={() => navigate(`/builder/${form.id}`)}>편집</button>
                       {/* 응답 미리보기 — 패널 열기 */}
                       <button className={`${s.actionBtn} ${s.actionBtnPanel} ${panelForm?.id === form.id ? s.actionBtnPanelOn : ''}`}
                         onClick={e => panelForm?.id === form.id ? setPanelForm(null) : openPanel(form, e)}>
-                        {panelForm?.id === form.id ? '✕ 닫기' : (isUnlocked ? '👁 응답 보기' : '🔒 응답 보기')}
+                        {panelForm?.id === form.id ? '✕ 닫기' : (isUnlocked ? '응답 보기' : '🔒 응답 보기')}
                       </button>
                     </div>
                     <div className={s.actionRow}>
@@ -1043,22 +1043,22 @@ export default function Dashboard() {
                         if (!isUnlocked) { setInputPw(''); setPwError(''); setTargetFormId(form.id); setShowPwModal(true); return }
                         navigate(`${RESULTS_PATH}/${form.id}`)
                       }}>
-                        {isUnlocked ? '📊 전체 응답' : '🔒 전체 응답'}
+                        {isUnlocked ? '전체 응답' : '🔒 전체 응답'}
                       </button>
                       <button className={`${s.actionBtn} ${form.is_published ? s.actionBtnWarning : s.actionBtnSuccess}`}
                         onClick={e => handlePublish(form, e)} disabled={publishing[form.id]}>
-                        {publishing[form.id] ? '...' : form.is_published ? '🔒 비공개' : '🚀 발행'}
+                        {publishing[form.id] ? '...' : form.is_published ? '비공개 전환' : '발행'}
                       </button>
                     </div>
                     <div className={s.actionRow}>
                       {form.is_published && (
-                        <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>🔗 링크 복사</button>
+                        <button className={s.actionBtn} onClick={e => copyShareLink(form, e)}>링크 복사</button>
                       )}
                       <button className={s.actionBtn} onClick={e => handleDuplicate(form, e)} disabled={duplicating[form.id]}>
-                        {duplicating[form.id] ? '복제중...' : '⧉ 복제'}
+                        {duplicating[form.id] ? '복제중...' : '복제'}
                       </button>
-                      <span className={s.sheetConnected}>✅ 시트 백업 연결됨</span>
-                      <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>🗑️</button>
+                      <span className={s.sheetConnected}>시트 백업 연결됨</span>
+                      <button className={`${s.actionBtn} ${s.actionBtnDanger}`} onClick={e => handleDelete(form.id, e)}>삭제</button>
                     </div>
                   </div>
                 </div>
@@ -1205,7 +1205,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className={s.statsActions}>
-                    <button className={s.statsPrimaryBtn} onClick={() => navigate('/ai-calc')}>🤖 AI 계산 탭에서 중복 DB 계산하기</button>
+                    <button className={s.statsPrimaryBtn} onClick={() => navigate('/ai-calc')}>AI 계산 탭에서 중복 DB 계산하기</button>
                   </div>
 
                   <div className={s.formCountList}>

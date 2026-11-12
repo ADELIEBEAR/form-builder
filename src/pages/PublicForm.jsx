@@ -144,6 +144,8 @@ const PublicForm = () => {
         if (submitting.current?.formId === form.id) return;
         const attempt = { formId: form.id, source: event.source };
         submitting.current = attempt;
+        let pdfTab = null;
+        let saved = false;
         try {
           const validationMessage = validateSubmissionAnswers(event.data.answers, form.questions || []);
           if (validationMessage) {
@@ -151,14 +153,20 @@ const PublicForm = () => {
             alert(validationMessage);
             return;
           }
+          // Safari blocks tabs opened after an await, so reserve one while the tap is still fresh.
+          const pdfUrl = typeof event.data?.pdfUrl === 'string' ? event.data.pdfUrl.trim() : '';
+          if (/^https?:\/\//i.test(pdfUrl)) pdfTab = window.open('', '_blank');
           await saveResponse(form.id, event.data.answers);
           if (attempt.source === iframeRef.current?.contentWindow) {
             attempt.source.postMessage({ type: 'SUBMIT_SUCCESS' }, '*');
-            openPdfFile(event.data?.pdfUrl);
+            saved = true;
+            if (pdfTab) { pdfTab.opener = null; pdfTab.location.replace(pdfUrl); }
+            else openPdfFile(pdfUrl);
           }
         } catch (err) {
           if (attempt.source === iframeRef.current?.contentWindow) attempt.source.postMessage({ type: 'SUBMIT_ERROR', message: err.message }, '*');
         } finally {
+          if (!saved) pdfTab?.close();
           if (submitting.current === attempt) submitting.current = null;
         }
       }

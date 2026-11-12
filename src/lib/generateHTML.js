@@ -1,4 +1,4 @@
-import { getConceptCSS } from './themes.js'
+import { getConceptCSS, resolveThemeId } from './themes.js'
 import { getSinglePagePath, singlePageCSS, singlePageJS } from './singlePage.js'
 import { formRefinementCSS } from './formRefinement.js'
 import { getThemeFontURL, getThemeTypeface } from './themeAtmosphere.js'
@@ -7,6 +7,7 @@ import { normalizeQuestions } from './questionModel.js'
 import { getAnswerKeys } from './answerKeys.js'
 import { readableButtonColors } from './buttonColors.js'
 import { isPhoneQuestion, isValidPhone } from './phoneValidation.js'
+import { getLookCSS } from './formLook.js'
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
@@ -19,7 +20,7 @@ const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c')
 export function generateFormHTML(title, questions, theme, settings={}, assets={}) {
   const {
     animType=0, fontFamily="'Noto Sans KR',sans-serif",
-    conceptTheme='default',
+    conceptTheme: savedTheme='default',
     useStart=true,
     bgBlur=0, bgOverlay=0.5, bgOverlayColor='#000000',
     allowBack=true, autoNext=false, useConfetti=true, useKb: keyboardEnabled=true,
@@ -27,8 +28,10 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     startTag='✦ Form', startBtnText='시작하기', startDesc='',
     doneTitle='제출 완료!', doneDesc='응답해주셔서 감사합니다 🎉',
     doneCta='', doneUrl='', donePdfUrl='',
+    look={},
     scriptUrl='https://script.google.com/macros/s/AKfycby-KqvP9P5agWpkwa_GgH9xKaVQHzwbRZ_JerZOQ-fyHa1SpzRk5jZNSWfMCeg_LctKWw/exec',
   } = settings
+  const conceptTheme = resolveThemeId(savedTheme)
   const singlePage = layout === 'single'
   const useKb = keyboardEnabled && !singlePage
   const submitPdfUrl = donePdfUrl || (/\.pdf(\?|#|$)/i.test(doneUrl) ? doneUrl : '')
@@ -39,8 +42,15 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const answerKeys = getAnswerKeys(questions)
   const bgImgData = Object.hasOwn(assets, 'bgImgData') ? assets.bgImgData : settings.bgImgData ?? null
   const TOTAL = questions.length
+  // Optional description and badge per choice; the first <span> stays the answer text.
+  const badgeKind = text => /hot|인기/i.test(text) ? 'hot' : /event|이벤트/i.test(text) ? 'event' : /추천|best/i.test(text) ? 'pick' : /free|무료/i.test(text) ? 'free' : 'new'
+  const optLabel = (q, o, oi) => {
+    const meta = q.optionDetail ? q.optionMeta?.[oi] || {} : {}
+    if (!meta.desc && !meta.badge) return `<span>${esc(o)}</span>`
+    return `<div class="ot"><span>${esc(o)}</span>${meta.badge?`<em class="ob ob-${badgeKind(meta.badge)}">${esc(meta.badge)}</em>`:''}${meta.desc?`<small class="od">${esc(meta.desc)}</small>`:''}</div>`
+  }
 
-  if (!TOTAL) return `<html><body style="background:#0e0e14;color:var(--tx3);font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px">질문을 추가해주세요.</body></html>`
+  if (!TOTAL) return `<html><body style="background:#f7f8fa;color:#8c8f96;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px">질문을 추가해주세요.</body></html>`
 
   const hasQuiz = questions.some(q => q.type === 'quiz')
 
@@ -76,7 +86,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
   const buttonBackground = solidButton ? buttonColors.c1 : `linear-gradient(${buttonAngle}deg,${buttonColors.c1},${buttonColors.c2})`
   const themeFontURL = getThemeFontURL(getThemeTypeface(conceptTheme, fontFamily))
   const animCSS = [
-    `@keyframes siU{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-40px)}}@keyframes siD{from{opacity:0;transform:translateY(-40px)}to{opacity:1;transform:none}}@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(40px)}}.en{animation:siU .38s ease both}.ex{animation:soU .28s ease both}.ep{animation:siD .38s ease both}.xp{animation:soD .28s ease both}`,
+    `@keyframes siU{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}@keyframes soU{from{opacity:1}to{opacity:0;transform:translateY(-8px)}}@keyframes siD{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}@keyframes soD{from{opacity:1}to{opacity:0;transform:translateY(8px)}}.en{animation:siU .38s cubic-bezier(.22,1,.36,1) both}.ex{animation:soU .22s ease both}.ep{animation:siD .38s cubic-bezier(.22,1,.36,1) both}.xp{animation:soD .22s ease both}`,
     `@keyframes fdi{from{opacity:0;transform:scale(.94);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}@keyframes fdo{from{opacity:1;filter:blur(0)}to{opacity:0;transform:scale(1.05);filter:blur(6px)}}.en,.ep{animation:fdi .4s cubic-bezier(.22,1,.36,1) both}.ex,.xp{animation:fdo .28s ease both}`,
     `@keyframes fxIn{from{opacity:0;transform:perspective(700px) rotateX(14deg) scale(.97)}to{opacity:1;transform:none}}@keyframes fxOut{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateX(-14deg) scale(.97)}}.en,.ep{animation:fxIn .4s cubic-bezier(.22,1,.36,1) both}.ex,.xp{animation:fxOut .28s ease both}`,
     `@keyframes fyIn{from{opacity:0;transform:perspective(700px) rotateY(-16deg) scale(.97)}to{opacity:1;transform:none}}@keyframes fyInR{from{opacity:0;transform:perspective(700px) rotateY(16deg) scale(.97)}to{opacity:1;transform:none}}@keyframes fyOut{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateY(16deg) scale(.97)}}@keyframes fyOutR{from{opacity:1}to{opacity:0;transform:perspective(700px) rotateY(-16deg) scale(.97)}}.en{animation:fyIn .42s cubic-bezier(.22,1,.36,1) both}.ex{animation:fyOut .28s ease both}.ep{animation:fyInR .42s cubic-bezier(.22,1,.36,1) both}.xp{animation:fyOutR .28s ease both}`,
@@ -104,11 +114,11 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     } else if (q.type === 'email') {
       field = `<input type="email" class="fi" id="f${q.id}" placeholder="example@email.com" inputmode="email">`
     } else if (q.type === 'multiple') {
-      const opts = (q.options||[]).map(o => `<div class="ci" onclick="pick(this,'g${q.id}',true)"><div class="cb"></div><span>${esc(o)}</span></div>`).join('')
+      const opts = (q.options||[]).map((o, oi) => `<div class="ci" onclick="pick(this,'g${q.id}',true)"><div class="cb"></div>${optLabel(q, o, oi)}</div>`).join('')
       const other = q.other ? `<div class="ci" onclick="pickOther(this,'g${q.id}',true)"><div class="cb"></div><input class="oi" placeholder="기타..." id="oi${q.id}" onclick="event.stopPropagation()"></div>` : ''
       field = `<div class="cg" id="g${q.id}">${opts}${other}</div>`
     } else if (q.type === 'single') {
-      const opts = (q.options||[]).map((o, oi) => `<div class="ci si" data-oi="${oi}" onclick="pick(this,'g${q.id}',false)"><div class="cb rb"></div><span>${esc(o)}</span></div>`).join('')
+      const opts = (q.options||[]).map((o, oi) => `<div class="ci si" data-oi="${oi}" onclick="pick(this,'g${q.id}',false)"><div class="cb rb"></div>${optLabel(q, o, oi)}</div>`).join('')
       const other = q.other ? `<div class="ci si" onclick="pickOther(this,'g${q.id}',false)"><div class="cb rb"></div><input class="oi" placeholder="기타..." id="oi${q.id}" onclick="event.stopPropagation()"></div>` : ''
       field = `<div class="cg" id="g${q.id}">${opts}${other}</div>`
     } else if (q.type === 'quiz') {
@@ -148,6 +158,7 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
     return `<div class="sl" id="sl${i}" style="display:none">
   <div class="card">${imgH}
+    ${TOTAL<=8?`<div class="steps" style="--n:${TOTAL}">${questions.map((_,j)=>`<i${j<i?' class="dn"':j===i?' class="on"':''}>${j+1}</i>`).join('')}</div>`:''}
     <div class="cn">STEP ${String(i+1).padStart(2,'0')} / ${String(TOTAL).padStart(2,'0')}</div>
     <div class="ct">${esc(q.label||'질문')}</div>
     ${q.hint?`<div class="cs">${esc(q.hint)}</div>`:''}
@@ -217,8 +228,29 @@ ${bgImgData?`#bg-img{position:fixed;inset:0;z-index:-2;background-image:url('${b
 #gb{position:fixed;top:10px;left:14px;z-index:50;display:none;align-items:center;gap:5px;font-size:13px;color:var(--tx3);background:none;border:none;cursor:pointer;font-family:inherit;transition:color .2s,transform .2s;padding:6px 4px}
 #gb:hover{color:var(--tx);transform:translateX(-3px)}#gb.v{display:flex}
 #kh{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(122,120,143,.5);display:flex;align-items:center;gap:6px;pointer-events:none;z-index:10;transition:opacity .5s;white-space:nowrap}
+@media(hover:none),(max-width:600px){#kh{display:none}}
 #kh kbd{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:5px;padding:2px 8px;font-family:monospace;font-size:11px}
 .wrap{position:relative;z-index:1;width:100%;max-width:540px}
+.fhead{display:none;align-items:center;justify-content:center;gap:12px;margin-bottom:20px}
+.fhead b{display:block;font-size:17px;font-weight:800;color:var(--tx);line-height:1.35;word-break:keep-all}
+.fhead span{font-size:13px;color:var(--tx3)}
+.steps{display:none;align-items:center;justify-content:center;margin-bottom:24px;--sg:clamp(8px,4.2vw,26px)}
+.steps i{position:relative;box-sizing:border-box;flex:0 0 auto;width:min(30px,calc((100% - (var(--n) - 1)*var(--sg))/var(--n)));aspect-ratio:1;font-style:normal;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;line-height:1;background:color-mix(in srgb,var(--c1) 14%,transparent);color:var(--c1);transition:background .3s,color .3s,box-shadow .3s}
+.steps i+i{margin-left:var(--sg)}
+.steps i+i::before{content:'';position:absolute;right:calc(100% + 3px);top:50%;width:calc(var(--sg) - 6px);height:2px;margin-top:-1px;border-radius:2px;background:color-mix(in srgb,var(--c1) 20%,transparent);transition:background .3s}
+.steps i.on,.steps i.dn{background:var(--c1);color:#fff}
+.steps i.on{box-shadow:0 0 0 4px color-mix(in srgb,var(--c1) 22%,transparent)}
+.steps i.dn{font-size:0}
+.steps i.dn::after{content:'';width:34%;height:18%;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-15%) rotate(-45deg)}
+.steps i.dn+i::before{background:var(--c1)}
+body.single-page .steps,body.single-page .fhead{display:none}
+.ot{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px}
+.ci .ot span{flex:0 1 auto}
+.ob{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.06em;line-height:1;padding:4px 8px;border-radius:99px;background:color-mix(in srgb,var(--c1) 16%,transparent);color:var(--c1);animation:obIn .5s cubic-bezier(.22,1,.36,1) both,obGlow 2.4s ease-in-out .5s infinite}
+.ob-hot{background:#ffe4e1;color:#d92d20}.ob-event{background:#efe5ff;color:#6d3fd6}.ob-pick{background:#dff5e6;color:#17803d}.ob-free{background:#fff1c9;color:#a16207}
+.od{flex-basis:100%;font-size:13px;line-height:1.5;color:var(--tx2)}
+@keyframes obIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes obGlow{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px color-mix(in srgb,currentColor 16%,transparent)}}
 .sl{width:100%;display:none;flex-direction:column}.sl.active{display:flex}
 .card{background:var(--card-bg,rgba(22,22,31,.95));border:1px solid var(--bd);border-radius:24px;padding:38px 34px 30px;backdrop-filter:blur(20px);position:relative;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35)}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--c1),var(--c2),transparent 80%)}
@@ -290,6 +322,7 @@ ${fontFamily!=="'Noto Sans KR',sans-serif"?`body{font-family:${fontFamily}!impor
 .cn{color:${theme.c1}!important}.card::before{background:linear-gradient(90deg,transparent,${theme.c1},${theme.c2},transparent)!important}
 #pf{background:linear-gradient(90deg,${theme.c1},${theme.c2})!important}
 ${animCSS}
+@media(prefers-reduced-motion:reduce){.en,.ex,.ep,.xp{animation-duration:.01s!important}}
 @media(max-width:480px){.card{padding:28px 22px 22px;border-radius:20px}.ct{font-size:19px}}
 ${singlePage ? singlePageCSS : ''}
 ${formRefinementCSS}
@@ -298,6 +331,7 @@ body .nb,body .sbt,body .dcta,body.single-page .single-submit{color:${buttonText
 body .nb,body .sbt,body .dcta,body.single-page .single-submit{background:${buttonBackground}!important}
 body .nb:hover,body .sbt:hover,body .dcta:hover,body.single-page .single-submit:hover{color:${buttonText}!important;background:${buttonBackground}!important}
 body .nb .sp,body .sbt .sp{border-color:color-mix(in srgb,${buttonText} 30%,transparent);border-top-color:${buttonText}}
+${getLookCSS(look)}
 ${bgImgData && conceptTheme.startsWith('clean_') ? 'body{background:transparent}' : ''}
 </style></head><body${singlePage?' class="single-page"':''}>
 ${bgImgData?'<div id="bg-img"></div><div id="bg-overlay"></div>':''}
@@ -308,6 +342,7 @@ ${bgImgData?'<div id="bg-img"></div><div id="bg-overlay"></div>':''}
 ${useKb?'<div id="kh"><kbd>Enter</kbd> 또는 <kbd>→</kbd> 로 다음으로</div>':''}
 <div id="tst"></div>
 <div class="wrap">
+<div class="fhead"><div><b>${esc(title)}</b><span>${esc(look.headerSub || `총 ${TOTAL}개 질문`)}</span></div></div>
   ${startHTML}
   ${singlePage?`<main class="card single-sheet" id="single-form">
     <header class="single-header">
@@ -396,7 +431,14 @@ function gn(s){
     const oi=el?parseInt(el.dataset.oi??-1):-1;
     if(oi>=0&&br[oi]!=null){const t=br[oi];if(t==='done'){finishForm();return;}const target=Number(t);if(Number.isInteger(target)&&target>=0&&target<TOTAL)next=target;}
   }
-  if(next>=TOTAL||next===s||HIST.includes(next)){finishForm();return;}
+  if(next>=TOTAL||next===s){finishForm();return;}
+  const back=HIST.indexOf(next);
+  if(back>=0){
+    // A locked quiz answer cannot be changed, so returning would loop forever.
+    if(QS[s].type==='quiz'){finishForm();return;}
+    HIST.length=back;
+    const f=cur;cur=next;go(f,cur,'p');upUI();return;
+  }
   HIST.push(cur);
   const f=cur;cur=next;
   go(f,cur,'n');upUI();

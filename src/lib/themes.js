@@ -45,13 +45,17 @@ export const ALL_CONCEPT_THEMES = [
 
 // The picker stays intentionally small. ALL_CONCEPT_THEMES remains available so
 // forms saved with an older theme keep rendering without any data migration.
-export const CONCEPT_THEMES = [
-  { id:'clean_white', name:'미니멀', desc:'밝고 단정한 기본형' },
-  { id:'clean_graphite', name:'다크', desc:'차분한 차콜 중심의 화면' },
-  { id:'soft', name:'소프트', desc:'부드러운 여백과 둥근 인상' },
-  { id:'ocean', name:'오션', desc:'맑은 해안 에디토리얼' },
-  { id:'glass', name:'글래스', desc:'깊이감 있는 다크 레이어' },
-]
+export const CONCEPT_THEMES = CLEAN_THEMES.filter(theme => !theme.hidden)
+
+// Forms saved with a retired theme keep their stored value; they simply render with the closest new theme.
+const RETIRED = {
+  soft:'clean_pastel', candy:'clean_pastel', kawaii:'clean_rose', sunset:'clean_warm', paper:'clean_note', newspaper:'clean_note',
+  medical:'clean_white', serious:'clean_mono', brutalist:'clean_mono', ink:'clean_mono', nature:'clean_sage', forest:'clean_sage', ocean:'clean_band',
+}
+export function resolveThemeId(id) {
+  if (CLEAN_THEMES.some(theme => theme.id === id)) return id
+  return RETIRED[id] || 'clean_graphite'
+}
 
 export const COLOR_THEMES = [
   // 퍼플/바이올렛
@@ -153,8 +157,7 @@ export const FONTS = [
 // 컨셉별 CSS 생성 (전체 30종 풀버전)
 // ══════════════════════════════════════
 export function getConceptCSS(id, c1, c2, font) {
-  const clean = getCleanThemeCSS(id, c1)
-  if (clean) return clean
+  return getCleanThemeCSS(resolveThemeId(id), c1)
   const typeface = getThemeTypeface(id, font)
   return [
     getConceptPresentation(id, c1, c2, typeface),
