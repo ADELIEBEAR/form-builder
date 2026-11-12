@@ -11,6 +11,18 @@ export const FRIENDLY_LOOK = {
   bg: '#fdf6e9', card: '#ffffff', radius: 28, btnShape: 'round', btnWide: true, size: 'lg',
 }
 
+// Example landing for a free-material request page. The review line is a visible placeholder: only real reviews and numbers belong there.
+export const LANDING_SAMPLE = {
+  ticker: '무료 자료 신청 접수 중',
+  landStats: '*신청부터 받기까지*\n이렇게 간단해요\n30초 | 신청 시간\n0원 | 비용\n한 번 | 안내 연락',
+  landReviews: '김** | 자료 받은 분 | 여기에 실제로 받은 후기를 적어 주세요. 지어낸 후기는 넣지 않습니다. | 5\n*후기 아래 작은 안내 문구',
+  landCards: '^신청은 30초면 끝나요\n지금 신청하면\n*무료 자료*를 보내드려요\n시계 | 신청 30초\n선물 | 비용 무료\n전화 | 안내 한 번\n! 신청하신 분께만 보내드려요\n*자료는 남겨 주신 연락처로 안내됩니다',
+  landChecks: '이런 분께 드려요\n처음이라 막막하신 분 | 순서대로 따라 할 수 있게 정리했어요\n시간이 없으신 분 | 핵심만 골라 담았어요\n혼자 결정하기 어려우신 분 | 판단 기준을 함께 드려요',
+  landFaq: '자주 묻는 질문\n정말 무료인가요? | 네, 신청만 하시면 비용 없이 보내드립니다.\n자료는 어떻게 받나요? | 신청서에 남겨 주신 연락처로 안내드립니다.\n신청 후 연락이 오나요? | 자료 안내를 위해 한 번 연락드릴 수 있습니다.',
+  landEnd: '^오늘의 30초가 내일의 판단을 바꿉니다\n지금 바로\n자료를 받아 보세요\n! 신청은 무료입니다',
+  landFooter: '상호명을 적어 주세요\n주소 · 사업자등록번호 · 대표번호',
+}
+
 export function getLookCSS(look = {}) {
   const css = []
   const bg = color(look.bg), card = color(look.card), title = color(look.titleColor)

@@ -10,6 +10,8 @@ export const CLEAN_THEMES = [
   { id:'clean_band', name:'컬러 밴드', emoji:'', desc:'위쪽 색 띠 위에 카드가 얹힘', thumb:{ borderRadius:6, boxShadow:'0 -9px 0 #9aa3af' } },
   { id:'clean_sheet', name:'바텀 시트', emoji:'', desc:'아래에서 올라온 시트, 위에는 큰 제목', thumb:{ borderRadius:'9px 9px 0 0', marginTop:6 } },
   { id:'clean_full', name:'풀스크린', emoji:'', desc:'카드 없이 화면 가득, 가운데 큰 제목', thumb:{ borderRadius:0, border:'0', background:'#9aa3af' } },
+  { id:'clean_landing', name:'랜딩 + 신청', emoji:'', desc:'긴 소개 페이지(요약·체크 목록·자주 묻는 질문·고정 버튼) 뒤에 신청 질문이 이어짐', thumb:{ borderRadius:0, border:'0', borderTop:'5px solid #9aa3af', borderBottom:'7px solid #9aa3af', background:'#fff' } },
+  { id:'clean_app', name:'앱 화면', emoji:'', desc:'위에 제목 바와 굵은 진행 막대, 카드 없이 흰 화면에 큰 버튼', thumb:{ borderRadius:0, border:'0', borderTop:'5px solid #9aa3af', background:'#fff' } },
   { id:'clean_bubble', name:'말풍선', emoji:'', desc:'질문이 말풍선으로, 선택지는 알약으로', thumb:{ borderRadius:'9px 9px 9px 2px' } },
   { id:'clean_chip', name:'칩 선택', emoji:'', desc:'선택지가 가로로 늘어선 알약 칩', thumb:{ borderRadius:12, borderStyle:'dotted' } },
   { id:'clean_grid', name:'타일', emoji:'', desc:'선택지가 두 칸씩 놓이는 큰 타일', thumb:{ borderRadius:5, boxShadow:'inset 15px 0 0 #e5e7eb,inset 16px 0 0 #fff' } },
@@ -54,6 +56,7 @@ const palettes = {
   clean_invert: ['#f1f2f5','#16181d','#f4f5f7','#c2c7d0','#959caa','rgba(255,255,255,.14)','rgba(255,255,255,.07)'],
   clean_glass: ['#0e1224','rgba(255,255,255,.1)','#ffffff','#d7dbea','#aab0c8','rgba(255,255,255,.2)','rgba(255,255,255,.1)'],
   clean_neon: ['#07080c','#0d0f15','#f1f4f9','#b4bccb','#8891a2','#262b38','#12151d'],
+  clean_app: ['#ffffff','#ffffff','#191f28','#4e5968','#8b95a1','#e5e8eb','#ffffff'],
   clean_sheet: ['#f4f5f7','#fff','#1f2328','#5b6470','#868e99','#e3e6ea','#f7f8fa'],
   clean_chip: ['#f4f5f7','#fff','#1f2328','#5b6470','#868e99','#e3e6ea','#fff'],
   clean_grid: ['#f4f5f7','#fff','#1f2328','#5b6470','#868e99','#e3e6ea','#f7f8fa'],
@@ -149,6 +152,27 @@ body:not(.single-page) .ct{font-size:clamp(24px,6.4vw,31px)}
 .cf{justify-content:center}
 body .nb,body .sbt,body .dcta{border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
 #pw{background:rgba(255,255,255,.14)}`,
+  // Phone-app sheet: fixed title bar with a back arrow, thick progress bar, no card, button pinned under the content.
+  clean_app: c1 => `
+html body{justify-content:flex-start;padding:108px 20px 28px;overflow-x:hidden;overflow-y:auto}
+.fhead{display:flex;position:fixed;top:0;left:0;right:0;height:54px;margin:0;padding:0 20px 0 max(52px,calc(50% - 218px));justify-content:flex-start;background:#fff;border-bottom:1px solid var(--bd);z-index:40}
+.fhead b{font-size:15px}.fhead span{display:none}
+#gb{top:9px;left:max(10px,calc(50% - 262px));font-size:0;gap:0;padding:8px;color:var(--tx)}#gb svg{width:20px;height:20px}
+#pw{top:72px;left:max(20px,calc(50% - 270px));right:max(20px,calc(50% - 270px));height:6px;border-radius:99px;overflow:hidden;background:#eef0f2}#pf{border-radius:99px}
+#sc{top:84px;right:max(20px,calc(50% - 270px));font-weight:700}
+html body:has(#ss.active){padding-top:54px}body:has(#ss.active) #pw{display:none}
+body .card{border:0;box-shadow:none;background:transparent;overflow:visible}
+body${step} .card{padding:0;border-radius:0}
+body .cn{display:none}
+body${step} .ct{font-size:clamp(20px,5.2vw,23px)}
+.cf{margin-top:16px}.cf .bb{display:none}
+body .nb{flex:1 1 auto}
+body .nb,body .sbt,body .dcta{border-radius:16px;box-shadow:0 10px 24px color-mix(in srgb,${c1} 30%,transparent)}
+#ss .card{min-height:calc(100vh - 82px);min-height:calc(100dvh - 82px);display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:26px}
+#ss .stag{align-self:center}
+#ss .tick{align-self:stretch;margin:-26px -20px 26px;border-radius:0}
+#ss .cover-image{margin-bottom:22px}
+body #ss .sbt{margin-top:auto;width:100%;justify-content:center}`,
   clean_graphite: c1 => `
 body .card{box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 1px color-mix(in srgb,${c1} 14%,transparent)}
 .cn,.stag{background:color-mix(in srgb,${c1} 22%,transparent);color:color-mix(in srgb,${c1} 55%,#ffffff)}
@@ -326,6 +350,25 @@ body:not(.single-page) .ci{border-radius:2px}
 .cf{justify-content:center}
 body .nb,body .sbt,body .dcta{border-radius:2px;box-shadow:none;letter-spacing:.06em}`,
 };
+
+// The landing theme is the app sheet plus a long full-bleed landing page as its start screen.
+palettes.clean_landing = palettes.clean_app
+extras.clean_landing = (c1, p) => extras.clean_app(c1, p) + `
+body:has(#ss.active) .fhead{display:none}
+html body:has(#ss.active){padding-top:0}
+#ss .card{padding-top:0;margin:0 -20px;padding-left:20px;padding-right:20px;background:#f1f2f4}
+#ss .tick{order:-1;position:sticky;top:0;z-index:30;margin:0 -20px 34px}
+#ss .stag{font-size:15px;letter-spacing:0;color:#fff!important;background:${c1};border:2px solid #fff;border-radius:10px;padding:8px 16px;box-shadow:0 6px 16px color-mix(in srgb,${c1} 35%,transparent)}
+#ss .stag::before{display:none}
+#ss .stit{font-family:'Gmarket Sans',sans-serif;font-size:clamp(46px,15.5vw,68px);font-weight:700;line-height:1.08;letter-spacing:-.04em;margin-bottom:14px;filter:drop-shadow(0 3px 0 #fff) drop-shadow(0 8px 12px rgba(0,0,0,.14))}
+#ss .stit .t1:not(:only-of-type){font-size:.6em;color:${c1};-webkit-text-fill-color:${c1}}
+#ss .cover-image{order:1;margin:18px 0 0}
+#ss .card>.sbt,#ss .card>.sbt+div{display:none}
+#ss .sfoot{order:1}
+#ss .lsn{order:2;margin:0 -20px;padding:48px 20px;border-radius:0;background:#fff}
+#ss .ls-lst{padding-bottom:0}#ss .ls-lst+.ls-lrv{padding-top:14px}
+#ss .ls-lcd,#ss .ls-lfq{background:#f6f7f8}
+html body:has(#lcta) #ss .card{padding-bottom:58px!important}#ss .ls-lend{background:#1b1c1f}#ss .ls-lft{background:#101113;margin-top:0;padding:28px 20px 34px}`
 
 export function getCleanThemeCSS(id, c1) {
   const palette = palettes[id];

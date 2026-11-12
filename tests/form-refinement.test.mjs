@@ -6,7 +6,7 @@ import { ALL_CONCEPT_THEMES, CONCEPT_THEMES } from '../src/lib/themes.js';
 import { getFeaturedThemePolish } from '../src/lib/featuredThemePolish.js';
 
 test('the builder exposes nineteen shape themes while retaining legacy render compatibility', () => {
-  assert.equal(CONCEPT_THEMES.length, 19);
+  assert.equal(CONCEPT_THEMES.length, 21);
   assert.ok(ALL_CONCEPT_THEMES.length > CONCEPT_THEMES.length);
 });
 

@@ -50,3 +50,33 @@ test('alignment options move text, choices and buttons independently', () => {
   assert.match(getLookCSS({ btnAlign: 'center' }), /body \.cf\{justify-content:center\}/)
   assert.equal(getLookCSS({ textAlign: 'x;}', optAlign: 'x', btnAlign: 'x' }), '')
 })
+
+test('start screen extras appear only when filled in and are escaped', () => {
+  const q = [{ id: 'a', type: 'short', label: 'A' }]
+  const plain = generateFormHTML('T', q, theme, { scriptUrl: '' })
+  assert.doesNotMatch(plain, /class="(tick|spts|sfoot)"/)
+  const html = generateFormHTML('T', q, theme, { scriptUrl: '', conceptTheme: 'clean_app', look: { ticker: '<b>', points: ['One', '', 'Two', 'x'], footnote: '*note' } })
+  assert.match(html, /<div class="tick"><div><span>&lt;b&gt;<\/span>/)
+  assert.match(html, /<div class="spts"><span>One<\/span><span>Two<\/span><span>x<\/span><\/div>/)
+  assert.match(html, /<div class="sfoot">\*note<\/div>/)
+  assert.match(html, /\.fhead\{display:flex;position:fixed/)
+})
+
+test('landing sections render from line-based text, escaped, with a pinned button', () => {
+  const q = [{ id: 'a', type: 'short', label: 'A' }]
+  assert.doesNotMatch(generateFormHTML('T', q, theme, { scriptUrl: '' }), /id="lcta"|class="lsn/)
+  const look = {
+    landChecks: 'Head *hot*\nOne | <i>', landFaq: 'Q | A', landReviews: 'Kim | note | body | 5\nLee | plain',
+    landCards: '^lead\n시계 | fast\n! now\n*small print', landEnd: 'Go\n! free', landFooter: '<b>',
+  }
+  const html = generateFormHTML('T\nBig', q, theme, { scriptUrl: '', look })
+  assert.match(html, /<div class="lh"><span data-le="landChecks:0:-1">Head <em class="ac">hot<\/em><\/span><\/div><div class="lck"><div><i><\/i><p><b data-le="landChecks:1:0">One<\/b><small data-le="landChecks:1:1">&lt;i&gt;<\/small>/)
+  assert.match(html, /<summary><span data-le="landFaq:0:0">Q<\/span><\/summary><p data-le="landFaq:0:1">A<\/p>/)
+  assert.match(html, /<i>K<\/i><span><b[^>]*>Kim<\/b><small[^>]*>note<\/small><\/span><u>★★★★★<\/u><p data-le="landReviews:0:2">body<\/p>/)
+  assert.match(html, /<i>L<\/i><span><b[^>]*>Lee<\/b><\/span><p data-le="landReviews:1:1">plain<\/p>/)
+  assert.match(html, /<div class="ll"[^>]*>lead<\/div><div class="lcd">.*<b data-le="landCards:1:1">fast<\/b><\/div><\/div><button class="sbt"[^>]*>.*<div class="lhl" data-le="landCards:2:-1">now<\/div><div class="lfn"[^>]*>\*small print<\/div>/)
+  assert.match(html, /<section class="lsn ls-lend"><div class="lh"><span[^>]*>Go<\/span><\/div><div class="lhl"[^>]*>free<\/div><button class="sbt"/)
+  assert.match(html, /<section class="lsn ls-lft"><span data-le="landFooter:0:-1">&lt;b&gt;<\/span><\/section>/)
+  assert.match(html, /<span class="tl t1">T<\/span><br><span class="tl">Big<\/span>/)
+  assert.match(html, /<button id="lcta" class="sbt" onclick="sf\(\)">/)
+})

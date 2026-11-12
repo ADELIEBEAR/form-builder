@@ -187,14 +187,69 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
 
   const firstShortLabel = answerKeys[questions.findIndex(q=>q.type==='short')] || ''
 
+  const startPoints = (Array.isArray(look.points) ? look.points : []).map(p => String(p || '').trim()).filter(Boolean).slice(0, 3)
+  // Landing sections under the start screen, written one line at a time:
+  // "a | b" item, "^" small lead line, "!" highlight line, a line opening with a lone "*" footnote, anything else heading. *word* inside a heading is accented.
+  const accent = text => esc(text).replace(/\*([^*]+)\*/g, '<em class="ac">$1</em>')
+  const landParse = text => {
+    const part = { lead: [], head: [], hl: [], fn: [], items: [] }
+    String(text || '').split('\n').forEach((raw, ln) => {
+      const line = raw.trim()
+      if (!line) return
+      if (line[0] === '^') part.lead.push({ ln, t: line.slice(1).trim() })
+      else if (line[0] === '!') part.hl.push({ ln, t: line.slice(1).trim() })
+      else if (line[0] === '*' && line.indexOf('*', 1) < 0) part.fn.push({ ln, t: line })
+      else if (line.includes('|')) part.items.push({ ln, c: line.split('|').map(cell => cell.trim()) })
+      else part.head.push({ ln, t: line })
+    })
+    return part
+  }
+  const startButton = `<button class="sbt" onclick="sf()" onmousedown="rp(event,this)"><span>${esc(startBtnText)}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>`
+  // data-le marks a text the editor preview may rewrite in place: look key, source line, cell (-1 = the whole line).
+  const landSection = (cls, key, item, { button = false, hlFirst = false } = {}) => {
+    const part = landParse(look[key])
+    if (!Object.values(part).some(list => list.length)) return ''
+    const le = (ln, c = -1) => ` data-le="${key}:${ln}:${c}"`
+    const hl = part.hl.map(x => `<div class="lhl"${le(x.ln)}>${accent(x.t)}</div>`).join('')
+    return `<section class="lsn ls-${cls}">${part.lead.map(x => `<div class="ll"${le(x.ln)}>${esc(x.t)}</div>`).join('')}`
+      + (part.head.length ? `<div class="lh">${part.head.map(x => `<span${le(x.ln)}>${accent(x.t)}</span>`).join('<br>')}</div>` : '')
+      + (part.items.length && item ? `<div class="${cls}">${part.items.map(x => item(x.c, c => le(x.ln, c))).join('')}</div>` : '')
+      + (hlFirst ? hl : '') + (button ? startButton : '') + (hlFirst ? '' : hl)
+      + part.fn.map(x => `<div class="lfn"${le(x.ln)}>${esc(x.t)}</div>`).join('') + '</section>'
+  }
+  const LAND_ICONS = {
+    시계: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 집: '<path d="M4 11l8-7 8 7v9h-5v-6h-4v6H4z"/>',
+    사람: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', 책: '<path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/>',
+    선물: '<path d="M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9c-2-5-7-3-4 0M12 9c2-5 7-3 4 0"/>', 돈: '<circle cx="12" cy="12" r="9"/><path d="M8.5 9l1.8 6 1.7-5 1.7 5 1.8-6M8 12h8"/>',
+    전화: '<path d="M6 3h4l2 5-3 2a12 12 0 005 5l2-3 5 2v4a2 2 0 01-2 2A17 17 0 014 5a2 2 0 012-2z"/>', 별: '<path d="M12 3l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17l-5.4 2.8 1.1-6.1L3.2 9.4l6.1-.8z"/>',
+    체크: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  }
+  const stars = n => /^[1-5]$/.test(n || '') ? `<u>${'★'.repeat(Number(n))}</u>` : ''
+  const landHTML = [
+    landSection('lst', 'landStats', (r, e) => `<div><b${e(0)}>${esc(r[0])}</b><span${e(1)}>${esc(r[1] || '')}</span></div>`),
+    // name | text, name | note | text, or name | note | text | 1-5 stars
+    landSection('lrv', 'landReviews', (r, e) => {
+      const long = r.length > 2
+      return `<div><i>${esc([...r[0]][0] || '')}</i><span><b${e(0)}>${esc(r[0])}</b>${long && r[1] ? `<small${e(1)}>${esc(r[1])}</small>` : ''}</span>${stars(r[3])}<p${e(long ? 2 : 1)}>${esc(r[long ? 2 : 1] || '')}</p></div>`
+    }),
+    landSection('lcd', 'landCards', (r, e) => `<div><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LAND_ICONS[r[0]] || LAND_ICONS.체크}</svg></i><b${e(1)}>${esc(r[1] || '')}</b></div>`, { button: true }),
+    landSection('lck', 'landChecks', (r, e) => `<div><i></i><p><b${e(0)}>${esc(r[0])}</b>${r[1] ? `<small${e(1)}>${esc(r[1])}</small>` : ''}</p></div>`),
+    landSection('lfq', 'landFaq', (r, e) => `<details><summary><span${e(0)}>${esc(r[0])}</span></summary><p${e(1)}>${esc(r[1] || '')}</p></details>`),
+    landSection('lend', 'landEnd', null, { button: true, hlFirst: true }),
+    look.landFooter ? `<section class="lsn ls-lft">${String(look.landFooter).split('\n').map((t, ln) => t.trim() ? `<span data-le="landFooter:${ln}:-1">${esc(t.trim())}</span>` : '').filter(Boolean).join('\n')}</section>` : '',
+  ].join('')
   const startHTML = useStart && !singlePage ? `<div id="ss" class="sl active" style="display:flex"><div class="card">
+    ${look.ticker?`<div class="tick"><div>${`<span>${esc(look.ticker)}</span>`.repeat(8)}</div></div>`:''}
     ${coverImgData?`<img class="cover-image" src="${coverImgData}" loading="eager" decoding="async" alt="">`:'' }
     <div class="stag">${esc(startTag)}</div>
-    <div class="stit">${esc(title).replace(/\n/g,'<br>')}</div>
+    <div class="stit">${esc(title).split('\n').map((line, i) => `<span class="${i ? 'tl' : 'tl t1'}">${line}</span>`).join('<br>')}</div>
     ${startDesc?`<div class="sdesc">${esc(startDesc)}</div>`:''}
+    ${startPoints.length?`<div class="spts">${startPoints.map(p=>`<span>${esc(p)}</span>`).join('')}</div>`:''}
     <button class="sbt" onclick="sf()" onmousedown="rp(event,this)"><span>${esc(startBtnText)}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     <div style="font-size:12px;color:var(--tx3);margin-top:14px">총 ${TOTAL}개 질문</div>
-  </div></div>` : ''
+    ${look.footnote?`<div class="sfoot">${esc(look.footnote)}</div>`:''}
+    ${landHTML}
+  </div></div>${landHTML?`<button id="lcta" class="sbt" onclick="sf()"><span>${esc(startBtnText)}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>`:''}` : ''
 
   const confJS = useConfetti?`function cf(){const w=document.getElementById('cfw'),colors=['${theme.c1}','${theme.c2}','#f0eff8','#4ade80','#fbbf24','#f472b6','#38bdf8'];for(let i=0;i<90;i++){const p=document.createElement('div'),c=colors[i%colors.length],sz=5+Math.random()*8;p.style.cssText='position:absolute;top:-12px;left:'+Math.random()*100+'vw;width:'+sz+'px;height:'+sz+'px;background:'+c+';border-radius:'+(Math.random()>.5?'50%':'3px')+';animation:cff '+(1.6+Math.random()*1.6)+'s '+(Math.random()*.9)+'s linear forwards';w.appendChild(p);}setTimeout(()=>w.innerHTML='',4500);}`:''
   const kbJS = useKb?`document.addEventListener('keydown',e=>{
@@ -296,6 +351,18 @@ body.single-page .steps,body.single-page .fhead{display:none}
 .stag{display:inline-flex;align-items:center;gap:6px;font-family:'Gmarket Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--c1);background:color-mix(in srgb,var(--c1) 12%,transparent);border:1px solid color-mix(in srgb,var(--c1) 28%,transparent);border-radius:99px;padding:5px 14px;margin-bottom:16px}
 .stag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--c1);animation:pulse 1.6s ease-in-out infinite}
 .stit{font-family:'Gmarket Sans',sans-serif;font-size:clamp(22px,5.5vw,34px);font-weight:700;line-height:1.2;margin-bottom:12px;white-space:pre-line;background:linear-gradient(135deg,#f0eff8 30%,var(--c2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tick{overflow:hidden;white-space:nowrap;background:#111;border-radius:10px;margin-bottom:18px;padding:9px 0}.tick div{display:inline-block;animation:tick 16s linear infinite}.tick span{display:inline-block;padding:0 18px;font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--c1);text-shadow:0 0 10px var(--c1)}@keyframes tick{to{transform:translateX(-50%)}}
+.spts{display:flex;align-self:stretch;margin:4px 0 24px}.spts span{flex:1;min-width:0;padding:2px 8px;font-size:13px;font-weight:700;line-height:1.45;color:var(--tx);text-align:center;word-break:keep-all}.spts span+span{border-left:1px solid var(--bd)}
+.lsn{align-self:stretch;margin-top:46px;text-align:left}.lh{font-size:21px;font-weight:800;line-height:1.4;text-align:center;margin-bottom:18px;color:var(--tx);word-break:keep-all}.ac{font-style:normal;color:var(--c1)}.ll{font-size:13px;color:var(--tx3);text-align:center;margin-bottom:12px}.lhl{margin-top:14px;font-size:14px;font-weight:800;color:var(--c1);text-align:center}.lfn{margin-top:4px;font-size:11.5px;line-height:1.7;color:var(--tx3);text-align:center}.lsn>div+.lfn{margin-top:14px}.lfn+.lfn{margin-top:0}
+.lst{display:flex;background:var(--c1);border-radius:18px;padding:18px 6px}.lst div{flex:1;min-width:0;text-align:center;color:#fff;padding:0 4px}.lst b{display:block;font-size:17px;font-weight:800}.lst span{font-size:11.5px;opacity:.9}
+.ls-lst+.ls-lrv{margin-top:14px}.lrv>div{display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px;background:var(--bg2)}.lrv i{flex:0 0 40px;height:40px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:16px;font-weight:800;color:var(--c1);background:color-mix(in srgb,var(--c1) 13%,transparent)}.lrv span{flex:1;min-width:0}.lrv b{display:block;font-size:14px;color:var(--tx)}.lrv small{display:block;font-size:12.5px;font-weight:800;color:var(--c1)}.lrv u{text-decoration:none;font-size:13px;letter-spacing:1px;color:#f5a623}.lrv p{flex:0 0 100%;margin-top:10px;font-size:14px;line-height:1.65;color:var(--tx2)}
+.lcd{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.lcd>div{border:1px solid var(--bd);border-radius:16px;padding:16px 6px;text-align:center;background:var(--bg2)}.lcd i{display:grid;place-items:center;width:42px;height:42px;margin:0 auto 10px;border-radius:50%;color:var(--c1);background:color-mix(in srgb,var(--c1) 12%,transparent)}.lcd svg{width:22px;height:22px}.lcd b{font-size:13px;line-height:1.45;color:var(--tx);word-break:keep-all}.lsn>.sbt{width:100%;justify-content:center}
+.lck>div{display:flex;align-items:center;gap:14px;border-radius:14px;padding:15px 16px;margin-bottom:10px;background:color-mix(in srgb,var(--tx) 5%,transparent)}.lck i{flex:0 0 24px;height:24px;border-radius:50%;background:var(--c1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/14px no-repeat}.lck b{display:block;font-size:15px;color:var(--tx)}.lck small{display:block;margin-top:3px;font-size:12.5px;color:var(--tx3)}
+.lfq details{border:1px solid var(--bd);border-radius:14px;margin-bottom:10px;background:var(--bg2)}.lfq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:12px;padding:16px;font-size:15px;font-weight:700;color:var(--tx)}.lfq summary::-webkit-details-marker{display:none}.lfq summary::after{content:'+';color:var(--c1);font-weight:800}.lfq details[open] summary::after{content:'\\2212'}.lfq p{padding:0 16px 16px;font-size:14px;line-height:1.7;color:var(--tx2)}
+.ls-lend{background:#1b1c1f;border-radius:22px;padding:38px 20px 30px;text-align:center}.ls-lend .lh{color:#fff;font-size:23px}.ls-lend .ll{color:#b9bdc4}.ls-lend .lhl{display:inline-block;margin:0 0 20px;padding:9px 18px;border-radius:99px;font-size:13px;border:1px solid color-mix(in srgb,var(--c1) 55%,transparent);background:color-mix(in srgb,var(--c1) 18%,transparent);color:color-mix(in srgb,var(--c1) 55%,#fff)}
+.ls-lft{margin-top:14px;background:#101113;border-radius:22px;padding:26px 20px;text-align:center;font-size:12px;line-height:1.8;color:#8f959e;white-space:pre-line}.ls-lft::first-line{color:#fff;font-weight:800;font-size:13px}
+#lcta{display:none;position:fixed;left:0;right:0;bottom:0;z-index:60;width:100%;justify-content:center;border-radius:0!important;padding:18px 20px;font-size:17px;font-weight:800;box-shadow:0 -6px 20px rgba(0,0,0,.12)!important}body:has(#ss.active) #lcta{display:flex}body:has(#lcta) #ss .card{padding-bottom:96px!important}
+.sfoot{margin-top:12px;font-size:11.5px;line-height:1.7;color:var(--tx3);white-space:pre-line}
 .sdesc{font-size:14px;color:var(--tx2);font-weight:300;line-height:1.75;margin-bottom:24px}
 .sbt{display:inline-flex;align-items:center;gap:9px;background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;border:none;border-radius:14px;padding:16px 32px;font-size:15px;font-weight:500;font-family:inherit;cursor:pointer;transition:opacity .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden}
 .sbt::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.1))}.sbt:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 8px 28px color-mix(in srgb,var(--c1) 40%,transparent)}
@@ -397,6 +464,7 @@ function go(f,t,d){
 }
 function sf(){
   if(anim)return;
+  try{window.scrollTo(0,0)}catch(e){}
   const p=cur;
   cur=0;
   HIST.length=0;

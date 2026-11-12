@@ -10,7 +10,7 @@ import { supabase as sb } from '../lib/supabase'
 import { createAndConnectSheet } from '../lib/googleSheets'
 import { formatBytes, getFormImageSettings, uploadFormImage } from '../lib/imageAssets'
 import { newQuestionId, normalizeQuestions, remapQuestionBranches, removeQuestionOption } from '../lib/questionModel'
-import { FRIENDLY_LOOK } from '../lib/formLook'
+import { LANDING_SAMPLE, FRIENDLY_LOOK } from '../lib/formLook'
 
 const TYPE_LABELS = { short:'단답형', long:'장문형', multiple:'객관식', single:'단일선택', quiz:'퀴즈', phone:'전화번호', email:'이메일', legal:'동의' }
 const TYPE_ICONS  = { short:'✏️', long:'📝', multiple:'☑️', single:'🔘', quiz:'🧩', phone:'📱', email:'📧', legal:'📋' }
@@ -23,10 +23,22 @@ el.addEventListener('click',e=>e.stopPropagation());
 el.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();el.blur();}});
 el.addEventListener('input',()=>send(Object.assign({value:el.textContent},d)));};
 make(document.querySelector('.stit'),{field:'title'});make(document.querySelector('.fhead b'),{field:'title'});make(document.querySelector('.sdesc'),{field:'startDesc'});
+make(document.querySelector('.stag'),{field:'set',key:'startTag'});make(document.querySelector('.sfoot'),{field:'look',key:'footnote'});
+document.querySelectorAll('.sbt span').forEach(el=>make(el,{field:'set',key:'startBtnText'}));
+document.querySelectorAll('.tick span').forEach(el=>make(el,{field:'look',key:'ticker'}));
+document.querySelectorAll('.spts span').forEach((el,i)=>make(el,{field:'point',i}));
+document.querySelectorAll('[data-le]').forEach(el=>{const [key,ln,c]=el.dataset.le.split(':');make(el,{field:'land',key,ln:+ln,c:+c});if(+c>=0)return;
+el.addEventListener('focus',()=>{el.querySelectorAll('.ac').forEach(m=>m.replaceWith('*'+m.textContent+'*'));el.normalize();});
+el.addEventListener('blur',()=>{const d=document.createElement('i');d.textContent=el.textContent;el.innerHTML=d.innerHTML.replace(/\\*([^*]+)\\*/g,'<em class="ac">$1</em>');});});
 QS.forEach((q,i)=>{const s=document.getElementById('sl'+i);if(!s)return;
 make(s.querySelector('.ct'),{field:'label',q:i});make(s.querySelector('.cs'),{field:'hint',q:i});
 s.querySelectorAll('.cg .ci').forEach((c,o)=>{if(c.querySelector('.oi'))return;make(c.querySelector('span'),{field:'option',q:i,o});make(c.querySelector('.od'),{field:'optDesc',q:i,o});make(c.querySelector('.ob'),{field:'optBadge',q:i,o});});});
-const st=document.createElement('style');st.textContent='.pved{cursor:text;outline:none;border-radius:6px;transition:box-shadow .15s}.pved:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--c1) 35%,transparent)}.pved:focus{box-shadow:0 0 0 2px var(--c1)}';document.head.appendChild(st);
+// A stray click on a start button leaves the landing; this brings the editor back to it.
+const ss=document.getElementById('ss');if(ss){const b=document.createElement('button');b.textContent='← 시작 화면으로 돌아가기';
+b.style.cssText='position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99;display:none;padding:10px 18px;border:0;border-radius:99px;background:#111;color:#fff;font:700 12px/1 inherit;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.28)';
+b.onclick=()=>{if(anim)return;document.querySelectorAll('.sl').forEach(e=>{e.style.display='none';e.classList.remove('active')});ss.style.display='flex';ss.classList.add('active');cur=-1;HIST.length=0;upUI();scrollTo(0,0);};
+document.body.appendChild(b);setInterval(()=>{b.style.display=ss.classList.contains('active')?'none':'block'},250);}
+const st=document.createElement('style');st.textContent='.pved{cursor:text;outline:none;border-radius:6px;transition:box-shadow .15s}.pved:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--c1) 35%,transparent)}.pved:focus{box-shadow:0 0 0 2px var(--c1)}.tick:hover div{animation-play-state:paused}';document.head.appendChild(st);
 })()</script>`
 const DEFAULT_SETTINGS = {
   animType: 0, conceptTheme: 'default', fontFamily: "'Noto Sans KR',sans-serif",
@@ -149,7 +161,7 @@ export default function Builder() {
       if (changed.length === 1) target = changed[0]
       else if (questions.length === prev.length + 1) target = questions.findIndex(q => !prev.includes(q))
     }
-    const restore = `<script>(()=>{if(SINGLE_PAGE){scrollTo(0,${scrollY});return}const s=document.getElementById('sl${target}');if(!s)return;document.querySelectorAll('.sl').forEach(e=>{e.style.display='none';e.classList.remove('active')});s.style.display='flex';s.classList.add('active');cur=${target};upUI()})()</script>`
+    const restore = `<script>(()=>{if(SINGLE_PAGE){scrollTo(0,${scrollY});return}const s=document.getElementById('sl${target}');if(!s){scrollTo(0,${scrollY});return}document.querySelectorAll('.sl').forEach(e=>{e.style.display='none';e.classList.remove('active')});s.style.display='flex';s.classList.add('active');cur=${target};upUI()})()</script>`
     pvRef.current.srcdoc = html.replace(/<\/body>(?![\s\S]*<\/body>)/, (target == null && !scrollY ? '' : restore) + PREVIEW_EDIT_SCRIPT + '</body>')
   }, [title, questions, theme, settings, coverImgData, qImgData, bgImgData])
 
@@ -161,6 +173,18 @@ export default function Builder() {
       pvSelfEdit.current = true
       if (d.field === 'title') return setTitle(d.value)
       if (d.field === 'startDesc') return setSettings(prev => ({ ...prev, startDesc: d.value }))
+      const value = d.value.replace(/[\r\n]+/g, ' ')
+      if (d.field === 'set') return ['startTag', 'startBtnText'].includes(d.key) ? setSettings(prev => ({ ...prev, [d.key]: value })) : undefined
+      if (d.field === 'look') return setSettings(prev => ({ ...prev, look: { ...(prev.look || {}), [d.key]: value } }))
+      if (d.field === 'point') return setSettings(prev => ({ ...prev, look: { ...(prev.look || {}), points: [0, 1, 2].map(i => i === d.i ? value : prev.look?.points?.[i] || '') } }))
+      // A landing text edited in the preview goes back into its own line (and cell) of the line-based source.
+      if (d.field === 'land') return setSettings(prev => {
+        const lines = String(prev.look?.[d.key] || '').split('\n')
+        const line = (lines[d.ln] || '').trim()
+        if (d.c < 0) lines[d.ln] = (line[0] === '^' || line[0] === '!' ? line[0] + ' ' : '') + value
+        else lines[d.ln] = Object.assign(line.split('|').map(cell => cell.trim()), { [d.c]: value.replace(/\|/g, '/') }).join(' | ')
+        return { ...prev, look: { ...(prev.look || {}), [d.key]: lines.join('\n') } }
+      })
       setQuestions(prev => prev.map((q, i) => {
         if (i !== d.q) return q
         if (d.field === 'label' || d.field === 'hint') return { ...q, [d.field]: d.value }
@@ -483,7 +507,7 @@ export default function Builder() {
                   <div className={s.lsec}>스타일</div>
                   <div className={s.conceptGrid}>
                     {CONCEPT_THEMES.map(ct => (
-                      <div key={ct.id} className={`${s.conceptCard} ${resolveThemeId(settings.conceptTheme)===ct.id?s.conceptCardOn:''}`} onClick={()=>setSetting('conceptTheme',ct.id)} title={ct.desc}>
+                      <div key={ct.id} className={`${s.conceptCard} ${resolveThemeId(settings.conceptTheme)===ct.id?s.conceptCardOn:''}`} onClick={()=>ct.id==='clean_landing' ? setSettings(prev => ({ ...prev, conceptTheme: ct.id, useStart: true, startTag: prev.startTag === '✦ Form' ? '무료 자료 신청' : prev.startTag, startBtnText: prev.startBtnText === '시작하기' ? '자료 받으러 가기' : prev.startBtnText, look: { ...(prev.look || {}), ...Object.fromEntries(Object.entries(LANDING_SAMPLE).filter(([k]) => !prev.look?.[k] || (Array.isArray(prev.look[k]) && !prev.look[k].some(Boolean)))) } })) : setSetting('conceptTheme',ct.id)} title={ct.desc}>
                         <span
                           className={`${s.conceptSwatch} ${s.cleanSwatch}`}
                           style={{ background: '#fff', border: '1px solid #9aa3af', boxShadow: 'none', ...ct.thumb }}
@@ -608,6 +632,32 @@ export default function Builder() {
                     {!singlePage && <>
                       <SetRow label="진행 표시" light={isLight}>{seg('steps', [[null,'테마대로'],['dots','번호'],['bar','막대'],['none','없음']])}</SetRow>
                       <SetRow label="STEP 배지" light={isLight}>{seg('stepLabel', onOff)}</SetRow>
+                      <div className={s.lsep}/>
+                      <div className={s.lsec}>시작 화면</div>
+                      <SetRow label="흐르는 띠 문구" light={isLight}>
+                        <input className={s.inp} value={look.ticker || ''} onChange={e => setLook('ticker', e.target.value)} placeholder="예: 선착순 마감 임박" />
+                      </SetRow>
+                      <SetRow label="요약 세 칸" light={isLight}>
+                        <div style={{ display:'flex', gap:6 }}>
+                          {[0, 1, 2].map(i => <input key={i} className={s.inp} style={{ flex:1, minWidth:0 }} value={look.points?.[i] || ''} placeholder={['하루 1시간','출퇴근 없음','1:1 배정'][i]}
+                            onChange={e => setLook('points', [0, 1, 2].map(j => j === i ? e.target.value : look.points?.[j] || ''))} />)}
+                        </div>
+                      </SetRow>
+                      <SetRow label="버튼 아래 작은 글씨" light={isLight}>
+                        <textarea className={s.inp} rows={2} value={look.footnote || ''} onChange={e => setLook('footnote', e.target.value)} placeholder="예: *소요시간은 개인차가 있을 수 있음" />
+                      </SetRow>
+                      <div className={s.lsep}/>
+                      <div className={s.lsec}>랜딩 구역 (시작 화면 아래로 이어짐)</div>
+                      {[['landStats','숫자 칸','*강조* 들어간 제목\n30초 | 신청 시간\n0원 | 비용'],
+                        ['landReviews','후기 (실제로 받은 것만)','이름 | 부제 | 후기 내용 | 5\n*후기 아래 각주'],
+                        ['landCards','아이콘 카드 + 버튼','^작은 윗줄\n제목\n시계 | 신청 30초\n선물 | 비용 무료\n! 강조 문구\n*각주'],
+                        ['landChecks','체크 목록','이런 분께 드려요\n제목 | 설명'],
+                        ['landFaq','자주 묻는 질문','자주 묻는 질문\n질문 | 답'],
+                        ['landEnd','어두운 마무리 + 버튼','^작은 윗줄\n지금 바로\n자료를 받아 보세요\n! 강조 문구'],
+                        ['landFooter','맨 아래 회사 정보','상호명\n주소 · 사업자등록번호 · 대표번호']].map(([k, label, hint]) => <SetRow key={k} label={label} light={isLight}>
+                        <textarea className={s.inp} rows={4} value={look[k] || ''} onChange={e => setLook(k, e.target.value)} placeholder={hint} />
+                      </SetRow>)}
+                      <div style={{ fontSize:12, opacity:.65, lineHeight:1.7 }}>글자는 오른쪽 미리보기에서 바로 눌러 고치면 됩니다. 줄을 더하거나 뺄 때만 여기서 고치세요. 「왼쪽 | 오른쪽」은 항목, 「^」 작은 윗줄, 「!」 강조 문구, 「*」 각주, 나머지는 제목이고 제목 안의 *글자*는 강조색입니다. 아이콘 이름: 시계·집·사람·책·선물·돈·전화·별·체크.</div>
                     </>}
                     <div className={s.lsep}/>
                     <div className={s.lsec}>색</div>
