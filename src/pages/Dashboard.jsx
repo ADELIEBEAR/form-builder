@@ -294,17 +294,19 @@ export default function Dashboard() {
     loadForms(); saveGoogleToken()
   }, [user])
 
-  // New applications since this browser last looked, per form. Checked every 20 seconds; only counts are read here.
+  // Applications this browser has not opened yet, per form. Checked every 5 seconds; only counts are read here.
+  // A first visit starts from the last 24 hours so recent applications show up at once.
   const [newCounts, setNewCounts] = useState({})
   const newTotal = useRef(0)
+  const latestSeen = useRef({})
   function readSeen() {
-    try { return JSON.parse(localStorage.getItem('respSeen.v1')) || {} } catch { return {} }
+    try { return JSON.parse(localStorage.getItem('respSeen.v2')) || {} } catch { return {} }
   }
   function markSeen(formId) {
-    const seen = readSeen(), now = new Date().toISOString()
-    if (formId) seen[formId] = now
-    else { for (const key of Object.keys(seen)) delete seen[key]; seen._start = now }
-    try { localStorage.setItem('respSeen.v1', JSON.stringify(seen)) } catch {}
+    const seen = readSeen()
+    // Marked with the newest application's own time, so a wrong PC clock cannot hide later ones.
+    for (const id of formId ? [formId] : forms.map(f => f.id)) if (latestSeen.current[id]) seen[id] = latestSeen.current[id]
+    try { localStorage.setItem('respSeen.v2', JSON.stringify(seen)) } catch {}
     setNewCounts(prev => formId ? { ...prev, [formId]: 0 } : {})
     newTotal.current = formId ? Math.max(0, newTotal.current - (newCounts[formId] || 0)) : 0
   }
@@ -313,22 +315,29 @@ export default function Dashboard() {
     let active = true
     async function check() {
       const seen = readSeen()
-      if (!seen._start) { seen._start = new Date().toISOString(); try { localStorage.setItem('respSeen.v1', JSON.stringify(seen)) } catch {} }
+      if (!seen._start) { seen._start = new Date(Date.now() - 86400000).toISOString(); try { localStorage.setItem('respSeen.v2', JSON.stringify(seen)) } catch {} }
       const since = id => seen[id] || seen._start
       const ids = forms.map(f => f.id)
-      const oldest = ids.map(since).sort()[0]
-      const { data, error } = await supabase.from('responses').select('form_id, submitted_at').in('form_id', ids).gt('submitted_at', oldest).limit(1000)
+      const oldest = ids.map(since).sort((x, y) => new Date(x) - new Date(y))[0]
+      const { data, error } = await supabase.from('responses').select('form_id, submitted_at').in('form_id', ids).gt('submitted_at', oldest).order('submitted_at', { ascending: false }).limit(1000)
+      if (error) console.warn('새 신청 확인 실패:', error.message)
       if (!active || error) return
       const counts = {}
-      for (const row of data || []) if (new Date(row.submitted_at) > new Date(since(row.form_id))) counts[row.form_id] = (counts[row.form_id] || 0) + 1
-      const total = Object.values(counts).reduce((a, b) => a + b, 0)
+      for (const row of data || []) {
+        if (!latestSeen.current[row.form_id] || new Date(row.submitted_at) > new Date(latestSeen.current[row.form_id])) latestSeen.current[row.form_id] = row.submitted_at
+        if (new Date(row.submitted_at) > new Date(since(row.form_id))) counts[row.form_id] = (counts[row.form_id] || 0) + 1
+      }
+      const total = Object.values(counts).reduce((x, y) => x + y, 0)
       if (total > newTotal.current) showToast(`NEW! 새 신청 ${total}건이 들어왔어요`, 'ok')
       newTotal.current = total
       setNewCounts(counts)
     }
     check()
-    const timer = setInterval(check, 20000)
-    return () => { active = false; clearInterval(timer) }
+    // Every 5 seconds while the tab is visible, and at once when the user comes back to it.
+    const timer = setInterval(() => { if (!document.hidden) check() }, 5000)
+    const onShow = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', onShow)
+    return () => { active = false; clearInterval(timer); document.removeEventListener('visibilitychange', onShow) }
   }, [forms.map(f => f.id).join(',')])
 
   async function saveGoogleToken() {
