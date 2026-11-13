@@ -69,7 +69,8 @@ test('landing sections render from line-based text, escaped, with a pinned butto
     landChecks: 'Head *hot*\nOne | <i>', landFaq: 'Q | A', landReviews: 'Kim | note | body | 5\nLee | plain',
     landCards: '^lead\n시계 | fast\n! now\n*small print', landEnd: 'Go\n! free', landFooter: '<b>',
   }
-  const html = generateFormHTML('T\nBig', q, theme, { scriptUrl: '', look })
+  assert.doesNotMatch(generateFormHTML('T', q, theme, { scriptUrl: '', conceptTheme: 'clean_white', look }), /id="lcta"|class="lsn/)
+  const html = generateFormHTML('T\nBig', q, theme, { scriptUrl: '', conceptTheme: 'clean_landing', look })
   assert.match(html, /<div class="lh"><span data-le="landChecks:0:-1">Head <em class="ac">hot<\/em><\/span><\/div><div class="lck"><div><i><\/i><p><b data-le="landChecks:1:0">One<\/b><small data-le="landChecks:1:1">&lt;i&gt;<\/small>/)
   assert.match(html, /<summary><span data-le="landFaq:0:0">Q<\/span><\/summary><p data-le="landFaq:0:1">A<\/p>/)
   assert.match(html, /<i>K<\/i><span><b[^>]*>Kim<\/b><small[^>]*>note<\/small><\/span><u>★★★★★<\/u><p data-le="landReviews:0:2">body<\/p>/)

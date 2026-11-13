@@ -295,18 +295,18 @@ export default function Dashboard() {
   }, [user])
 
   // Applications this browser has not opened yet, per form. Checked every 5 seconds; only counts are read here.
-  // A first visit starts from the last 24 hours so recent applications show up at once.
+  // NEW means "arrived after I last looked": a first visit marks everything already there as seen.
   const [newCounts, setNewCounts] = useState({})
   const newTotal = useRef(0)
   const latestSeen = useRef({})
   function readSeen() {
-    try { return JSON.parse(localStorage.getItem('respSeen.v2')) || {} } catch { return {} }
+    try { return JSON.parse(localStorage.getItem('respSeen.v3')) || {} } catch { return {} }
   }
   function markSeen(formId) {
     const seen = readSeen()
     // Marked with the newest application's own time, so a wrong PC clock cannot hide later ones.
     for (const id of formId ? [formId] : forms.map(f => f.id)) if (latestSeen.current[id]) seen[id] = latestSeen.current[id]
-    try { localStorage.setItem('respSeen.v2', JSON.stringify(seen)) } catch {}
+    try { localStorage.setItem('respSeen.v3', JSON.stringify(seen)) } catch {}
     setNewCounts(prev => formId ? { ...prev, [formId]: 0 } : {})
     newTotal.current = formId ? Math.max(0, newTotal.current - (newCounts[formId] || 0)) : 0
   }
@@ -315,13 +315,19 @@ export default function Dashboard() {
     let active = true
     async function check() {
       const seen = readSeen()
-      if (!seen._start) { seen._start = new Date(Date.now() - 86400000).toISOString(); try { localStorage.setItem('respSeen.v2', JSON.stringify(seen)) } catch {} }
+      const first = !seen._start
+      if (first) seen._start = new Date(Date.now() - 86400000).toISOString()
       const since = id => seen[id] || seen._start
       const ids = forms.map(f => f.id)
       const oldest = ids.map(since).sort((x, y) => new Date(x) - new Date(y))[0]
       const { data, error } = await supabase.from('responses').select('form_id, submitted_at').in('form_id', ids).gt('submitted_at', oldest).order('submitted_at', { ascending: false }).limit(1000)
       if (error) console.warn('새 신청 확인 실패:', error.message)
       if (!active || error) return
+      if (first) {
+        // Start from the newest application's own time rather than the PC clock.
+        seen._start = (data || []).map(row => row.submitted_at).sort((x, y) => new Date(y) - new Date(x))[0] || new Date().toISOString()
+        try { localStorage.setItem('respSeen.v3', JSON.stringify(seen)) } catch {}
+      }
       const counts = {}
       for (const row of data || []) {
         if (!latestSeen.current[row.form_id] || new Date(row.submitted_at) > new Date(latestSeen.current[row.form_id])) latestSeen.current[row.form_id] = row.submitted_at

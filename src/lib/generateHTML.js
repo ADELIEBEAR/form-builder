@@ -225,7 +225,8 @@ export function generateFormHTML(title, questions, theme, settings={}, assets={}
     체크: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   }
   const stars = n => /^[1-5]$/.test(n || '') ? `<u>${'★'.repeat(Number(n))}</u>` : ''
-  const landHTML = [
+  // Landing sections belong to the landing theme only: switching themes hides them without deleting what was written.
+  const landHTML = conceptTheme !== 'clean_landing' ? '' : [
     landSection('lst', 'landStats', (r, e) => `<div><b${e(0)}>${esc(r[0])}</b><span${e(1)}>${esc(r[1] || '')}</span></div>`),
     // name | text, name | note | text, or name | note | text | 1-5 stars
     landSection('lrv', 'landReviews', (r, e) => {

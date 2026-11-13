@@ -507,7 +507,7 @@ export default function Builder() {
                   <div className={s.lsec}>스타일</div>
                   <div className={s.conceptGrid}>
                     {CONCEPT_THEMES.map(ct => (
-                      <div key={ct.id} className={`${s.conceptCard} ${resolveThemeId(settings.conceptTheme)===ct.id?s.conceptCardOn:''}`} onClick={()=>ct.id==='clean_landing' ? setSettings(prev => ({ ...prev, conceptTheme: ct.id, useStart: true, startTag: prev.startTag === '✦ Form' ? '무료 자료 신청' : prev.startTag, startBtnText: prev.startBtnText === '시작하기' ? '자료 받으러 가기' : prev.startBtnText, look: { ...(prev.look || {}), ...Object.fromEntries(Object.entries(LANDING_SAMPLE).filter(([k]) => !prev.look?.[k] || (Array.isArray(prev.look[k]) && !prev.look[k].some(Boolean)))) } })) : setSetting('conceptTheme',ct.id)} title={ct.desc}>
+                      <div key={ct.id} className={`${s.conceptCard} ${resolveThemeId(settings.conceptTheme)===ct.id?s.conceptCardOn:''}`} onClick={()=>ct.id==='clean_landing' ? setSettings(prev => ({ ...prev, conceptTheme: ct.id, useStart: true, startTag: prev.startTag === '✦ Form' ? '무료 자료 신청' : prev.startTag, startBtnText: prev.startBtnText === '시작하기' ? '자료 받으러 가기' : prev.startBtnText, look: { ...(prev.look || {}), ...Object.fromEntries(Object.entries(LANDING_SAMPLE).filter(([k]) => !prev.look?.[k] || (Array.isArray(prev.look[k]) && !prev.look[k].some(Boolean)))) } })) : setSettings(prev => { const wasLanding = resolveThemeId(prev.conceptTheme) === 'clean_landing'; const look = { ...(prev.look || {}) }; if (wasLanding && look.ticker === LANDING_SAMPLE.ticker) delete look.ticker; return { ...prev, conceptTheme: ct.id, look, startTag: wasLanding && prev.startTag === '무료 자료 신청' ? '✦ Form' : prev.startTag, startBtnText: wasLanding && prev.startBtnText === '자료 받으러 가기' ? '시작하기' : prev.startBtnText } })} title={ct.desc}>
                         <span
                           className={`${s.conceptSwatch} ${s.cleanSwatch}`}
                           style={{ background: '#fff', border: '1px solid #9aa3af', boxShadow: 'none', ...ct.thumb }}
@@ -646,7 +646,7 @@ export default function Builder() {
                       <SetRow label="버튼 아래 작은 글씨" light={isLight}>
                         <textarea className={s.inp} rows={2} value={look.footnote || ''} onChange={e => setLook('footnote', e.target.value)} placeholder="예: *소요시간은 개인차가 있을 수 있음" />
                       </SetRow>
-                      <div className={s.lsep}/>
+                      {resolveThemeId(settings.conceptTheme) === 'clean_landing' && <><div className={s.lsep}/>
                       <div className={s.lsec}>랜딩 구역 (시작 화면 아래로 이어짐)</div>
                       {[['landStats','숫자 칸','*강조* 들어간 제목\n30초 | 신청 시간\n0원 | 비용'],
                         ['landReviews','후기 (실제로 받은 것만)','이름 | 부제 | 후기 내용 | 5\n*후기 아래 각주'],
@@ -657,7 +657,7 @@ export default function Builder() {
                         ['landFooter','맨 아래 회사 정보','상호명\n주소 · 사업자등록번호 · 대표번호']].map(([k, label, hint]) => <SetRow key={k} label={label} light={isLight}>
                         <textarea className={s.inp} rows={4} value={look[k] || ''} onChange={e => setLook(k, e.target.value)} placeholder={hint} />
                       </SetRow>)}
-                      <div style={{ fontSize:12, opacity:.65, lineHeight:1.7 }}>글자는 오른쪽 미리보기에서 바로 눌러 고치면 됩니다. 줄을 더하거나 뺄 때만 여기서 고치세요. 「왼쪽 | 오른쪽」은 항목, 「^」 작은 윗줄, 「!」 강조 문구, 「*」 각주, 나머지는 제목이고 제목 안의 *글자*는 강조색입니다. 아이콘 이름: 시계·집·사람·책·선물·돈·전화·별·체크.</div>
+                      <div style={{ fontSize:12, opacity:.65, lineHeight:1.7 }}>글자는 오른쪽 미리보기에서 바로 눌러 고치면 됩니다. 줄을 더하거나 뺄 때만 여기서 고치세요. 「왼쪽 | 오른쪽」은 항목, 「^」 작은 윗줄, 「!」 강조 문구, 「*」 각주, 나머지는 제목이고 제목 안의 *글자*는 강조색입니다. 아이콘 이름: 시계·집·사람·책·선물·돈·전화·별·체크.</div></>}
                     </>}
                     <div className={s.lsep}/>
                     <div className={s.lsec}>색</div>
