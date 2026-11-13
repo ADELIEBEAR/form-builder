@@ -294,6 +294,43 @@ export default function Dashboard() {
     loadForms(); saveGoogleToken()
   }, [user])
 
+  // New applications since this browser last looked, per form. Checked every 20 seconds; only counts are read here.
+  const [newCounts, setNewCounts] = useState({})
+  const newTotal = useRef(0)
+  function readSeen() {
+    try { return JSON.parse(localStorage.getItem('respSeen.v1')) || {} } catch { return {} }
+  }
+  function markSeen(formId) {
+    const seen = readSeen(), now = new Date().toISOString()
+    if (formId) seen[formId] = now
+    else { for (const key of Object.keys(seen)) delete seen[key]; seen._start = now }
+    try { localStorage.setItem('respSeen.v1', JSON.stringify(seen)) } catch {}
+    setNewCounts(prev => formId ? { ...prev, [formId]: 0 } : {})
+    newTotal.current = formId ? Math.max(0, newTotal.current - (newCounts[formId] || 0)) : 0
+  }
+  useEffect(() => {
+    if (!forms.length) return
+    let active = true
+    async function check() {
+      const seen = readSeen()
+      if (!seen._start) { seen._start = new Date().toISOString(); try { localStorage.setItem('respSeen.v1', JSON.stringify(seen)) } catch {} }
+      const since = id => seen[id] || seen._start
+      const ids = forms.map(f => f.id)
+      const oldest = ids.map(since).sort()[0]
+      const { data, error } = await supabase.from('responses').select('form_id, submitted_at').in('form_id', ids).gt('submitted_at', oldest).limit(1000)
+      if (!active || error) return
+      const counts = {}
+      for (const row of data || []) if (new Date(row.submitted_at) > new Date(since(row.form_id))) counts[row.form_id] = (counts[row.form_id] || 0) + 1
+      const total = Object.values(counts).reduce((a, b) => a + b, 0)
+      if (total > newTotal.current) showToast(`NEW! 새 신청 ${total}건이 들어왔어요`, 'ok')
+      newTotal.current = total
+      setNewCounts(counts)
+    }
+    check()
+    const timer = setInterval(check, 20000)
+    return () => { active = false; clearInterval(timer) }
+  }, [forms.map(f => f.id).join(',')])
+
   async function saveGoogleToken() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -339,6 +376,7 @@ export default function Dashboard() {
   // ── 응답 패널 열기
   async function openPanel(form, e) {
     e?.stopPropagation()
+    if (isUnlocked) markSeen(form.id)
     if (!isUnlocked) {
       setPanelForm(form)
       setInputPw(''); setPwError('')
@@ -382,6 +420,7 @@ export default function Dashboard() {
   // ── 전체 응답 불러오기
   async function fetchAllResp(searchValue = '', { openPanel = true } = {}) {
     if (openPanel) {
+      markSeen(null)
       setPanelMode('all')
       setPanelForm(null)
     }
@@ -986,6 +1025,7 @@ export default function Dashboard() {
                         onClick={e => e.stopPropagation()} />
                     ) : (
                       <div className={s.cardTitle} onClick={e => startTitle(form, e)} title="클릭해서 제목 수정">
+                        {newCounts[form.id] > 0 && <span className={s.newBadge}>NEW! 신청 {newCounts[form.id]}</span>}
                         {form.title || '제목 없음'}
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={s.editIco}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </div>
@@ -1038,9 +1078,10 @@ export default function Dashboard() {
                       </button>
                     </div>
                     <div className={s.actionRow}>
-                      <button className={`${s.actionBtn}`} onClick={e => {
+                      <button className={`${s.actionBtn} ${s.actionBtnResp}`} onClick={e => {
                         e.stopPropagation()
                         if (!isUnlocked) { setInputPw(''); setPwError(''); setTargetFormId(form.id); setShowPwModal(true); return }
+                        markSeen(form.id)
                         navigate(`${RESULTS_PATH}/${form.id}`)
                       }}>
                         {isUnlocked ? '전체 응답' : '🔒 전체 응답'}

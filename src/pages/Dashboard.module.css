@@ -358,3 +358,13 @@
 @media (max-width:700px){.header{padding:10px 16px}.main{padding:28px 16px 48px}.pageTitle{font-size:26px}}
 .headerLeft{flex-shrink:0}.logoText{white-space:nowrap}
 @media (max-width:700px){.newCard{min-height:120px;padding:24px}.headerRight{justify-content:flex-start}}
+
+/* Opening the responses is the main reason to visit this screen, so that button is the one filled with the accent color. */
+.allRespBtn,.allRespBtn:hover,.actionBtn.actionBtnResp,.actionBtn.actionBtnResp:hover{background:var(--a1);color:#fff;font-weight:800;box-shadow:0 6px 16px color-mix(in srgb,var(--a1) 30%,transparent)}
+.allRespBtn{padding:10px 18px;font-size:15px}
+.actionRow:first-child .actionBtn.actionBtnResp{flex:2;font-size:15px}
+.allRespBtn:hover,.actionBtn.actionBtnResp:hover{opacity:.9}
+
+.newBadge{display:inline-flex;align-items:center;margin-right:8px;padding:4px 9px;border-radius:99px;background:#ef4444;color:#fff;font-size:11px;font-weight:800;letter-spacing:.02em;vertical-align:middle;animation:newPulse 1.6s ease-in-out infinite}
+@keyframes newPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 7px rgba(239,68,68,0)}}
+@media(prefers-reduced-motion:reduce){.newBadge{animation:none}}
